@@ -2,98 +2,66 @@
 clear params;
 close all
 
+
+% time parameters of the simulation
 tstart = 0;
 tend = 10;
 dt = 0.001;
-e0 = [1-cosd(45) 1-sind(45)];
-
 trange = (tstart:dt:tend)';
-x = zeros(size(trange));
-x(trange > 1 & trange <2) = 10;
-x(trange > 3 & trange <4) = 10;
-x(trange > 5 & trange <7) = -10;
-x = x+ randn(size(x))*1;
 
-params.tau = 1;
+% initial conditions of the attractor
+e0 = [1-cosd(45) 1-sind(45)]';
+
+% input velocity
+x = zeros(size(trange));
+x(trange > 1 & trange <2) = 1;
+x(trange > 3 & trange <4) = 2;
+x(trange > 5 & trange <9) = -1;
+x = x+ randn(size(x))*.1;
 
 
 % ring attractor
-params.W1 = [0 -1 1; 1 0 -1];
-params.W2 = [0 0 0 ; 0 0 0];
+params.Wi = [0 -1 1; 1 0 -1]; % the first two columns act as a rotation matrix, the last column controls the center (should be minus the sum of the other numbers)
+params.Wr = [0 0 0 ; 0 0 0]; % recurrent matrix BIG TODO. need to add some 
+                            % dynamics to make the ring also able to drift and 
+                            % to actually attract activity to the ring when it is not there
+                            % but it is also ok to leave that problem to
+                            % the decoder as the integrator will indeed
+                            % integrate in rings
 [t, e] = ode45(@(t,y)ode2DAttractor(t,y,trange,x,params), trange, e0);
 
 figure
-subplot(3,2,1);
+subplot(2,2,1);
 plot(e(:,1),e(:,2)); set(gca,'xlim',[-1 3],'ylim',[-1 3])
-xlabel( 'Internal unit 1')
-ylabel( 'Internal unit 2')
+xlabel( 'Internal unit 1'), ylabel( 'Internal unit 2')
 title('Ring attractor')
-subplot(3,2,2,'nextplot','add');
-plot(t,x);
-plot(t,e);
+subplot(2,2,2);
+plot(t,[x e]);
 legend({'Input velocity', 'Internal unit 1', 'Internal unit 2'})
 xlabel('Time')
 
 
 % line attractor
-e0 = [1 1];
-Orth1 = [1 1;1 -1]*(sqrt(2)/2);
-D = diag([-1  -0.0001]);
+Orth1 = [1 1;1 -1]*(sqrt(2)/2); % decomposition of the weight matrix
+D = diag([-1  -0.01]); % eigenvalues of the matrix
 
-params.W1 = [0 0 .1; 0 0 -.1];
-Modes = Orth1'*D*Orth1;
-params.W2 = [Modes -sum(Modes,2)]; % add a column at the end to shift the center of the line
+params.Wi = [0 0 .1; 0 0 -.1];
+W = Orth1'*D*Orth1;
+params.Wr = [W -sum(W,2)+e0-1]; % add a column at the end to shift the center of the line
 
 [t, e] = ode45(@(t,y)ode2DAttractor(t,y,trange,x,params), trange, e0);
 
-subplot(3,2,3);
+subplot(2,2,3);
 plot(e(:,1),e(:,2)); set(gca,'xlim',[-1 3],'ylim',[-1 3])
 xlabel( 'Internal unit 1')
 ylabel( 'Internal unit 2')
 title('Line attractor')
-subplot(3,2,4,'nextplot','add');
-plot(t,x);
-plot(t,e);
+subplot(2,2,4);
+plot(t,[x e]);
 legend({'Input velocity', 'Internal unit 1', 'Internal unit 2'})
 xlabel('Time')
 
 
-
-% % line attractor
-% e0 = [1 1];
-% Orth1 = [1 1;1 -1]*(sqrt(2)/2);
-% D = diag([-1  -0.1]);
-% 
-% params.W1 = 0.2*1/2*[0 -1 0; 1 0 0] + 1/2*[0 0 .1; 0 0 -.1];
-% params.W2 = 0.2*1/2*[0 0; 0 0] + 1/2*Orth1'*D*Orth1;
-% 
-% [t, e] = ode45(@(t,y)ode2DAttractor(t,y,trange,x,params), trange, e0);
-% 
-% subplot(3,2,5);
-% plot(e(:,1),e(:,2)); set(gca,'xlim',[-1 3],'ylim',[-1 3])
-% xlabel( 'Internal unit 1')
-% ylabel( 'Internal unit 2')
-% title('Mixed attractor')
-% subplot(3,2,6,'nextplot','add');
-% plot(t,x);
-% plot(t,e);
-% legend({'Input velocity', 'Internal unit 1', 'Internal unit 2'})
-% xlabel('Time')
-
-
-
-%%
-% function yd = ode2DAttractor(t,y,xt,x,params)
-%     x = interp1(xt,x,t); % Interpolate the data set (gt,g) at time t
-%     
-%     y = y-[ 1 1]'; % shift center;
-% 
-%     % v is the input
-%     % y is the current state shifted
-%     yd = (params.W0)*v*(1) + (params.W1)*y(1)*(v) + (params.W2)*y(2)*(v)+ params.W4*y + (params.W3)*(y/(y'*y)-y) ;
-%     yd = yd/params.tau;
-% end
-%%
 function yd = ode2DAttractor(t,y,xt,x,params)
     x = interp1(xt,x,t); % Interpolate the data set (gt,g) at time t
     
@@ -101,26 +69,7 @@ function yd = ode2DAttractor(t,y,xt,x,params)
 
     % x is the input
     % y is the state
-    yd = params.W1*yh*x  + params.W2*yh; %  (params.W3)*(y/(y'*y)-y) ;
-    yd = yd/params.tau;
+    yd = params.Wi*yh*x  + params.Wr*yh;
 end
 
 
-% CONIC POLAR FORM
-% close all
-% 
-% theta = deg2rad(0:0.1:360);
-% 
-% 
-% es = [0.01 0.1 0.7 1 2 100];
-% 
-% figure
-% hold
-% for i=1:length(es)
-%     ep = es(i);
-%     r = ep ./(1-ep*cos(theta-pi/4));
-% 
-%     plot(r.*cos(theta)+1,r.*sin(theta)+1,'o-')
-% end
-% 
-% set(gca,'xlim',[-0 3], 'ylim', [-0 3])
