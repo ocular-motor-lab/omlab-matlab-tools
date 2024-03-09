@@ -2,7 +2,6 @@
 clear params;
 close all
 
-
 % time parameters of the simulation
 tstart = 0;
 tend = 10;
@@ -10,24 +9,32 @@ dt = 0.001;
 trange = (tstart:dt:tend)';
 
 % initial conditions of the attractor
-e0 = [1-cosd(45) 1-sind(45)]';
+e0 = [0 0]';
 
 % input velocity
 x = zeros(size(trange));
-x(trange > 1 & trange <2) = 1;
-x(trange > 3 & trange <4) = 2;
-x(trange > 5 & trange <9) = -1;
+x(trange > 1 & trange <2) = 10;
+x(trange > 3 & trange <4) = 20;
+x(trange > 5 & trange <9) = -10;
 x = x+ randn(size(x))*.1;
 
+e0 = [0 0]';
 
 % ring attractor
-params.Wi = [0 -1 1; 1 0 -1]; % the first two columns act as a rotation matrix, the last column controls the center (should be minus the sum of the other numbers)
-params.Wr = [0 0 0 ; 0 0 0]; % recurrent matrix BIG TODO. need to add some 
-                            % dynamics to make the ring also able to drift and 
-                            % to actually attract activity to the ring when it is not there
-                            % but it is also ok to leave that problem to
-                            % the decoder as the integrator will indeed
-                            % integrate in rings
+params.Wi = [0 -1 1; 1 0 -1]; 
+% the first two columns act as a rotation matrix, the last column controls
+% the center (should be minus the sum of the other numbers) 
+
+A = 1;
+B = 0;
+C = 1;
+D = -2;
+E = -2;
+F = 1;
+params.Wr  = [A B/2 D/2; B/2 C E/2; E/2 D/2 F ];
+
+% conic representation of the attractor
+
 [t, e] = ode45(@(t,y)ode2DAttractor(t,y,trange,x,params), trange, e0);
 
 figure
@@ -42,12 +49,15 @@ xlabel('Time')
 
 
 % line attractor
-Orth1 = [1 1;1 -1]*(sqrt(2)/2); % decomposition of the weight matrix
-D = diag([-1  -0.01]); % eigenvalues of the matrix
+A = 0;
+B = 0;
+C = 0;
+D = 1;
+E = 1;
+F = -(D+E);
+params.Wr  = [A B/2 D/2; B/2 C E/2; E/2 D/2 F ];
 
 params.Wi = [0 0 .1; 0 0 -.1];
-W = Orth1'*D*Orth1;
-params.Wr = [W -sum(W,2)+e0-1]; % add a column at the end to shift the center of the line
 
 [t, e] = ode45(@(t,y)ode2DAttractor(t,y,trange,x,params), trange, e0);
 
@@ -69,7 +79,16 @@ function yd = ode2DAttractor(t,y,xt,x,params)
 
     % x is the input
     % y is the state
-    yd = params.Wi*yh*x  + params.Wr*yh;
+
+    % the first term is the effect of the input non linearly associated
+    % with the current state to allow for rotations
+
+    % the second term is the one that attracts to the conic curve
+    % which can be a line, a circle or whatever. 
+
+    % right now missing is the additional point attractor to allow for
+    % leakiness. 
+    yd = params.Wi*yh*x - [1 0 0 ; 0 1 0]*(4*yh'*params.Wr*yh*params.Wr*yh);
 end
 
 

@@ -18,9 +18,10 @@ end
 
 set(gca,'xlim',[-0 3], 'ylim', [-0 3])
 
-
 %%
-[x1,x2] = meshgrid(-2:0.1:2,-2:0.1:2);
+close all
+
+[x1,x2] = meshgrid(-1:0.1:2,-1:0.1:2);
 
 X = [x1(:) x2(:) ones(size(x1(:)))];
 
@@ -29,39 +30,39 @@ X = [x1(:) x2(:) ones(size(x1(:)))];
 A = 1;
 B = 0;
 C = 1;
-D = 0;
-E = 0;
-F = -1;
+D = -2;
+E = -2;
+F = 1;
 
-% line
-
+% % line
+% 
 A = 0;
 B = 0;
 C = 0;
 D = 1;
 E = 1;
-F = -1;
+F = -2;
 
+% 
+% % Ellipse
+% 
+% A = 1;
+% B = 0;
+% C = 5;
+% D = 0;
+% E = 0;
+% F = -1;
 
-% Ellipse
-
-A = 1;
-B = 0;
-C = 5;
-D = 0;
-E = 0;
-F = -1;
-
-
-
-% hyperbola
-
-A = 1;
-B = 0;
-C = -1;
-D = 0;
-E = 0;
-F = -1;
+% 
+% 
+% % hyperbola
+% 
+% A = 1;
+% B = 0;
+% C = -1;
+% D = 0;
+% E = 0;
+% F = -1;
 
 
 
@@ -80,9 +81,6 @@ for i=1:height(X)
 end
 
 figure
-subplot(1,3,1)
-imagesc(log(0.001+reshape(y,size(x1))))
-subplot(1,3,2)
-imagesc(reshape(g(:,1),size(x1)))
-subplot(1,3,3)
-imagesc(reshape(g(:,2),size(x1)))
+contour(x1,x2,reshape(y,size(x1)),40)
+hold
+quiver(x1,x2,-reshape(g(:,1),size(x1)), -reshape(g(:,2),size(x1)))
