@@ -4,7 +4,7 @@ close all
 
 % time parameters of the simulation
 tstart = 0;
-tend = 10;
+tend = 20;
 dt = 0.001;
 trange = (tstart:dt:tend)';
 
@@ -31,18 +31,19 @@ C = 1;
 D = -2;
 E = -2;
 F = 1;
-params.Wr  = [A B/2 D/2; B/2 C E/2; E/2 D/2 F ];
+params.Wr  = [A B/2 D/2; B/2 C E/2; D/2 E/2 F ];
 
 % conic representation of the attractor
 
 [t, e] = ode45(@(t,y)ode2DAttractor(t,y,trange,x,params), trange, e0);
 
 figure
-subplot(2,2,1);
+subplot(2,3,1);
 plot(e(:,1),e(:,2)); set(gca,'xlim',[-1 3],'ylim',[-1 3])
 xlabel( 'Internal unit 1'), ylabel( 'Internal unit 2')
 title('Ring attractor')
-subplot(2,2,2);
+set(gca,'PlotBoxAspectRatio',[1 1 1])
+subplot(2,3,[2 3]);
 plot(t,[x e]);
 legend({'Input velocity', 'Internal unit 1', 'Internal unit 2'})
 xlabel('Time')
@@ -55,18 +56,19 @@ C = 0;
 D = 1;
 E = 1;
 F = -(D+E);
-params.Wr  = [A B/2 D/2; B/2 C E/2; E/2 D/2 F ];
+params.Wr  =  [A B/2 D/2; B/2 C E/2; D/2 E/2 F ];
 
 params.Wi = [0 0 .1; 0 0 -.1];
 
 [t, e] = ode45(@(t,y)ode2DAttractor(t,y,trange,x,params), trange, e0);
 
-subplot(2,2,3);
+subplot(2,3,4);
 plot(e(:,1),e(:,2)); set(gca,'xlim',[-1 3],'ylim',[-1 3])
 xlabel( 'Internal unit 1')
 ylabel( 'Internal unit 2')
 title('Line attractor')
-subplot(2,2,4);
+set(gca,'PlotBoxAspectRatio',[1 1 1])
+subplot(2,3,[5 6]);
 plot(t,[x e]);
 legend({'Input velocity', 'Internal unit 1', 'Internal unit 2'})
 xlabel('Time')
@@ -80,15 +82,17 @@ function yd = ode2DAttractor(t,y,xt,x,params)
     % x is the input
     % y is the state
 
-    % the first term is the effect of the input non linearly associated
-    % with the current state to allow for rotations
+    % the first term is the movement along the attractor. It can be either
+    % driven by the input or by a leak towards a point in the attractor.
 
     % the second term is the one that attracts to the conic curve
     % which can be a line, a circle or whatever. 
 
-    % right now missing is the additional point attractor to allow for
-    % leakiness. 
-    yd = params.Wi*yh*x - [1 0 0 ; 0 1 0]*(4*yh'*params.Wr*yh*params.Wr*yh);
+
+    yd = (x-0.2*(-yh(1)+y(2)))*[0 -1 0;1 0 0; 0 0 0]*params.Wr*yh- (4*yh'*params.Wr*yh*params.Wr*yh);
+
+    yd = yd(1:2);
+    
 end
 
 
