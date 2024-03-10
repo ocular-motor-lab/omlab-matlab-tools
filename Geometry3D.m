@@ -199,6 +199,13 @@ classdef Geometry3D
         end
 
         function displayRefFrame(Xnew,Ynew,Znew)
+            set(gca,'nextplot','add')
+            if ( nargin == 1)
+                M = Xnew;
+                Xnew = M(:,1);
+                Ynew = M(:,2);
+                Znew = M(:,3);
+            end
             quiver3(0,0,0,Xnew(1),Xnew(2),Xnew(3), 'linewidth',2)
             quiver3(0,0,0,Ynew(1),Ynew(2),Ynew(3), 'linewidth',2)
             quiver3(0,0,0,Znew(1),Znew(2),Znew(3), 'linewidth',2)
