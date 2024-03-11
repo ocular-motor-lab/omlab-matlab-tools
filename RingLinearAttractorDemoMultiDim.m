@@ -1,12 +1,10 @@
 %% attractor simulation
 clear params;
-% close all
+close all
 
 % time parameters of the simulation
-tstart = 0;
-tend = 20;
 dt = 0.001;
-trange = (tstart:dt:tend)';
+t = (0:dt:20)';
 
 % initial conditions of the attractor
 n = 20;
@@ -15,10 +13,10 @@ y0(2) = 1;
 y0 = randn(n,1);
 
 % input velocity
-x = zeros(size(trange));
-x(trange > 1 & trange <2) = 10;
-x(trange > 3 & trange <4) = 20;
-x(trange > 5 & trange <9) = -15;
+x = zeros(size(t));
+x(t > 1 & t <2) = 10;
+x(t > 3 & t <4) = 20;
+x(t > 5 & t <9) = -15;
 x = x+ randn(size(x))*0;
 x=x*0.1;
 % ring attractor
@@ -29,15 +27,14 @@ C = 1;
 D = 0;
 E = 0;
 F = -2;
-% A = 0;
-% B = -1;
-% C = 1;
-% D = -1;
-% E = -1;
-% F = 1;
-params.Aq  = [A B/2 D/2; B/2 C E/2; D/2 E/2 F ];
+Aq  = [A B/2 D/2; B/2 C E/2; D/2 E/2 F ];
 
+T = cat(3, ...
+    [1 0 0 ;    0 1 0 ;  0 0 0;], ...
+    [0 -1 0 ;   1 0 0 ;  0 0 0;]);
 
+% convoluted way to find two orthogonal vectors to be a base of the
+% subspace that contains the manifold.
 phases =  ((1:n)-1) * 2*pi ./ n;
 p1 = zeros(size(phases));
 p2 = cos(0 + phases);
@@ -51,107 +48,68 @@ a2=a2/norm(a2);
 %     way to get a coplanar vector to a1
 %     and a2 that is orthogonal to a1;
 
-A = [a1' a2']; % basis of the subspace plane containing the manifold
-P = inv(A'*A)*A'; % projection matrix to the plane
+S = [a1' a2']; % basis of the subspace plane containing the manifold
+P = inv(S'*S)*S'; % projection matrix to the plane
 
-B = [P zeros(2,1); zeros(1,n) 1]; % homogenous projection matrix to allow translation of the plane away from zero 
-A = [A ones(n,1); zeros(1,2) 1]; 
+P = [P zeros(2,1); zeros(1,n) 1]; % homogenous projection matrix to allow translation of the plane away from zero 
+S = [S ones(n,1); zeros(1,2) 1]; 
 
+[t, yout] = ode45(@(ti,yi)odeAttractorND(yi,interp1(t,x,ti), Aq, S, P, T), t, y0);
 
-
-
-params.FP = zeros(n,1); % no fixed point for now.
-params.Gleak = 0*0.2;
-params.B = B;
-params.A = A;
-
-[t, e] = ode45(@(t,y)ode2DAttractor(t,y,trange,x,params), trange, y0);
-
-figure
-subplot(3,3,1);
-plot(e(:,1),e(:,2)); set(gca,'xlim',[-1 3],'ylim',[-1 3])
-xlabel( 'Internal unit 1'), ylabel( 'Internal unit 2')
-title('Ring attractor')
-set(gca,'PlotBoxAspectRatio',[1 1 1])
-subplot(3,3,[2 3]);
-e = exp(length(y0)*e);
-plot(t,[x e]);
-legend({'Input velocity', 'Internal unit 1', 'Internal unit 2'})
-xlabel('Time')
-subplot(3,3,[4:9]);
-imagesc(e')
-set(gca,'clim', [min(min(e(trange>1,:))), max(max(e(trange>1,:)))]) % make the clim ignore the first 100 timepoints
+PlotRun(t,x,yout);
 
 
-
-
-% figure
-% 
-% C= cov(e);
-% M= mean(e);
-% [V,D]= eig(C);
-% P = V * diag(sqrt(1./(diag(D) + 0.1))) ;
-% W1 = bsxfun(@minus, e, M);
-% W = W1 * P;
-% 
-% subplot(1,length(y0), 1)
-% plot(W(:,end),W(:,end-1),'o')
-% hold
-% ee=params.B*[e ones(height(e),1)]';
-% plot(ee(1,:),ee(2,:),'rx')
-% 
-% for i=1:length(y0)-1
-%     subplot(1,length(y0), i+1)
-%     plot(e(:,i),e(:,i+1),'o')
-% end
-
-function yd = ode2DAttractor(t,y,xt,xi,params)
-    x = interp1(xt,xi,t); % Interpolate the data set (xt,xi) at time t
-    
-
+function yd = odeAttractorND( y, x, A, S, P, T)
     y = [y;1]; % make it homogeneous
-
-    % x is the input
-    % y is the state/output of the atractor
-
-    W = params.Aq;
-    Ortho1 = [0 -1 0;1 0 0; 0 0 0]; %rotates Wy to get the orthogonal direction along the attractor
     
-    yb = params.B*y; % project into the plane that contains the manifold
+    yb = P*y; % project into the plane that contains the manifold
+    
+    yd = - (4*yb'*A*yb) * T(:,:,1) * A*yb ... % movement towards the attractor
+                  + x * T(:,:,2) * A*yb ;   % movement along the attractor driven by the input
 
-    yd = x*Ortho1*W*yb   -   (4*yb'*W*yb)*W*yb ;
-
-
-    yd = params.A*yd + 10*(params.A*yb-y); % need to add this term to attract to the plane
+    yd = S*yd + 10*(S*yb-y); % need to add this term to attract to the plane. TODO: not sure
     yd = yd(1:end-1);
-    
-    
-    % the first term is the movement along the attractor. It can be either
-    % driven by the input or by a leak towards a point in the attractor.
-
-    % right now the leak component is not ideal and does not extend to 3D
-    % it is sort of a cross product between the current position along the
-    % attractor and the set point. So you get the velocity that you need to
-    % drift by depending on how far you are. In this case I am assuming
-    % the set point is along the diagonal. But that is something that
-    % should be done via weights that need to learned too. 
-
-    % the second term is the one that attracts to the conic curve
-    % which can be a line, a circle or whatever. 
-
-    % the first term needs to learn the cross product or quaternion product
-    % (when we move to more dimensions)
-    % for more dimensions we need to calculate the cross product (somehow
-    % corrected by manifold shape) between the fixeed point and the current
-    % point. That will give the leak velocity which can be added in all
-    % components to x. Then x needs to be a applied along the orthogonal
-    % dimensions to the Aq*yb which is a vector towards the manifold. So
-    % those orthogonal components are the components along the manifold. 
-
-    % I stil think there may be a way to combine the two components with a
-    % single tensor. The tensor will define how much to movement a long
-    % each of the components. 1 towards the attractor and n-1 along the
-    % attractor + 1 along the input regarless of attractor
-
 end
 
+
+function PlotRun(t,x,yout)
+    figure
+    subplot(3,3,1);
+    c = linspace(1,255,length(yout));
+    scatter(yout(:,1),yout(:,2),[],c); set(gca,'xlim',[-1 3]*1.2,'ylim',[-1 3]*1.2), colormap(gca,'jet')
+    xlabel( 'unit 1'), ylabel( 'unit 2')
+    set(gca,'PlotBoxAspectRatio',[1 1 1])
+    
+    subplot(3,3,4);
+    scatter(yout(:,2),yout(:,3),[],c);  set(gca,'xlim',[-1 3]*1.2,'ylim',[-1 3]*1.2), colormap(gca,'jet')
+    xlabel( 'unit 2'), ylabel( 'unit 3')
+    set(gca,'PlotBoxAspectRatio',[1 1 1])
+    
+    subplot(3,3,7);
+    scatter(yout(:,3),yout(:,4),[],c);  set(gca,'xlim',[-1 3]*1.2,'ylim',[-1 3]*1.2), colormap(gca,'jet')
+    xlabel( 'unit 3'), ylabel( 'unit 4')
+    set(gca,'PlotBoxAspectRatio',[1 1 1])
+    
+    subplot(3,3,[2 3]);
+    plot(t,x,'linewidth',2);hold
+    plot(t,yout);
+    legend({'Input velocity x'})
+    xlabel('Time')
+    title('Wide tunning - cos(angle)')
+
+    subplot(3,3,[5 6]);
+    plot(t,x,'linewidth',2);hold
+    plot(t,exp(width(yout)*yout));
+    legend({'Input velocity x'})
+    xlabel('Time')
+    set(gca,'ylim',  exp(width(yout)*[min(min(yout(t>1,:))), max(max(yout(t>1,:)))]))
+    title('Narrow tunning  - e^\(Nunits*cos(angle))')
+
+
+    subplot(3,3,[8 9]);
+    imagesc(exp(width(yout)*yout)');
+    set(gca,'clim', exp(width(yout)*[min(min(yout(t>1,:))), max(max(yout(t>1,:)))])) % make the clim ignore the first 100 timepoints
+    xlabel('Time')
+    ylabel('units')
+    set(gca,'xticklabel',[],'yticklabel',[])
+end
