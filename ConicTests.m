@@ -103,8 +103,8 @@ end
 subplot(1,2,2)
 contour(x1,x2,reshape(log(.1+y),size(x1)),40)
 hold
-% quiver(x1,x2,-reshape(d(:,1),size(x1)), -reshape(d(:,2),size(x1)))
-quiver(x1,x2,-reshape(g(:,1),size(x1)), -reshape(g(:,2),size(x1)),'r')
+ quiver(x1,x2,-reshape(d(:,1),size(x1)), -reshape(d(:,2),size(x1)))
+%quiver(x1,x2,-reshape(g(:,1),size(x1)), -reshape(g(:,2),size(x1)),'r')
 
 set(gca,'PlotBoxAspectRatio',[1 1 1])
 %%
