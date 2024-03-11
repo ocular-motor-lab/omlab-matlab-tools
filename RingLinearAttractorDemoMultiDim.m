@@ -7,7 +7,7 @@ dt = 0.001;
 t = (0:dt:20)';
 
 % initial conditions of the attractor
-n = 20;
+n = 50;
 y0 = zeros(n,1);
 y0(2) = 1;
 y0 = randn(n,1);

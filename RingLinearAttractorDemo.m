@@ -33,6 +33,7 @@ Gleak = 0.2;
 [t, yout] = ode45(@(ti,yi)odeAttractor2D(yi,interp1(t,x,ti),Aq,T,Gleak,FP), t, y0);
 
 figure
+    c = linspace(1,255,length(yout));
 subplot(3,3,1);
 scatter(yout(:,1),yout(:,2),[],c); set(gca,'xlim',[-1 3]*1.2,'ylim',[-1 3]*1.2), colormap(gca,'jet')
 xlabel( 'Internal unit 1'), ylabel( 'Internal unit 2')
