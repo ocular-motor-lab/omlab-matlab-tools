@@ -15,6 +15,12 @@ v(t > 1 & t <2, 1) = 1; % angular velocity around x
 v(t > 3 & t <4, 2) = 5; % angular velocity around y
 v(t > 5 & t <9, 3) = -1; % angular velocity around z
 
+% position inputs
+p1 = zeros(length(t),4); 
+p1(t > 16 & t <20, :) = repmat(eul2quat(deg2rad([30,0,0])), sum(t > 16 & t <20),1);
+p2 = zeros(length(t),4); 
+p2(t > 16 & t <20, :) = 10*repmat(eul2quat(deg2rad([20,0,0])), sum(t > 16 & t <20),1);
+
 % so3 attractor matrix definition, conic section extended to be the
 % hypersphere containing SO3. x'Ax =0 if x1^2 + x2^2 + x3^2 + x4^2 - 1 = 0
 A = eye(5);
@@ -22,7 +28,7 @@ A(end,end)=-1;
 
 % fixed point the system drift towards in the absence of input. 
 xf = [1 0 0 0]';
-Gf = 0.4; % gain of the drift towards the fixed point.
+Gf = 1; % gain of the drift towards the fixed point.
 
 % A tensor represents the group action inducing moving towards the
 % attractor (first row) and along the atractor (next rows).
@@ -32,21 +38,25 @@ T = cat(3, ...
     [0 0 -1 0 0;   0 0 0 1 0;  1 0 0 0 0;  0 -1 0 0 0; 0 0 0 0 0], ...
     [0 0 0 -1 0;   0 0 -1 0 0; 0 1 0 0 0;  1 0 0 0 0;  0 0 0 0 0]);
 
-[t, xout] = ode45(@(ti,xi)odeAttractor4D(ti, xi, interp1(t,v,ti)', A,T, xf, Gf), t, x0);
+[t, xout] = ode45(@(ti,xi)odeAttractor4D(...
+    ti, xi, ...
+    interp1(t,v,ti)', interp1(t,p1,ti)', interp1(t,p2,ti)', ...
+    A,T, xf, Gf), ...
+    t, x0);
 
 PlotRun(t,v,xout);
 
-function xd = odeAttractor4D( t, x, v, A, T, xf, Gf)
+function xd = odeAttractor4D( t, x, v, p1, p2, A, T, xf, Gf)
     if ( t > 16)
         a=1;
     end
     
     x = [x;1]; % make it homogeneous
     
-    M = [T(:,:,1) * A*x, ... % movement towards the attractor
-         T(:,:,2) * A*x, ... % movement along the attractor dim1 driven by the input
-         T(:,:,3) * A*x, ... % movement along the attractor dim2 driven by the input
-         T(:,:,4) * A*x];    % movement along the attractor dim3 driven by the input
+    M = [T(:,:,1) * A*x, ... % direction of movement towards the attractor
+         T(:,:,2) * A*x, ... % direction of movement along the attractor dim1 driven by the input
+         T(:,:,3) * A*x, ... % direction of movement along the attractor dim2 driven by the input
+         T(:,:,4) * A*x];    % direction of movement along the attractor dim3 driven by the input
     
     % distance between the current point and the fixed point. Ideally this
     % should be the difference in integral along the manifold. But I don't
@@ -54,16 +64,21 @@ function xd = odeAttractor4D( t, x, v, A, T, xf, Gf)
     % should aproximately work.
     % Then project that distance into M directions to see how much we need
     % to move along each of them. Effectively the dot product
-    driftv = M' * ([xf;1] - x);
+    driftv = Gf*M' * ([xf;1] - x);
+
+    % same thing for each of the position inputs
+    driftv = driftv + M' * ([p1;1] - x) + M' * ([p2;1] - x);
 
     % The total velocity now is the velocity input and the velocity towards
     % the fixed point and the velocity towards 
     totalv = [ - (4*x'*A*x); ... % velocity towards the attractor
-              v +  Gf*driftv(2:end)]; % velocity along the attractor
+              v + driftv(2:end)]; % velocity along the attractor
 
+    % Scale the directions of motion by the velocity
     xd = M * totalv;
     
-    xd = xd(1:end-1); % remove the homogenous component
+    % remove the homogenous component
+    xd = xd(1:end-1); 
 end
 
 function PlotRun(t,x,xout)
