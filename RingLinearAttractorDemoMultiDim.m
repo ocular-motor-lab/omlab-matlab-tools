@@ -1,6 +1,6 @@
 %% attractor simulation
 clear params;
-close all
+% close all
 
 % time parameters of the simulation
 dt = 0.001;
@@ -8,16 +8,16 @@ t = (0:dt:20)';
 
 % initial conditions of the attractor
 n = 20;
-y0 = zeros(n,1);
-y0(5) = 5;
+x0 = zeros(n,1);
+x0(5) = 5;
 % y0 = randn(n,1);
 % input velocity
-x = zeros(size(t));
-x(t > 1 & t <2) = 10;
-x(t > 3 & t <4) = 20;
-x(t > 5 & t <9) = -15;
-x = x+ randn(size(x))*0;
-x=x*0.1;
+v = zeros(size(t));
+v(t > 1 & t <2) = 10;
+v(t > 3 & t <4) = 20;
+v(t > 5 & t <9) = -15;
+v = v+ randn(size(v))*0;
+v=v*0.1;
 % ring attractor
 A = 1;
 B = 0;
@@ -43,21 +43,22 @@ a2=a2/norm(a2);
 %     way to get a coplanar vector to a1
 %     and a2 that is orthogonal to a1;
 S = [a1' a2']; % basis of the subspace plane containing the manifold
-P = inv(S'*S)*S'; % projection matrix to the plane
-P = [P zeros(2,1); zeros(1,n) 1]; % homogenous projection matrix to allow translation of the plane away from zero 
-S = [S ones(n,1); zeros(1,2) 1]; 
-[t, yout] = ode45(@(ti,yi)odeAttractorND(yi,interp1(t,x,ti), Aq, S, P, T), t, y0);
-PlotRun(t,x,yout);
-function yd = odeAttractorND( y, x, A, S, P, T)
-    y = [y;1]; % make it homogeneous
-    
-    yb = P*y; % project into the plane that contains the manifold
-    
-    yd = - (4*yb'*A*yb) * T(:,:,1) * A*yb ... % movement towards the attractor
-                  + x * T(:,:,2) * A*yb ;   % movement along the attractor driven by the input
-    yd = S*yd + 10*(S*yb-y); % need to add this term to attract to the plane. TODO: not sure
-    yd = yd(1:end-1);
-end
+% P = inv(S'*S)*S'; % projection matrix to the plane
+% P = [P zeros(2,1); zeros(1,n) 1]; % homogenous projection matrix to allow translation of the plane away from zero 
+% S = [S ones(n,1); zeros(1,2) 1]; 
+
+p= zeros(length(t),2);
+
+[t, xout] = ode45(@(ti,xi)odeAttractorND(...
+    ti, xi, ...
+    interp1(t,v,ti)', interp1(t,p,ti)', ...
+    Aq,T,S, xf), ...
+    t, x0); 
+
+
+PlotRun(t,v,yout);
+
+
 function PlotRun(t,x,yout)
     figure
     subplot(3,3,1);

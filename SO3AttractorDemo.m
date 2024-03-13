@@ -2,7 +2,7 @@
 %% Jorge Otero-Millan 3/10/2024
 % close all
 N = 4; % 2 ring, 3 sphere, 4 quaternions (SO3);
-n = 4;
+n = 40;
 rng(1)
 
 % time parameters of the simulation
@@ -26,13 +26,13 @@ v(t > 9 & t <12, 1) = -5; % angular velocity around z
 v(t > 9 & t <12, 2) = 20; % angular velocity around z
 
 % fixed point the system drift towards in the absence of input. 
-xf = 1*[1 0 0 0]'; % multiply by  gain of the drift towards the fixed point.
+xf = 0.2*[1 0 0 0]'; % multiply by  gain of the drift towards the fixed point.
 
 % position inputs (we have two to test bayesian integrator, together with
 % the fixed point as a prior)
 p = zeros(length(t),4); 
-Gp1 = 10;
-Gp2 = 5;
+Gp1 = 1;
+Gp2 = .5;
 p(t > 14 & t <16, :) = ... 
     Gp1*repmat(eul2quat(deg2rad([60,0,0])), sum(t > 14 & t <16),1);
 p(t > 16 & t <17, :) = ... 
@@ -61,53 +61,18 @@ T = cat(3, ...
     [0 0 -1 0 0;   0 0 0 1 0;  1 0 0 0 0;  0 -1 0 0 0; 0 0 0 0 0], ...
     [0 0 0 -1 0;   0 0 -1 0 0; 0 1 0 0 0;  1 0 0 0 0;  0 0 0 0 0]);
 
-[t, xout] = ode45(@(ti,xi)odeAttractor4D(...
+[t, xout] = ode45(@(ti,xi)odeAttractorND(...
     ti, xi, ...
-    interp1(t,v,ti)', interp1(t,p,ti)', ...
-    A,T,S, xf), ...
+    interp1(t,v,ti)', S*interp1(t,p,ti)', ...
+    A,T,S, S*xf), ...
     t, x0);
 
 PlotRun(t,v,p, xout,inv(S'*S)*S'*xout');
 
-function xd = odeAttractor4D( ti, xi, vi, pi, A, T, S, xf)
 
-    n = length(xi); % dimensions space
-    np = size(S,2); % dimensions of the subspace containing the manifold
-    P = inv(S'*S)*S'; % projection matrix to the plane
-    
-    P = [P zeros(np,1); zeros(1,n) 1]; % homogenous projection matrix to allow translation of the plane away from zero
-    S = [S zeros(n,1); zeros(1,np) 1];
+%% 
 
 
-    x   = [xi;1]; % make it homogeneous
-    xf  = [xf;1]; 
-    p   = [pi;1];
-    v   = vi;
-
-    xx = x;
-    x = P*x;
-    
-
-    % Tensor product to rotate an orthogonal frame and align it with the
-    % surface of the attractor.
-    % Dim1 is the direction of movement towards the attractor
-    % Dims 1..n are the directions of movement along the attractor dim1
-    % driven by the input 
-    M = zeros(length(x),size(T,3));
-    for i=1:size(T,3)
-        M(:,i) = T(:,:,i) * A*x;
-    end
-
-    % Scale the directions of motion by the velocity
-    xd = M * [ - (4*x'*A*x);    ...    % velocity towards the attractor
-              v ]               ...    % velocity along the attractor scaled by velocity input
-         + (xf - x)             ...    % velocity towards the fixed point (prior)
-         + (p - x);             ...    % velocity towards the position input (likelihood)
-
-    % remove the homogenous component
-    xd = S*xd + 10*(S*x-xx); % added velocity towards the manifold subspace
-    xd = xd(1:end-1);
-end
 
 function PlotRun(t,v,p,xout, xoutM)
     figure
