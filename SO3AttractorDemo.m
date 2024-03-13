@@ -2,7 +2,7 @@
 %% Jorge Otero-Millan 3/10/2024
 % close all
 N = 4; % 2 ring, 3 sphere, 4 quaternions (SO3);
-n = 20;
+n = 4;
 rng(1)
 
 % time parameters of the simulation
@@ -14,33 +14,35 @@ t = (0:dt:20)';
 x0 = randn(n,1); % point outside the attractor to show initial drift towards it
 
 % velocity input
-v = zeros(length(t),3); 
-v(t > 3 & t <4, 1) = 5; % angular velocity around x 
-v(t > 4 & t <5, 1) = -5;
-v(t > 6 & t <7, 2) = 5; % angular velocity around y
-v(t > 7 & t <8, 2) = -5; 
-v(t > 9 & t <10, 3) = -5; 
-v(t > 10 & t <11, 3) = -5; % angular velocity around z
+v = zeros(length(t),3);
+v(t > 3 & t <3.5, 1) = 5; % angular velocity around x
+v(t > 3.5 & t < 4, 1) = -5;
+v(t > 5 & t <5.5, 2) = 5; % angular velocity around y
+v(t > 5.5 & t <6, 2) = -5;
+v(t > 7 & t <7.5, 3) = 5; % angular velocity around z
+v(t > 7.5 & t <8, 3) = -5;
 
-v(t > 12 & t <16, 1) = -5; % angular velocity around z
-v(t > 12 & t <16, 1) = 20; % angular velocity around z
+v(t > 9 & t <12, 1) = -5; % angular velocity around z
+v(t > 9 & t <12, 2) = 20; % angular velocity around z
 
 % fixed point the system drift towards in the absence of input. 
-xf = 10*[1 0 0 0]'; % multiply by  gain of the drift towards the fixed point.
+xf = 1*[1 0 0 0]'; % multiply by  gain of the drift towards the fixed point.
 
 % position inputs (we have two to test bayesian integrator, together with
 % the fixed point as a prior)
 p = zeros(length(t),4); 
-Gp1 = 0;
-Gp2 = 0;
-p(t > 12 & t <16, :) = ... 
-    Gp1*repmat(eul2quat(deg2rad([60,0,0])), sum(t > 12 & t <16),1)+ ...
-    Gp2*repmat(eul2quat(deg2rad([0,0,0])), sum(t > 12 & t <16),1);
+Gp1 = 10;
+Gp2 = 5;
+p(t > 14 & t <16, :) = ... 
+    Gp1*repmat(eul2quat(deg2rad([60,0,0])), sum(t > 14 & t <16),1);
+p(t > 16 & t <17, :) = ... 
+    Gp1*repmat(eul2quat(deg2rad([60,0,0])), sum(t > 16 & t <17),1)+ ...
+    Gp2*repmat(eul2quat(deg2rad([20,0,0])), sum(t > 16 & t <17),1);
 
 % so3 attractor matrix definition, conic section extended to be the
 % hypersphere containing SO3. x'Ax =0 if x1^2 + x2^2 + x3^2 + x4^2 - 1 = 0
 A = eye(5);
-A(end,end)=-20;
+A(end,end)=-1;
 
 % base of the subspace that contains the attractor
 if ( N==n)
@@ -126,7 +128,6 @@ function PlotRun(t,v,p,xout, xoutM)
     xlabel( 'unit 3'), ylabel( 'unit 4')
     set(gca,'PlotBoxAspectRatio',[1 1 1])
     
-
     subplot(6,3,[2 3]);
     plot(t,v,'linewidth',2);
     set(gca,'xticklabel',[],'yticklabel',[])
@@ -142,28 +143,19 @@ function PlotRun(t,v,p,xout, xoutM)
     set(gca,'xticklabel',[],'yticklabel',[])
     title('Network units')
 
-
     subplot(6,3,[2 3 5 6]+9);
     imagesc([t(1) t(end)],[1 width(xout)], xout')
     set(gca,'clim', [min(min(xout(t>1,:))), max(max(xout(t>1,:)))]) % make the clim ignore the first 100 timepoints
     ylabel('units')
     set(gca,'xticklabel',[],'yticklabel',[])
 
-
-    % nunits = size(xout,2);
-    % subplot(6,3,[2 3]+12);
-    % imagesc(exp(nunits*xout'))
-    % % set(gca,'clim', [min(min(xout(t>1,:))), max(max(xout(t>1,:)))]) % make the clim ignore the first 100 timepoints
-    % ylabel('units')
-    % set(gca,'xticklabel',[],'yticklabel',[])
-
     subplot(6,3,[2 3]+15);
     angles = rad2deg(quat2eul(xoutM','XYZ'));
     plot(t,angles);
     xlabel('Time')
     ylabel('angle(deg)')
-    title('Decoded angle')
+    title('Decoded angle (euler XYZ)')
 
     h = get(gcf,'children');
-    linkaxes(h([1 2 3 4 5 6]),'x');
+    linkaxes(h([1 2 3 4 5]),'x');
 end
