@@ -26,7 +26,7 @@ function xd = odeAttractorND( ti, xi, vi, pi, A, T, S, xf)
 %
 
     [n, m] = size(S); % dimensions space and subspace
-    q = size(T,3); % number of input dimensions
+    q = size(T,3)-1; % number of input dimensions
     
     P = [S' zeros(m,1); zeros(1,n) 1]; % homogenous projection matrix to allow translation of the plane away from zero
     S = [S zeros(n,1); zeros(1,m) 1];
@@ -50,8 +50,8 @@ function xd = odeAttractorND( ti, xi, vi, pi, A, T, S, xf)
 %     xd = xd + norm(xf)*(P*xf - P*x)  ...    % velocity towards the fixed point (prior)
 %             + norm(p)*(P*p - P*x);   ...    % velocity towards the position input (likelihood)
 %             
-    xd(2:end) = xd(2:end) + M(:,2:end)*(P*xf - P*x)  ...    % velocity towards the fixed point (prior)
-            + M(:,2:end)*(P*p  - P*x);   ...    % velocity towards the position input (likelihood)
+    xd = xd+ norm(xf)*M*diag([0 ones(1,q)])*M'*(P*xf - P*x) ...    % velocity towards the fixed point (prior)
+            + norm(p)*M*diag([0 ones(1,q)])*M'*(P*p  - P*x);   ...    % velocity towards the position input (likelihood)
 
     % remove the homogenous component
     xd = S*xd + 10*(S*P*x-x); % added velocity towards the manifold subspace

@@ -1,8 +1,8 @@
 %% SO3 attractor simulation
 %% Jorge Otero-Millan 3/10/2024
-% close all
+close all
 N = 4; % 2 ring, 3 sphere, 4 quaternions (SO3);
-n = 40;
+n = 4;
 rng(1)
 
 % time parameters of the simulation
@@ -26,13 +26,13 @@ v(t > 9 & t <12, 1) = -5; % angular velocity around z
 v(t > 9 & t <12, 2) = 20; % angular velocity around z
 
 % fixed point the system drift towards in the absence of input. 
-xf = 0.2*[1 0 0 0]'; % multiply by  gain of the drift towards the fixed point.
+xf =1*[1 0 0 0]'; % multiply by  gain of the drift towards the fixed point.
 
 % position inputs (we have two to test bayesian integrator, together with
 % the fixed point as a prior)
 p = zeros(length(t),4); 
-Gp1 = 1;
-Gp2 = .5;
+Gp1 = 10;
+Gp2 = 5;
 p(t > 14 & t <16, :) = ... 
     Gp1*repmat(eul2quat(deg2rad([60,0,0])), sum(t > 14 & t <16),1);
 p(t > 16 & t <17, :) = ... 
