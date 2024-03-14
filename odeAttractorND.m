@@ -28,6 +28,8 @@ function xd = odeAttractorND( ti, xi, vi, pi, A, T, S, xf)
     [n, m] = size(S); % dimensions space and subspace
     q = size(T,3)-1; % number of input dimensions
     
+    % P = inv(S'*S)*S'; % projection matrix to the plane if S not
+    % orthonormal
     P = [S' zeros(m,1); zeros(1,n) 1]; % homogenous projection matrix to allow translation of the plane away from zero
     S = [S zeros(n,1); zeros(1,m) 1];
 

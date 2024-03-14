@@ -2,7 +2,7 @@
 %% Jorge Otero-Millan 3/10/2024
 close all
 N = 4; % 2 ring, 3 sphere, 4 quaternions (SO3);
-n = 4;
+n = 40;
 rng(1)
 
 % time parameters of the simulation
