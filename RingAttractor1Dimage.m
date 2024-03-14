@@ -1,13 +1,13 @@
 %% attractor simulation
 clear params;
- % close all
+ close all
 % time parameters of the simulation
 dt = 0.01;
 t = (0:dt:20)';
 
 % initial conditions of the attractor
 n = 3;
-k=200;
+k=20;
 
 I = randn(k,1);
 
@@ -72,15 +72,29 @@ p= zeros(length(t),2);
 
 [n, m] = size(S); % dimensions space and subspace
 P = inv(S'*S)*S';
+P1 = P;
 P = [P zeros(m,1); zeros(1,n) 1]; 
 xm = (P*[xout ones(height(xout),1)]')';
-S = [S zeros(n,1); zeros(1,m) 1];
+S2 = [S zeros(n,1); zeros(1,m) 1];
 
-PlotRun(t,v,xout, xm(:,1:end-1),S);
+PlotRun(t,v,xout, xm(:,1:end-1),S2);
+
+
+
+a = diag(ones(k-1,1),-1) + diag(ones(1,1),+(k-1));
+
+RR = zeros(length(I));
+for i=1:length(I)
+    for j=1:length(I)
+        RR(i,j) = a^round();
+    end
+end
 
 
 Iout = zeros(length(t),length(I));
 for i=1:length(t)
+   xx = P1*x2';
+   RR = R*squeeze(T1(:,:,1))*xx(1) + R*squeeze(T1(:,:,2))*xx(2);
    Iout(i,:) = RS*diag(xout(i,:))*RS'*I;
 end
 
