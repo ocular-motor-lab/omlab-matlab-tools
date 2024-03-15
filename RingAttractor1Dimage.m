@@ -9,7 +9,10 @@ t = (0:dt:20)';
 n = 3;
 k=20;
 
-I = randn(k,1);
+% I = randn(k,1);
+I = zeros(k,1);
+I(1:floor(k/2)) = 1;
+I(floor(k/19):floor(k/1.5)) = 2;
 
 phases =  (0:n-1) * 2*pi ./ n;
 p1 = cos(0 + phases);
@@ -17,7 +20,7 @@ p2 = sin(0 + phases);
 S = [p1' p2'];
 x0=p2;
 
-phases =  (0:k-1) * pi ./ k;
+phases =  (0:k-1) * 2*pi ./ k;
 p1 = cos(0 + phases);
 p2 = sin(0 + phases);
 R = [p1' p2'];
@@ -83,24 +86,24 @@ PlotRun(t,v,xout, xm(:,1:end-1),S2);
 
 a = diag(ones(k-1,1),-1) + diag(ones(1,1),+(k-1));
 
-RR = zeros(length(I));
-for i=1:length(I)
-    for j=1:length(I)
-        RR(i,j) = a^round();
-    end
-end
+% RR = zeros(length(I));
+% for i=1:length(I)
+%     for j=1:length(I)
+%         RR(i,j) = a^round();
+%     end
+% end
 
 
 Iout = zeros(length(t),length(I));
 for i=1:length(t)
    xx = P1*x2';
    RR = R*squeeze(T1(:,:,1))*xx(1) + R*squeeze(T1(:,:,2))*xx(2);
-   Iout(i,:) = RS*diag(xout(i,:))*RS'*I;
+   Iout(i,:) = exp(n*RS*diag(xout(i,:))*RS')*I;
 end
 
 
 figure
-imagesc(Iout)
+imagesc(Iout')
 
 function xd = odeAttractorImage( ti, xi, vi, pi, A, T, S)
 % ODEATTRACTORND  differential equation for an attractor network of m
