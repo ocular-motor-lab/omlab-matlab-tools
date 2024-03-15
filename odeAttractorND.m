@@ -1,4 +1,4 @@
-function xd = odeAttractorND( ti, xi, vi, pi, A, T, S, xf)
+function xd = odeAttractorND( ti, xi, wi, pi, A, T, S, xf)
 % ODEATTRACTORND  differential equation for an attractor network of m
 % dimensions embedded in an n dimensional space with p inputs. 
 %   xd = odeAttractorND( ti, xi, vi, pi, A, T, S, xf) 
@@ -7,14 +7,14 @@ function xd = odeAttractorND( ti, xi, vi, pi, A, T, S, xf)
 %       xd: derivative of the state x at time ti
 %
 %   inputs: 
-%       ti: (1 x 1) time 
+%       ti: (1 x 1) current time ti
 %       xi: (n x 1) state at time ti 
-%       vi: (q x 1) velocity input at time ti 
+%       wi: (q x 1) velocity input at time ti 
 %       pi: (n x 1) position input at time ti 
 %       A:  (m+1 x m+1) matrix defining the quadratic ecuation that specifis
 %           the attractor shape. The attractor is the set of points x that
 %           meet the condition x'*A*x=0
-%       T: (m+1 x m+1 x q+1) Tensor encoding the directions of
+%       T: (m+1 x m+1 x q+1) Tensor encoding the base of the skew sydirections of
 %           motion from x relative to the direction orthogonal to the
 %           attractor. Each of the p+1 matrices roates the direction
 %           towards the attractor so we get one direction typically towards
@@ -36,28 +36,30 @@ function xd = odeAttractorND( ti, xi, vi, pi, A, T, S, xf)
     x  = [xi;1]; % make it homogeneous
     xf = [xf;1]; 
     p  = [pi;1];
-    v  = vi;
+    w  = wi;
     
+    % vector pointing towards the attractor
+    v = A*P*x; 
+
     % Tensor product to rotate an orthogonal frame and align it with the
     % surface of the attractor.
     % Dim1 is the direction of movement towards the attractor
     % Dims 1..n are the directions of movement along the attractor dim1
     % driven by the input 
-    M = squeeze(pagemtimes(T, A*P*x));
+    C = squeeze(pagemtimes(T, v));
 
     % Scale the directions of motion by the velocity
-    xd = M * [ - (4*x'*P'*A*P*x);    ...    % velocity towards the attractor
-              v ];                          % velocity along the attractor scaled by velocity input
+    xd = C * w;                      % velocity along the attractor scaled by velocity input
+    xd = xd - 10*(4*x'*P'*A*P*x*v); ... % velocity towards the attractor
     
 %     xd = xd + norm(xf)*(P*xf - P*x)  ...    % velocity towards the fixed point (prior)
 %             + norm(p)*(P*p - P*x);   ...    % velocity towards the position input (likelihood)
 %             
-    xd = xd+ norm(xf)*M*diag([0 ones(1,q)])*M'*(P*xf - P*x) ...    % velocity towards the fixed point (prior)
-            + norm(p)*M*diag([0 ones(1,q)])*M'*(P*p  - P*x);   ...    % velocity towards the position input (likelihood)
+    xd = xd + norm(xf)*C*diag([0 ones(1,q)])*C'*(P*xf - P*x); ... % velocity towards the fixed point (prior)
+    xd = xd + norm(p)*C*diag([0 ones(1,q)])*C'*(P*p  - P*x); ...  % velocity towards the position input (likelihood)
 
-    % remove the homogenous component
     xd = S*xd + 10*(S*P*x-x); % added velocity towards the manifold subspace
-    xd = xd(1:end-1);
+    xd = xd(1:end-1); % remove the homogenous component
 end
 
 % IDEA for the drifts

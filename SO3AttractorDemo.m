@@ -1,8 +1,8 @@
 %% SO3 attractor simulation
 %% Jorge Otero-Millan 3/10/2024
-close all
-N = 4; % 2 ring, 3 sphere, 4 quaternions (SO3);
-n = 40;
+% close all
+N = 4; % 2 ring (SO1), 4 quaternions (SO3), 3 sphere O3 (not sure it will work) ;
+n = 30;
 rng(1)
 
 % time parameters of the simulation
@@ -14,34 +14,38 @@ t = (0:dt:20)';
 x0 = randn(n,1); % point outside the attractor to show initial drift towards it
 
 % velocity input
-v = zeros(length(t),3);
-v(t > 3 & t <3.5, 1) = 5; % angular velocity around x
-v(t > 3.5 & t < 4, 1) = -5;
-v(t > 5 & t <5.5, 2) = 5; % angular velocity around y
-v(t > 5.5 & t <6, 2) = -5;
-v(t > 7 & t <7.5, 3) = 5; % angular velocity around z
-v(t > 7.5 & t <8, 3) = -5;
+w = zeros(length(t),N-3);
+w(t > 3 & t <3.5, 1) = 5; % angular velocity around x
+w(t > 3.5 & t < 4, 1) = -5;
+w(t > 5 & t <5.5, 2) = 5; % angular velocity around y
+w(t > 5.5 & t <6, 2) = -5;
+w(t > 7 & t <7.5, 3) = 5; % angular velocity around z
+w(t > 7.5 & t <8, 3) = -5;
 
-v(t > 9 & t <12, 1) = -5; % angular velocity around z
-v(t > 9 & t <12, 2) = 20; % angular velocity around z
+w(t > 9 & t <12, 1) = -5; % angular velocity around z
+w(t > 9 & t <12, 2) = 20; % angular velocity around z
+
+w = w(:,1:N-1);
 
 % fixed point the system drift towards in the absence of input. 
-xf =1*[1 0 0 0]'; % multiply by  gain of the drift towards the fixed point.
+xf =1*[1 0  0 0 ]'; % multiply by  gain of the drift towards the fixed point.
 
 % position inputs (we have two to test bayesian integrator, together with
 % the fixed point as a prior)
-p = zeros(length(t),4); 
-Gp1 = 10;
-Gp2 = 5;
-p(t > 14 & t <16, :) = ... 
-    Gp1*repmat(eul2quat(deg2rad([60,0,0])), sum(t > 14 & t <16),1);
-p(t > 16 & t <17, :) = ... 
-    Gp1*repmat(eul2quat(deg2rad([60,0,0])), sum(t > 16 & t <17),1)+ ...
-    Gp2*repmat(eul2quat(deg2rad([20,0,0])), sum(t > 16 & t <17),1);
+p = zeros(length(t),N); 
+if ( N == 4)
+    Gp1 = 10;
+    Gp2 = 5;
+    p(t > 14 & t <16, :) = ...
+        Gp1*repmat(eul2quat(deg2rad([60,0,0])), sum(t > 14 & t <16),1);
+    p(t > 16 & t <17, :) = ...
+        Gp1*repmat(eul2quat(deg2rad([60,0,0])), sum(t > 16 & t <17),1)+ ...
+        Gp2*repmat(eul2quat(deg2rad([20,0,0])), sum(t > 16 & t <17),1);
+end
 
 % so3 attractor matrix definition, conic section extended to be the
 % hypersphere containing SO3. x'Ax =0 if x1^2 + x2^2 + x3^2 + x4^2 - 1 = 0
-A = eye(5);
+A = eye(N+1);
 A(end,end)=-1;
 
 % base of the subspace that contains the attractor
@@ -57,19 +61,32 @@ end
 % attractor (first row) and along the atractor (next rows).
 % The bottom part is the commutator
 % TODO: Clean up and leave closer to Lie
-T = cat(3, ...
-    [1 0 0 0 0;    0 1 0 0 0;  0 0 1 0 0;  0 0 0 1 0;  0 0 0 0 0], ...
-    [0 -1 0 0 0;   1 0 0 0 0;  0 0 0 -1 0; 0 0 1 0 0;  0 0 0 0 0], ...
-    [0 0 -1 0 0;   0 0 0 1 0;  1 0 0 0 0;  0 -1 0 0 0; 0 0 0 0 0], ...
-    [0 0 0 -1 0;   0 0 -1 0 0; 0 1 0 0 0;  1 0 0 0 0;  0 0 0 0 0]);
+switch(N)
+    case 2
+        T = cat(3, ...
+            [0 -1 0 ;   1 0 0 ;  0 0 0;]);
+    case 3
+        T = cat(3, ...
+            [0 -1 0 0; 0 0 1 0; -1 0 0 0; 0 0 0 0], ...
+            [0 0 -1 0; 1 0 0 0; 0 1 0 0; 0 0 0 0]);
+    case 4
+%         T = cat(3, ...
+%             [0 -1 0 0 0;   1 0 0 0 0;  0 0 0 -1 0; 0 0 1 0 0;  0 0 0 0 0], ...
+%             [0 0 -1 0 0;   0 0 0 1 0;  1 0 0 0 0;  0 -1 0 0 0; 0 0 0 0 0], ...
+%             [0 0 0 -1 0;   0 0 -1 0 0; 0 1 0 0 0;  1 0 0 0 0;  0 0 0 0 0]);
+        T = cat(3, ...
+            [0 -1 0 0 0;   1 0 0 0 0;  0 0 0 -1 0; 0 0 1 0 0;  0 0 0 0 0], ...
+            [0 0 -1 0 0;   0 0 0 1 0;  1 0 0 0 0;  0 -1 0 0 0; 0 0 0 0 0], ...
+            [0 0 0 -1 0;   0 0 -1 0 0; 0 1 0 0 0;  1 0 0 0 0;  0 0 0 0 0]);
+end
 
 [t, xout] = ode45(@(ti,xi)odeAttractorND(...
     ti, xi, ...
-    interp1(t,v,ti)', S*interp1(t,p,ti)', ...
+    interp1(t,w,ti)', S*interp1(t,p,ti)', ...
     A,T,S, S*xf), ...
     t, x0);
 
-PlotRun(t,v,p, xout,inv(S'*S)*S'*xout');
+PlotRun(t,w,p, xout,inv(S'*S)*S'*xout');
 
 
 %% 
