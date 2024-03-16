@@ -2,8 +2,8 @@
 %% Jorge Otero-Millan 3/10/2024
 % close all
 N = 4; % 2 ring (SO1), 4 quaternions (SO3), 3 sphere O3 (not sure it will work) ;
-n = 30;
-rng(1)
+n = 4;
+rng(1);
 
 % time parameters of the simulation
 dt = 0.001;
@@ -12,36 +12,15 @@ t = (0:dt:20)';
 % initial conditions of the attractor
 % x0 = 2*[1 0 0 0 1 0 0 0  1 0 0 0  1 0 0 0  1 0 0 0]'; % point outside the attractor to show initial drift towards it
 x0 = randn(n,1); % point outside the attractor to show initial drift towards it
+x0 = [1 0 0 0];
 
 % velocity input
 w = zeros(length(t),N-3);
-w(t > 3 & t <3.5, 1) = 5; % angular velocity around x
-w(t > 3.5 & t < 4, 1) = -5;
-w(t > 5 & t <5.5, 2) = 5; % angular velocity around y
-w(t > 5.5 & t <6, 2) = -5;
-w(t > 7 & t <7.5, 3) = 5; % angular velocity around z
-w(t > 7.5 & t <8, 3) = -5;
-
-w(t > 9 & t <12, 1) = -5; % angular velocity around z
-w(t > 9 & t <12, 2) = 20; % angular velocity around z
+w(t > 3 & t <5, 1) = deg2rad(40); % angular velocity around x
+w(t > 7 & t <10, 2) = deg2rad(60); % angular velocity around y
+w(t > 12 & t <16, 3) = deg2rad(80); % angular velocity around z
 
 w = w(:,1:N-1);
-
-% fixed point the system drift towards in the absence of input. 
-xf =1*[1 0  0 0 ]'; % multiply by  gain of the drift towards the fixed point.
-
-% position inputs (we have two to test bayesian integrator, together with
-% the fixed point as a prior)
-p = zeros(length(t),N); 
-if ( N == 4)
-    Gp1 = 10;
-    Gp2 = 5;
-    p(t > 14 & t <16, :) = ...
-        Gp1*repmat(eul2quat(deg2rad([60,0,0])), sum(t > 14 & t <16),1);
-    p(t > 16 & t <17, :) = ...
-        Gp1*repmat(eul2quat(deg2rad([60,0,0])), sum(t > 16 & t <17),1)+ ...
-        Gp2*repmat(eul2quat(deg2rad([20,0,0])), sum(t > 16 & t <17),1);
-end
 
 % so3 attractor matrix definition, conic section extended to be the
 % hypersphere containing SO3. x'Ax =0 if x1^2 + x2^2 + x3^2 + x4^2 - 1 = 0
@@ -70,10 +49,6 @@ switch(N)
             [0 -1 0 0; 0 0 1 0; -1 0 0 0; 0 0 0 0], ...
             [0 0 -1 0; 1 0 0 0; 0 1 0 0; 0 0 0 0]);
     case 4
-%         T = cat(3, ...
-%             [0 -1 0 0 0;   1 0 0 0 0;  0 0 0 -1 0; 0 0 1 0 0;  0 0 0 0 0], ...
-%             [0 0 -1 0 0;   0 0 0 1 0;  1 0 0 0 0;  0 -1 0 0 0; 0 0 0 0 0], ...
-%             [0 0 0 -1 0;   0 0 -1 0 0; 0 1 0 0 0;  1 0 0 0 0;  0 0 0 0 0]);
         T = cat(3, ...
             [0 -1 0 0 0;   1 0 0 0 0;  0 0 0 -1 0; 0 0 1 0 0;  0 0 0 0 0], ...
             [0 0 -1 0 0;   0 0 0 1 0;  1 0 0 0 0;  0 -1 0 0 0; 0 0 0 0 0], ...
@@ -82,8 +57,8 @@ end
 
 [t, xout] = ode45(@(ti,xi)odeAttractorND(...
     ti, xi, ...
-    interp1(t,w,ti)', S*interp1(t,p,ti)', ...
-    A,T,S, S*xf), ...
+    interp1(t,w,ti)', ...
+    A,T,S), ...
     t, x0);
 
 PlotRun(t,w,p, xout,inv(S'*S)*S'*xout');
@@ -96,7 +71,7 @@ PlotRun(t,w,p, xout,inv(S'*S)*S'*xout');
 function PlotRun(t,v,p,xout, xoutM)
     figure
     subplot(6,3,[1 4]);
-    c = linspace(1,255,length(xout));
+    c = min(linspace(1,400,length(xout)),255);
     scatter(xout(:,1),xout(:,2),[],c); set(gca,'xlim',[-1 1]*1.2,'ylim',[-1 1]*1.2), colormap(gca,'jet')
     xlabel( 'unit 1'), ylabel( 'unit 2')
     title('SO3 attractor')

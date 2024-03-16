@@ -6,17 +6,19 @@ theta = deg2rad(0:0.1:360);
 
 es = [ 0.1 0.4 0.6 0.8 1 2 5 100];
 
-figure
+figure('color','w')
 hold
 rotAngle = deg2rad(45);
 for i=1:length(es)
     ep = es(i);
     r = 1 ./(1-ep*cos(theta-rotAngle));
 r(ep*cos(theta-rotAngle)>1) = nan;
-    plot(r.*cos(theta) +1 ./(1+ep)*cos(rotAngle) +4, r.*sin(theta)+1 ./(1+ep)*sin(rotAngle) +4,'-')
+    plot(r.*cos(theta) +1 ./(1+ep)*cos(rotAngle) +3, r.*sin(theta)+1 ./(1+ep)*sin(rotAngle) +3,'-','linewidth',2)
 end
-
+set(gca,'PlotBoxAspectRatio',[1 1 1],'fontsize',14)
 set(gca,'xlim',[-0 10], 'ylim', [-0 10])
+xlabel('x')
+ylabel('y')
 
 %%
 close all
