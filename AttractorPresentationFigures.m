@@ -254,26 +254,27 @@ end
 %%
 % Change in shape of 2D manifold embedded in 3D with different tunings
 Tunnings = logspace(1.5,-0.5,10);
-
-figure
-hold
+X = {};
 for k=1:length(Tunnings)
 
     Tunning=Tunnings(k);
 
     angle = 0:0.01:(2*pi);
-    X = zeros(length(angle), 3);
+    X{k} = zeros(length(angle), 3);
     for j=1:3
         Phase = (j-1)*2*pi/3;
-        X(:,j)= exp(sin(angle+Phase)/Tunning);
-        X(:,j) = X(:,j)/mean(X(:,j));
+        X{k}(:,j)= exp(sin(angle+Phase)/Tunning);
+        X{k}(:,j) = X{k}(:,j)/mean(X{k}(:,j));
     end
-
-
-    plot3(X(:,1),X(:,2),X(:,3),'o')
 end
-view(45,45)
-title('manifolds of 3 ring units with different tunning curves')
+
+figure ('color','white')
+hold
+for k=1:length(Tunnings)
+    plot3(X{k}(:,1),X{k}(:,2),X{k}(:,3),'o')
+end
+view(135,45)
+
 
 %% attractor simulation
 clear params;
@@ -282,35 +283,24 @@ close all
 % time parameters of the simulation
 dt = 0.001;
 t = (0:dt:20)';
+c = t/max(t)*255;
 
-c = min(linspace(1,400,length(xout)),255);
-
-% initial conditions of the attractor
-x0 = [-1 -1]';
+% % line attractor
+A = 0; B = 0; C = 0; D = 1; E = 1; F = -(D+E);
+Aq  =  [A B/2 D/2; B/2 C E/2; D/2 E/2 F ];
+T = cat(3, ...
+    [0 -1;   1 0 ; ]);
+S = eye(2);
 
 % input velocity
 w = zeros(size(t));
 w(t > 1 & t <5) = deg2rad(90);
 w(t > 8 & t <12) = deg2rad(-180);
 
-% % line attractor
-A = 0;
-B = 0;
-C = 0;
-D = 1;
-E = 1;
-F = -(D+E);
-Aq  =  [A B/2 D/2; B/2 C E/2; D/2 E/2 F ];
-T = cat(3, ...
-    [0 -1 0 ;   1 0 0 ;  0 0 0;]);
+% initial conditions of the attractor
+x0 = [-1 -1]';
 
-S = eye(2);
-
-[t, xout] = ode45(@(ti,xi)odeAttractorND(...
-    ti, xi, ...
-    interp1(t,w/2,ti)', ...
-    Aq,T,S), ...
-    t, x0); 
+[t, xout] = ode45(@(ti,xi)odeAttractor(ti, xi, interp1(t,w/2,ti)', Aq,T,S), t, x0); 
 
 figure('color','w')
 subplot(3,3,1);
@@ -324,29 +314,22 @@ xlabel('Time')
 legend({'\omega', 'x_1', 'x_2'})
 
 
-
 % ring attractor
+A = 1; B = 0; C = 1; D = 0; E = 0; F = -1;
+Aq  = [A B/2 D/2; B/2 C E/2; D/2 E/2 F ];
+T = cat(3, ...
+    [0 -1;   1 0 ; ]);
+S = eye(2);
+
 w = zeros(size(t));
 w(t > 1 & t <2) = deg2rad(90);
 w(t > 3 & t <4) = deg2rad(-90);
 w(t > 8 & t <12) = deg2rad(180);
 %v = v+ randn(size(v))*.1;
-A = 1;
-B = 0;
-C = 1;
-D = 0;
-E = 0;
-F = -1;
-Aq  = [A B/2 D/2; B/2 C E/2; D/2 E/2 F ];
-n=2;
-S = eye(n);
-p = zeros(length(t),n);
+% initial conditions of the attractor
+x0 = [-1 -1]';
 
-[t, xout] = ode45(@(ti,xi)odeAttractorND(...
-    ti, xi, ...
-    interp1(t,w,ti)', ...
-    Aq,T,S), ...
-    t, x0); 
+[t, xout] = ode45(@(ti,xi)odeAttractor( ti, xi, interp1(t,w,ti)', Aq,T,S), t, x0); 
 
 subplot(3,3,4);
 scatter(xout(:,1),xout(:,2),[],c); set(gca,'xlim',[-1 1]*1.5,'ylim',[-1 1]*1.5), colormap(gca,'jet')
@@ -359,24 +342,17 @@ xlabel('Time')
 
 
 % parabollic attractor
+A = 0; B = -1; C = 1; D = -1; E = -1; F = 1;
+Aq = [A B/2 D/2; B/2 C E/2; D/2 E/2 F ];
+T = cat(3, ...
+    [0 -1;   1 0 ; ]);
+S = eye(2);
+
 w = zeros(size(t));
 w(t > 1 & t <5) = deg2rad(90);
 w(t > 8 & t <12) = deg2rad(-180);
 
-A = 0;
-B = -1;
-C = 1;
-D = -1;
-E = -1;
-F = 1;
-Aq = [A B/2 D/2; B/2 C E/2; D/2 E/2 F ];
-xf = -0.1*[0.5 0.5]';
-
-[t, xout] = ode45(@(ti,xi)odeAttractorND(...
-    ti, xi, ...
-    interp1(t,w/4,ti)', ...
-    Aq,T,S), ...
-    t, x0); % velocity made slower to avoid numerical problems
+[t, xout] = ode45(@(ti,xi)odeAttractor(  ti, xi,   interp1(t,w/4,ti)', Aq,T,S), t, x0); % velocity made slower to avoid numerical problems
 
 subplot(3,3,7);
 scatter(xout(:,1),xout(:,2),[],c); set(gca,'xlim',[-1 3]*1.2,'ylim',[-1 3]*1.2), colormap(gca,'jet')
@@ -394,7 +370,7 @@ xlabel('Time')
 %% Jorge Otero-Millan 3/10/2024
 % close all
 N = 3; % 2 ring (SO1), 3 sphere (S2), 4 quaternions (SO3)
-n = 5;
+n = 3;
 rng(1);
 
 % time parameters of the simulation
@@ -456,7 +432,7 @@ end
 
 [t, xout] = ode45(@(ti,xi) ...
     ...
-    odeAttractorND( ti, xi, interp1(t,w,ti)', A, T, S), ...
+    odeAttractor( ti, xi, interp1(t,w,ti)', A, T, S), ...
     ...
     t, x0);
 
@@ -513,6 +489,8 @@ xlabel( 'x_2'), ylabel( 'x_3')
 clear params;
 % close all
 
+n = 20;
+
 % convoluted way to find two orthogonal vectors to be a base of the
 % subspace that contains the manifold.
 phases =  ((1:n)-1) * 2*pi ./ n;
@@ -527,7 +505,6 @@ dt = 0.001;
 t = (0:dt:20)';
 
 % initial conditions of the attractor
-n = 20;
 x0 = p1;
 % y0 = randn(n,1);
 % input velocity
@@ -547,7 +524,7 @@ E = 0;
 F = -1;
 Aq  = [A B/2 D/2; B/2 C E/2; D/2 E/2 F ];
 T = cat(3, ...
-    [0 -1 0 ;   1 0 0 ;  0 0 0;]);
+    [0 -1 ;   1 0 ; ]);
 
 % P = inv(S'*S)*S'; % projection matrix to the plane
 % P = [P zeros(2,1); zeros(1,n) 1]; % homogenous projection matrix to allow translation of the plane away from zero 
@@ -555,7 +532,7 @@ T = cat(3, ...
 
 p= zeros(length(t),2);
 
-[t, xout] = ode45(@(ti,xi)odeAttractorND(...
+[t, xout] = ode45(@(ti,xi)odeAttractor(...
     ti, xi, ...
     interp1(t,w,ti)', ...
     Aq,T,S), ...
@@ -568,7 +545,7 @@ xoutM = inv(S'*S)*S'*xout';
     c = min(linspace(1,400,length(xout)),255);
     scatter(xout(:,1),xout(:,2),[],c); set(gca,'xlim',[-1 1]*1.2,'ylim',[-1 1]*1.2), colormap(gca,'jet')
 xlabel( 'x_1'), ylabel( 'x_2')
-    title('SO3 attractor')
+%     title('SO3 attractor')
     set(gca,'PlotBoxAspectRatio',[1 1 1])
     
     subplot(6,3,[1 4]+6);

@@ -1,4 +1,4 @@
-function dx = odeAttractorND( t, x, w, A, T, S)
+function dx = AttractorNetwork( t, x, w, A, T, S)
 % ODEATTRACTORND  differential equation for an attractor network of m
 % dimensions embedded in an n dimensional space with m-1 inputs. 
 %
@@ -82,6 +82,20 @@ function dx = odeAttractorND( t, x, w, A, T, S)
 %           attractor. Each column is a base vector defining the subspace.
 %           If using n=m just make it the identity.
 %
+%       Example running of ring attractor:
+%           
+%            t = (0:0.001:5)';
+%            A  = [1 0 0; 0 1 0; 0 0 -1 ];
+%            T = [0 -1;   1 0 ; ];
+%            S = [1 0; 0 1];
+%            w = zeros(size(t));
+%            w(t >= 2 & t <4) = deg2rad(45); % 45 deg/s for 2 seconds
+%            x0 = [1 0]';
+%            [t, xout] = ode45(@(ti,xi) ...
+%                    odeAttractorND( ti, xi, interp1(t,w,ti)', A, T, S), ...
+%                    t, x0);
+%            figure, plot(t,xout);
+% 
 %
 %   Jorge Otero-Millan
 %   Ocular-Motor lab, UC Berkeley
@@ -98,7 +112,7 @@ function dx = odeAttractorND( t, x, w, A, T, S)
     
     % Pad the matrices to deal with the homogenous component
     P = [ P   zeros(m,1)     ;  zeros(1,n)    1  ];
-    S = [ S   zeros(n,1)     ;  zeros(1,m)   ];
+    S = [ S   zeros(n,1)     ;  zeros(1,m)    1  ];
     T = [ T   zeros(m,1,m-1) ;  zeros(1,m+1,m-1) ];
 
     %
