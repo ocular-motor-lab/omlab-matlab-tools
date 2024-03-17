@@ -392,9 +392,9 @@ xlabel('Time')
 
 %% SO3 attractor simulation
 %% Jorge Otero-Millan 3/10/2024
-close all
-N = 4; % 2 ring (SO1), 3 sphere (S2), 4 quaternions (SO3)
-n = 4;
+% close all
+N = 3; % 2 ring (SO1), 3 sphere (S2), 4 quaternions (SO3)
+n = 3;
 rng(1);
 
 % time parameters of the simulation
@@ -403,10 +403,15 @@ t = (0:dt:20)';
 
 
 % velocity input
-w = zeros(length(t),N-3);
-w(t > 3 & t <5, 2) = deg2rad(180*2); % angular velocity around x
-w(t > 7 & t <10, 1) = deg2rad(180); % angular velocity around y
-w(t > 12 & t <16, 3) = deg2rad(75); % angular velocity around z
+w = zeros(length(t),N-1);
+
+rt = t(t > 3 & t <18);
+w(t > 3 & t <18, 1) = cos(rt*2)*1.5
+w(t > 3 & t <18, 2) = sin(rt*2)*1.5
+
+% w(t > 3 & t <18, 2) = deg2rad(180/1); % angular velocity around x
+% w(t > 7 & t <18, 2) = deg2rad(180/4); % angular velocity around y
+% w(t > 12 & t <16, 3) = deg2rad(75); % angular velocity around z
 w = w(:,1:N-1); % get only the relevant componets
 
 % so3 attractor matrix definition, conic section extended to be the
@@ -429,21 +434,21 @@ end
 x0 = randn(n,1); % point outside the attractor to show initial drift towards it
 % x0 = [1 0 0 0];
 x0 = zeros(n,1);x0(2)=1/sqrt(n);
-x0 = S(:,1)*2;
+x0 = S(:,1);
 
 switch(N)
     case 2
         T = cat(3, ...
-            [0 -1 0 ;   1 0 0 ;  0 0 0;]);
+            [0 -1 0 ;   1 0 0 ;  0 0 0;]); % 3x3x2
     case 3
         T = cat(3, ...
-            [0 0 1 0; 0 1 0 0; -1 0 0 0;], ...
-            [0 -1 0 0; 1 0 0 0; 0 0 1 0;]);
+           [0 -1 0 0;   1 0 0 0;  0 0 0 0; 0 0 0 0], ...
+           [0 0 1 0;   0 0 0 0;  -1 0 0 0;  0 0 0 0]); % 4x4x3
     case 4
         T = cat(3, ...
             [0 -1 0 0 0;   1 0 0 0 0;  0 0 0 -1 0; 0 0 1 0 0;  0 0 0 0 0], ...
             [0 0 -1 0 0;   0 0 0 1 0;  1 0 0 0 0;  0 -1 0 0 0; 0 0 0 0 0], ...
-            [0 0 0 -1 0;   0 0 -1 0 0; 0 1 0 0 0;  1 0 0 0 0;  0 0 0 0 0]);
+            [0 0 0 -1 0;   0 0 -1 0 0; 0 1 0 0 0;  1 0 0 0 0;  0 0 0 0 0]); % 5x5x3
 end
 
 
@@ -483,7 +488,7 @@ xlabel( 'x_2'), ylabel( 'x_3')
     subplot(6,3,[2 3 5 6]+3);
     plot(t,xout);
     hold
-    plot(t, vecnorm(xout'))
+    plot(t, vecnorm(xout'),'k','linewidth',2)
 %     set(gca,'xticklabel',[],'yticklabel',[])
     title('Network units')
 
@@ -501,7 +506,7 @@ xlabel( 'x_2'), ylabel( 'x_3')
     title('Decoded angle (euler XYZ)')
 
     h = get(gcf,'children');
-    linkaxes(h([1 2 3 4 5]),'x');
+    linkaxes(h([1 2 3 4]),'x');
 
 %% attractor simulation
 clear params;

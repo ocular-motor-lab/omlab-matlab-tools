@@ -60,7 +60,13 @@ function xd = odeAttractorND( ti, xi, wi, A, T, S)
     % from the vector APx that points towards the attractor to a 
     % an orthogonal bases that is tangent to the attractor so it allows for
     % movement along it's surface 
+if  (ti>8)
+a=1;
+end
 
+
+%     tensorprod(T,A*P*x,2,1)*w;
+%     tensorprod(T,w,3,1)* A*P*x ;
     xd = tensorprod(T,w,3,1) * A*P*x ... % velocity along the attractor scaled by velocity input
             - (4*x'*P'*A*P*x*A*P*x); ... % velocity towards the attractor
 
