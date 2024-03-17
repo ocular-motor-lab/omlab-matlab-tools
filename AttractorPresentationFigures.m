@@ -392,8 +392,8 @@ xlabel('Time')
 
 %% SO3 attractor simulation
 %% Jorge Otero-Millan 3/10/2024
-% close all
-N = 4; % 2 ring (SO1), 4 quaternions (SO3), 3 sphere O3 (not sure it will work) ;
+close all
+N = 4; % 2 ring (SO1), 3 sphere (S2), 4 quaternions (SO3)
 n = 4;
 rng(1);
 
@@ -401,18 +401,13 @@ rng(1);
 dt = 0.001;
 t = (0:dt:20)';
 
-% initial conditions of the attractor
-% x0 = 2*[1 0 0 0 1 0 0 0  1 0 0 0  1 0 0 0  1 0 0 0]'; % point outside the attractor to show initial drift towards it
-x0 = randn(n,1); % point outside the attractor to show initial drift towards it
-x0 = [1 0 0 0];
 
 % velocity input
 w = zeros(length(t),N-3);
-w(t > 3 & t <5, 1) = deg2rad(35); % angular velocity around x
-w(t > 7 & t <10, 2) = deg2rad(50); % angular velocity around y
+w(t > 3 & t <5, 2) = deg2rad(180*2); % angular velocity around x
+w(t > 7 & t <10, 1) = deg2rad(180); % angular velocity around y
 w(t > 12 & t <16, 3) = deg2rad(75); % angular velocity around z
-
-w = w(:,1:N-1);
+w = w(:,1:N-1); % get only the relevant componets
 
 % so3 attractor matrix definition, conic section extended to be the
 % hypersphere containing SO3. x'Ax =0 if x1^2 + x2^2 + x3^2 + x4^2 - 1 = 0
@@ -424,22 +419,26 @@ if ( N==n)
     S = eye(N);
 else
     S = sin(2*pi*repmat((0:n-1)',1,N)/n.*(1+repmat(1:N,n,1)/300));
+%     sin(mod(repmat((0:n-1)',1,N)/n+repmat((0:N-1),n,1)/4,1)*2*pi)/sqrt(2)
     % S = rand(n,N);
     S = orth(S);
 end
 
-% A tensor represents the group action inducing moving towards the
-% attractor (first row) and along the atractor (next rows).
-% The bottom part is the commutator
-% TODO: Clean up and leave closer to Lie
+% initial conditions of the attractor
+% x0 = 2*[1 0 0 0 1 0 0 0  1 0 0 0  1 0 0 0  1 0 0 0]'; % point outside the attractor to show initial drift towards it
+x0 = randn(n,1); % point outside the attractor to show initial drift towards it
+% x0 = [1 0 0 0];
+x0 = zeros(n,1);x0(2)=1/sqrt(n);
+x0 = S(:,1)*2;
+
 switch(N)
     case 2
         T = cat(3, ...
             [0 -1 0 ;   1 0 0 ;  0 0 0;]);
     case 3
         T = cat(3, ...
-            [0 -1 0 0; 0 0 1 0; -1 0 0 0; 0 0 0 0], ...
-            [0 0 -1 0; 1 0 0 0; 0 1 0 0; 0 0 0 0]);
+            [0 0 1 0; 0 1 0 0; -1 0 0 0;], ...
+            [0 -1 0 0; 1 0 0 0; 0 0 1 0;]);
     case 4
         T = cat(3, ...
             [0 -1 0 0 0;   1 0 0 0 0;  0 0 0 -1 0; 0 0 1 0 0;  0 0 0 0 0], ...
@@ -447,45 +446,45 @@ switch(N)
             [0 0 0 -1 0;   0 0 -1 0 0; 0 1 0 0 0;  1 0 0 0 0;  0 0 0 0 0]);
 end
 
-[t, xout] = ode45(@(ti,xi)odeAttractorND(...
-    ti, xi, ...
-    interp1(t,w,ti)', ...
-    A,T,S), ...
+
+
+[t, xout] = ode45(@(ti,xi) ...
+    ...
+    odeAttractorND( ti, xi, interp1(t,w,ti)', A, T, S), ...
+    ...
     t, x0);
 
 xoutM = inv(S'*S)*S'*xout';
 
-    figure('color','w')
-    subplot(6,3,[1 4]);
-    c = min(linspace(1,400,length(xout)),255);
-    scatter(xout(:,1),xout(:,2),[],c); set(gca,'xlim',[-1 1]*1.2,'ylim',[-1 1]*1.2), colormap(gca,'jet')
+figure('color','w')
+subplot(6,3,[1 4]);
+c = min(linspace(1,400,length(xout)),255);
+scatter(xout(:,1),xout(:,2),[],c); set(gca,'xlim',[-1 1]*1.2,'ylim',[-1 1]*1.2), colormap(gca,'jet')
 xlabel( 'x_1'), ylabel( 'x_2')
-    title('SO3 attractor')
+%     title('SO3 attractor')
     set(gca,'PlotBoxAspectRatio',[1 1 1])
     
     subplot(6,3,[1 4]+6);
     scatter(xout(:,2),xout(:,3),[],c);  set(gca,'xlim',[-1 1]*1.2,'ylim',[-1 1]*1.2), colormap(gca,'jet')
 xlabel( 'x_2'), ylabel( 'x_3')
     set(gca,'PlotBoxAspectRatio',[1 1 1])
-    
-    subplot(6,3,[1 4]+12);
-    scatter(xout(:,3),xout(:,4),[],c);  set(gca,'xlim',[-1 1]*1.2,'ylim',[-1 1]*1.2), colormap(gca,'jet')
-xlabel( 'x_3'), ylabel( 'x_4')
-    set(gca,'PlotBoxAspectRatio',[1 1 1])
+    if ( size(xout,2)>3)
+        subplot(6,3,[1 4]+12);
+        scatter(xout(:,3),xout(:,4),[],c);  set(gca,'xlim',[-1 1]*1.2,'ylim',[-1 1]*1.2), colormap(gca,'jet')
+        xlabel( 'x_3'), ylabel( 'x_4')
+        set(gca,'PlotBoxAspectRatio',[1 1 1])
+    end
     
     subplot(6,3,[2 3]);
     plot(t,w,'linewidth',2);
     set(gca,'xticklabel',[],'yticklabel',[])
     title('Input velocity')
 
-    subplot(6,3,[2 3]+3);
-    plot(t,p);
-    set(gca,'xticklabel',[],'yticklabel',[])
-    title('Input position')
-
-    subplot(6,3,[2 3]+6);
+    subplot(6,3,[2 3 5 6]+3);
     plot(t,xout);
-    set(gca,'xticklabel',[],'yticklabel',[])
+    hold
+    plot(t, vecnorm(xout'))
+%     set(gca,'xticklabel',[],'yticklabel',[])
     title('Network units')
 
     subplot(6,3,[2 3 5 6]+9);

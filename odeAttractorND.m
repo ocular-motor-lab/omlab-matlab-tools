@@ -56,16 +56,14 @@ function xd = odeAttractorND( ti, xi, wi, A, T, S)
     x  = [xi;1]; % make the state homogeneous
     w  = wi;
 
-    % Tensor product to rotate the base of the tangent space. That is go
+    % Tensor product to scale the base of the tangent space. Then multiply by That is go
     % from the vector APx that points towards the attractor to a 
     % an orthogonal bases that is tangent to the attractor so it allows for
     % movement along it's surface 
-    C = squeeze(pagemtimes(T, A*P*x));
 
-    % Scale the directions of motion by the velocity
-    xd = C * w ...                       % velocity along the attractor scaled by velocity input
+    xd = tensorprod(T,w,3,1) * A*P*x ... % velocity along the attractor scaled by velocity input
             - (4*x'*P'*A*P*x*A*P*x); ... % velocity towards the attractor
 
-    xd = S*xd + (S*P*x-x); % added velocity towards the manifold subspace
+    xd = S*xd + (S*P*x-x); % added velocity towards the manifold subspace 
     xd = xd(1:end-1); % remove the homogenous component
 end
