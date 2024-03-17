@@ -404,10 +404,13 @@ t = (0:dt:20)';
 
 % velocity input
 w = zeros(length(t),N-1);
-
 rt = t(t > 3 & t <18);
-w(t > 3 & t <18, 1) = cos(rt*2)*1.5
-w(t > 3 & t <18, 2) = sin(rt*2)*1.5
+
+% w(t > 3 & t <18, 1) = cos(rt*2)*1.5; % flower for sphere
+% w(t > 3 & t <18, 2) = sin(rt*2)*1.5;
+
+w(t > 3 & t <18, 1) = cos(rt*2)*1.5;
+w(t > 3 & t <18, 2) = sin(rt*2)*1.5;
 
 % w(t > 3 & t <18, 2) = deg2rad(180/1); % angular velocity around x
 % w(t > 7 & t <18, 2) = deg2rad(180/4); % angular velocity around y
@@ -429,11 +432,9 @@ else
     S = orth(S);
 end
 
+S = S*sqrt(n-1)/sqrt(2);
+
 % initial conditions of the attractor
-% x0 = 2*[1 0 0 0 1 0 0 0  1 0 0 0  1 0 0 0  1 0 0 0]'; % point outside the attractor to show initial drift towards it
-x0 = randn(n,1); % point outside the attractor to show initial drift towards it
-% x0 = [1 0 0 0];
-x0 = zeros(n,1);x0(2)=1/sqrt(n);
 x0 = S(:,1);
 
 switch(N)
@@ -442,8 +443,8 @@ switch(N)
             [0 -1 0 ;   1 0 0 ;  0 0 0;]); % 3x3x2
     case 3
         T = cat(3, ...
-           [0 -1 0 0;   1 0 0 0;  0 0 0 0; 0 0 0 0], ...
-           [0 0 1 0;   0 0 0 0;  -1 0 0 0;  0 0 0 0]); % 4x4x3
+            [0 -1 0 0;   1 0 0 0;  0 0 0 0; 0 0 0 0], ...
+            [0 0 1 0;   0 0 0 0;  -1 0 0 0;  0 0 0 0]); % 4x4x3
     case 4
         T = cat(3, ...
             [0 -1 0 0 0;   1 0 0 0 0;  0 0 0 -1 0; 0 0 1 0 0;  0 0 0 0 0], ...
