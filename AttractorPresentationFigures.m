@@ -300,7 +300,7 @@ w(t > 8 & t <12) = deg2rad(-180);
 % initial conditions of the attractor
 x0 = [-1 -1]';
 
-[t, xout] = ode45(@(ti,xi)odeAttractor(ti, xi, interp1(t,w/2,ti)', Aq,T,S), t, x0); 
+[t, xout] = ode45(@(ti,xi)AttractorNetwork(ti, xi, interp1(t,w/2,ti)', Aq,T,S), t, x0); 
 
 figure('color','w')
 subplot(3,3,1);
@@ -329,7 +329,7 @@ w(t > 8 & t <12) = deg2rad(180);
 % initial conditions of the attractor
 x0 = [-1 -1]';
 
-[t, xout] = ode45(@(ti,xi)odeAttractor( ti, xi, interp1(t,w,ti)', Aq,T,S), t, x0); 
+[t, xout] = ode45(@(ti,xi)AttractorNetwork( ti, xi, interp1(t,w,ti)', Aq,T,S), t, x0); 
 
 subplot(3,3,4);
 scatter(xout(:,1),xout(:,2),[],c); set(gca,'xlim',[-1 1]*1.5,'ylim',[-1 1]*1.5), colormap(gca,'jet')
@@ -352,7 +352,7 @@ w = zeros(size(t));
 w(t > 1 & t <5) = deg2rad(90);
 w(t > 8 & t <12) = deg2rad(-180);
 
-[t, xout] = ode45(@(ti,xi)odeAttractor(  ti, xi,   interp1(t,w/4,ti)', Aq,T,S), t, x0); % velocity made slower to avoid numerical problems
+[t, xout] = ode45(@(ti,xi)AttractorNetwork(  ti, xi,   interp1(t,w/4,ti)', Aq,T,S), t, x0); % velocity made slower to avoid numerical problems
 
 subplot(3,3,7);
 scatter(xout(:,1),xout(:,2),[],c); set(gca,'xlim',[-1 3]*1.2,'ylim',[-1 3]*1.2), colormap(gca,'jet')
@@ -370,7 +370,7 @@ xlabel('Time')
 %% Jorge Otero-Millan 3/10/2024
 % close all
 N = 3; % 2 ring (SO1), 3 sphere (S2), 4 quaternions (SO3)
-n = 3;
+n = 6;
 rng(1);
 
 % time parameters of the simulation
@@ -432,7 +432,7 @@ end
 
 [t, xout] = ode45(@(ti,xi) ...
     ...
-    odeAttractor( ti, xi, interp1(t,w,ti)', A, T, S), ...
+    AttractorNetwork( ti, xi, interp1(t,w,ti)', A, T, S), ...
     ...
     t, x0);
 
@@ -532,7 +532,7 @@ T = cat(3, ...
 
 p= zeros(length(t),2);
 
-[t, xout] = ode45(@(ti,xi)odeAttractor(...
+[t, xout] = ode45(@(ti,xi)AttractorNetwork(...
     ti, xi, ...
     interp1(t,w,ti)', ...
     Aq,T,S), ...

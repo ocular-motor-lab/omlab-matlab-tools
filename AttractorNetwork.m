@@ -1,8 +1,8 @@
 function dx = AttractorNetwork( t, x, w, A, T, S)
-% ODEATTRACTORND  differential equation for an attractor network of m
-% dimensions embedded in an n dimensional space with m-1 inputs. 
+% ATTRACTORNETWORK  differential equation for a continuos attractor network
+% for a general manifold defined by a quadratic equation. 
 %
-%   dx = odeAttractorND( t, x, w, A, T, S) 
+%   dx = AttractorNetwork( t, x, w, A, T, S) 
 %
 %   outputs:
 %
@@ -84,18 +84,20 @@ function dx = AttractorNetwork( t, x, w, A, T, S)
 %
 %       Example running of ring attractor:
 %           
-%            t = (0:0.001:5)';
-%            A  = [1 0 0; 0 1 0; 0 0 -1 ];
-%            T = [0 -1;   1 0 ; ];
-%            S = [1 0; 0 1];
-%            w = zeros(size(t));
-%            w(t >= 2 & t <4) = deg2rad(45); % 45 deg/s for 2 seconds
-%            x0 = [1 0]';
-%            [t, xout] = ode45(@(ti,xi) ...
-%                    odeAttractorND( ti, xi, interp1(t,w,ti)', A, T, S), ...
-%                    t, x0);
-%            figure, plot(t,xout);
-% 
+%             t = (0:0.001:5)';
+%             A  = [1 0 0; 0 1 0; 0 0 -1 ];
+%             T = [0 -1;   1 0 ; ];
+%             S = [cos((0:9)*2*pi/10)' sin((0:9)*2*pi/10)'];
+%             w = zeros(size(t));
+%             w(t >= 1 & t <2) = deg2rad(180); % 180 deg/s for 3 seconds
+%             w(t >= 2 & t <4) = deg2rad(90); % 90 deg/s for 3 seconds
+%             x0 = S(:,1);
+%             [t, xout] = ode45(@(ti,xi) ...
+%                     AttractorNetwork( ti, xi, interp1(t,w,ti)', A, T, S), ...
+%                     t, x0);
+%             figure, 
+%             subplot(2,1,1),plot(t,xout);xlabel('Time (s)'); ylabel('Network unit state')
+%             subplot(2,1,2),plot(t,100*exp((xout+1)*10)/exp(10*2));xlabel('Time (s)'); ylabel('Network unit activation')
 %
 %   Jorge Otero-Millan
 %   Ocular-Motor lab, UC Berkeley
@@ -133,5 +135,5 @@ function dx = AttractorNetwork( t, x, w, A, T, S)
 
     dx = S*tensorprod(T,w,3,1) * A*P*x - S*(4*x'*P'*A*P*x*A*P*x) + (S*P*x-x);
 
-    dx = dx(1:end-1); % remove the homogeneous component
+    dx = dx(1:end-1); % remove derivative of the homogeneous component
 end
