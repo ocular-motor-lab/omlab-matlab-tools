@@ -1,8 +1,8 @@
-function dx = odeAttractorND( ti, xi, wi, A, T, S)
+function dx = odeAttractorND( t, x, w, A, T, S)
 % ODEATTRACTORND  differential equation for an attractor network of m
 % dimensions embedded in an n dimensional space with m-1 inputs. 
 %
-%   dx = odeAttractorND( ti, xi, wi, A, T, S) 
+%   dx = odeAttractorND( t, x, w, A, T, S) 
 %
 %   outputs:
 %
@@ -10,11 +10,11 @@ function dx = odeAttractorND( ti, xi, wi, A, T, S)
 %
 %   inputs: 
 %
-%       ti: (1 x 1) current time ti (very useful for debugging)
+%       t: (1 x 1) current time (very useful for debugging)
 %
-%       xi: (n x 1) state at time ti 
+%       x: (n x 1) state at time t 
 %
-%       wi: (m-1 x 1) velocity input at time ti 
+%       w: (m-1 x 1) velocity input at time t 
 %
 %       A:  (m+1 x m+1) matrix defining the quadratic ecuation that specifis
 %           the attractor shape. The attractor is the set of points x that
@@ -80,6 +80,7 @@ function dx = odeAttractorND( ti, xi, wi, A, T, S)
 % 
 %       S: (n x m) Matrix to project x into a subspace that contains the
 %           attractor. Each column is a base vector defining the subspace.
+%           If using n=m just make it the identity.
 %
 %
 %   Jorge Otero-Millan
@@ -87,8 +88,7 @@ function dx = odeAttractorND( ti, xi, wi, A, T, S)
 %   3/16/2024
 %
 %
-    x = [xi;1]; % make the state homogeneous
-    w = wi;     % just change the name for consistency
+    x = [x;1]; % make the state homogeneous
 
     [n, m] = size(S); % dimensions space and subspace
     
@@ -98,7 +98,7 @@ function dx = odeAttractorND( ti, xi, wi, A, T, S)
     
     % Pad the matrices to deal with the homogenous component
     P = [ P   zeros(m,1)     ;  zeros(1,n)    1  ];
-    S = [ S   zeros(n,1)     ;  zeros(1,m)    1  ];
+    S = [ S   zeros(n,1)     ;  zeros(1,m)   ];
     T = [ T   zeros(m,1,m-1) ;  zeros(1,m+1,m-1) ];
 
     %
