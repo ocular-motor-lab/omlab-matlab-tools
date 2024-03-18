@@ -11,7 +11,8 @@ function dS = AttractorNetworkUpdateS( t, S, x, A)
     
     for i=1:n
         si = S(i,:)';
-        d =  - 5*(4*si'*A*si*A*si) - 0.5*mean(1./(1+S*si).*(S-repmat(si',n,1)))'  -  (si-x);
+        dist = S-repmat(si',n,1);
+        d =  - (4*si'*A*si*A*si) - 1*mean(1./(1+sum(dist.*dist,2)).*(dist))'  -  (si-x);
         dS(i,:)= d(1:end-1)';
     end
 
