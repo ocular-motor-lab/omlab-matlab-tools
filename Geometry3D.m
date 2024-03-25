@@ -7,30 +7,64 @@ classdef Geometry3D
 
     methods(Static)
 
-        function demoDisparity
+        function demoDisparity(stimType)
+            if (~exist("stimType"))
+                stimType = 'FLAT';
+            end
             %%
             numDots = 90;
             sizeStimCm = 20;
             stimDistance = 10;
 
 
-            % Make some dots
+            % Make some dots in world coordinates (XYZ)
+            % 
             % Make a table to start putting everything together
-            points = table();
-            points.X=rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
-            points.Y=rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
-            points.Z=ones(numDots, 1)*stimDistance;
+            switch (stimType)
+                case 'FLAT'
+                    worldPoints = table();
+                    worldPoints.X = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
+                    worldPoints.Y = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
+                    worldPoints.Z = ones(numDots, 1)*stimDistance;
+                case 'SLANT'
+                    % TODO: need to update the update funciton so the Z is not overwritten by a
+                    % constant distance. Just shift things.
+                    worldPoints = table();
+                    worldPoints.X = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
+                    worldPoints.Y = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
+                    worldPoints.Z = ones(numDots, 1)*stimDistance + worldPoints.X;
+            end
+
 
             idpCm = 6;
             fixationDistance = 400;
             torsionVersion = 30;
             torsionVergence = 0;
 
-            eyes = Geometry3D.MakeEyes(idpCm, fixationDistance, torsionVersion, torsionVergence);
-            [eyePoints] = Geometry3D.Points3DToEyes(points, eyes);
-            [heyes, hfix, hpoints, hdisparity] = Geometry3D.PlotPoints(points, eyePoints, eyes, fixationDistance);
 
-            s = InteractiveUI('DisparityCalculator',@(sliderValues) (demoDisparityUpdate(sliderValues,heyes, hfix, hpoints,hdisparity, points)), 0.2);
+            fixationSpot = [];
+            fixationSpot.X = 0;
+            fixationSpot.Y = 0;  
+            fixationSpot.Z = fixationDistance;
+
+            worldPoints{end+1,:} = [fixationSpot.X fixationSpot.Y fixationSpot.Z];
+
+            eyes = Geometry3D.MakeEyes(idpCm, fixationSpot, torsionVersion, torsionVergence);
+
+            sizeCm = [30*16/9 30];
+            resPix = [1920 1080];
+            distance = 57;
+            slant = 0;
+            LeyeScreen = Geometry3D.MakeScreen(sizeCm, resPix, distance, slant);
+            ReyeScreen = Geometry3D.MakeScreen(sizeCm, resPix, distance, slant);
+
+            eyePoints = Geometry3D.Points3DToEyes(worldPoints, eyes);
+
+            screenPoints = Geometry3D.PointsEyesToScreen(eyes, eyePoints, LeyeScreen, ReyeScreen);
+
+            [heyes, hfix, hpoints, hLRpoints, hdisparity, hscreen] = Geometry3D.PlotPoints(worldPoints, eyePoints, screenPoints, eyes, fixationDistance);
+
+            s = InteractiveUI('DisparityCalculator',@(sliderValues) (Geometry3D.demoDisparityUpdate(sliderValues, heyes, hfix, hpoints, hLRpoints, hdisparity, hscreen, worldPoints)), 0.2);
             s.AddControl('fixationDistance',30, [10 200])
             s.AddControl('stimDistance',    40, [10 200])
             s.AddControl('ipdmm',           60, [10 100])
@@ -42,7 +76,7 @@ classdef Geometry3D
 
         end
 
-        function eyes = MakeEyes(ipdCm, fixationDistance, torsionVersion, torsionVergence)
+        function eyes = MakeEyes(ipdCm, fixationSpot, torsionVersion, torsionVergence)
 
             % Position of eyes
             eyes.R.X =  ipdCm/2;
@@ -52,14 +86,42 @@ classdef Geometry3D
             eyes.L.Y = 0;
             eyes.L.Y = 0;
 
-            % Orientation of eyes
-            eyes.R.H = -atan2d(eyes.R.X, fixationDistance);
+            % Orientation of eyes % TODO: DEFINE COORDINATE SYSTEM right
+            % now , is it fick? 
+            eyes.R.H = -atan2d(eyes.R.X, fixationSpot.Z);
             eyes.R.V = 0;
             eyes.R.T = torsionVersion - torsionVergence;
-            eyes.L.H = -atan2d(eyes.L.X, fixationDistance);
+            eyes.L.H = -atan2d(eyes.L.X, fixationSpot.Z);
             eyes.L.V = 0;
             eyes.L.T = torsionVersion + torsionVergence;
 
+
+            % Get the rotation matrices describing the eye angles
+            REyeRMx = Geometry3D.RotZ(deg2rad(eyes.R.H)); % all rows are the same so we can just use the first one
+            REyeRMy = Geometry3D.RotY(deg2rad(eyes.R.V));
+            REyeRMz = Geometry3D.RotX(deg2rad(eyes.R.T));
+            eyes.R.RM = REyeRMx*REyeRMy*REyeRMz; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
+
+            LEyeRMx = Geometry3D.RotZ(deg2rad(eyes.L.H)); % all rows are the same so we can just use the first one
+            LEyeRMy = Geometry3D.RotY(deg2rad(eyes.L.V));
+            LEyeRMz = Geometry3D.RotX(deg2rad(eyes.L.T));
+            eyes.L.RM = LEyeRMx*LEyeRMy*LEyeRMz; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
+
+        end
+
+        function screen = MakeScreen(sizeCm, resPix, distance, slant)
+
+            screen.widthCm = sizeCm(1);
+            screen.heightCm = sizeCm(2);
+            screen.pixPerCmWidth = resPix(1)/sizeCm(1);
+            screen.pixPerCmHeight = resPix(2)/sizeCm(2);
+            screen.middleX = resPix(1)/2;
+            screen.middleY = resPix(2)/2;
+
+            screen.distance = distance;
+            screen.distance = distance;
+            
+            screen.slant = slant;
         end
 
 
@@ -75,32 +137,24 @@ classdef Geometry3D
             t.newxL = points.X - eyes.L.X; % no need to do this for y bc the two eyes are only displaced horizontally on the head
 
             % Get the ANGLES of the dots relative to the (straight ahead) eye position in cm
+            % TODO: do proper quaternions/rot matrices here maybe
             t.DotsAngleRx = atan2d(t.newxR, points.Z);
             t.DotsAngleLx = atan2d(t.newxL, points.Z);
             t.DotsAngleRy = atan2d(points.Y, (points.Z)./abs(cosd(t.DotsAngleRx)));
             t.DotsAngleLy = atan2d(points.Y, (points.Z)./abs(cosd(t.DotsAngleLx)));
 
-            % Calculate the angles of the dots in the eye reference frame accounting
-            % for the angles (vergence) of the eyes
-            t.RAnglex = t.DotsAngleRx - eyes.R.H; % both in deg
-            t.LAnglex = t.DotsAngleLx - eyes.L.H;
-            t.RAngley = t.DotsAngleRy;
-            t.LAngley = t.DotsAngleLy;
+            % % % % % % Calculate the angles of the dots in the eye reference frame accounting
+            % % % % % % for the angles (vergence) of the eyes
+            % % % % % % TODO: do proper quaternions/rot matrices here maybe
+            % % % % % t.RAnglex = t.DotsAngleRx - eyes.R.H; % both in deg
+            % % % % % t.LAnglex = t.DotsAngleLx - eyes.L.H;
+            % % % % % t.RAngley = t.DotsAngleRy;
+            % % % % % t.LAngley = t.DotsAngleLy;
 
-            % Get disparity!!
-            t.HDisparity = t.LAnglex - t.RAnglex;
-            t.VDisparity = t.LAngley - t.RAngley;
 
             % Get the rotation matrices describing the eye angles
-            REyeRMx = Geometry3D.RotZ(deg2rad(eyes.R.H)); % all rows are the same so we can just use the first one
-            REyeRMy = Geometry3D.RotY(deg2rad(eyes.R.V));
-            REyeRMz = Geometry3D.RotX(deg2rad(eyes.R.T));
-            REyeRM = REyeRMx*REyeRMy*REyeRMz; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
-
-            LEyeRMx = Geometry3D.RotZ(deg2rad(eyes.L.H)); % all rows are the same so we can just use the first one
-            LEyeRMy = Geometry3D.RotY(deg2rad(eyes.L.V));
-            LEyeRMz = Geometry3D.RotX(deg2rad(eyes.L.T));
-            LEyeRM = LEyeRMx*LEyeRMy*LEyeRMz; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
+            REyeRM = eyes.R.RM;
+            LEyeRM = eyes.L.RM;
 
             % Calculate the angles of the dots in the eye reference frame accounting
             % for the angles (vergence) of the eyes
@@ -133,10 +187,30 @@ classdef Geometry3D
                 t.LNewZ(i) = rad2deg(LHVT(3));
             end
 
+            % Get disparity!!
+            t.HDisparity = t.LNewX - t.RNewX;
+            t.VDisparity = t.LNewY - t.RNewY;
+
             eyepoints = t;
         end
 
-        function [heyes, hfix, hpoints, hdisparity] = PlotPoints(points, eyePoints, eyes, fixationDistance)
+
+        function [screenPoints eyes] = PointsEyesToScreen(eyes, eyePoints, LeyeScreen, ReyeScreen)
+
+            % TODO: correct for fick/helm or whatever coordinate systems we
+            % have in the eye posints
+            
+            % TODO: Review how eye position is added (probably also needs
+            % to be a rotation
+
+            screenPoints.LX = LeyeScreen.middleX + LeyeScreen.distance*tand(eyes.L.H + eyePoints.LNewX)*LeyeScreen.pixPerCmWidth;
+            screenPoints.LY = LeyeScreen.middleY + LeyeScreen.distance*tand(eyes.L.V + eyePoints.LNewY)*LeyeScreen.pixPerCmHeight;
+            screenPoints.RX = ReyeScreen.middleX + ReyeScreen.distance*tand(eyes.R.H + eyePoints.RNewX)*ReyeScreen.pixPerCmWidth;
+            screenPoints.RY = ReyeScreen.middleY + ReyeScreen.distance*tand(eyes.R.V + eyePoints.RNewY)*ReyeScreen.pixPerCmHeight;
+                
+        end
+
+        function [heyes, hfix, hpoints, hLRpoints, hdisparity, hLscreen] = PlotPoints(points, eyePoints, screenPoints, eyes, fixationDistance)
 
             t = points;
 
@@ -155,21 +229,22 @@ classdef Geometry3D
             ylabel('Z (cm)')
             view(-30,30)
 
+            hLRpoints = [];
             t = eyePoints;
             subplot(2,4,3)
-            plot(t.RAnglex, t.RAngley,'o')
+            hLRpoints.R = plot(t.RNewX, t.RNewY,'o');
             hold
-            plot(t.LAnglex, t.LAngley,'o')
-            plot(0,0,'ro','linewidth',3);
+            hLRpoints.L = plot(t.LNewX, t.LNewY,'o');
+            hLRpoints.FP = plot(0,0,'ro','linewidth',3);
             grid
-            xlim([min([t.RAnglex t.LAnglex],[],"all") max([t.RAnglex t.LAnglex],[],"all")])
-            ylim([min([t.RAngley t.LAngley],[],"all") max([t.RAngley t.LAngley],[],"all")])
+            xlim([min([t.RNewX t.LNewX],[],"all") max([t.RNewX t.LNewX],[],"all")])
+            ylim([min([t.RNewY t.LNewY],[],"all") max([t.RNewY t.LNewY],[],"all")])
             xlabel('X (deg)')
             ylabel('Y (deg)')
             legend({'Right Eye','Left Eye'})
 
             subplot(2,4,4)
-            hdisparity = quiver(t.RAnglex, t.RAngley, t.LAnglex-t.RAnglex, t.LAngley-t.RAngley);
+            hdisparity = quiver(t.RNewX, t.RNewY, t.LNewX-t.RNewX, t.LNewY-t.RNewY);
             % for i = 1:height(t)
             %     line([t.RAnglex(i,1) t.LAnglex(i,1)],[t.RAngley(i,1) t.LAngley(i,1)])
             % end
@@ -181,21 +256,62 @@ classdef Geometry3D
             %     line([t.RNewX(i,1) t.LNewX(i,1)],[t.RNewY(i,1) t.LNewY(i,1)])
             % end
             % title('Disparity With Torsion')
+
+            subplot(2,4,7)
+            hLscreen.LPoints = plot(screenPoints.LX, screenPoints.LY, '+');
+            hold
+            hLscreen.LFP = plot(screenPoints.LX(end), screenPoints.LY(end), 'ro');
+            set(gca,'xlim',[0 1920],'ylim',[0 1080])
+
+            subplot(2,4,8)
+            hLscreen.RPoints = plot(screenPoints.RX, screenPoints.RY, '+');
+            hold
+            hLscreen.RFP = plot(screenPoints.RX(end), screenPoints.RY(end), 'ro');
+            set(gca,'xlim',[0 1920],'ylim',[0 1080])
+            
         end
 
-        function demoDisparityUpdate(sliderValues,heyes, hfix, hpoints, hdisparity, points)
+        function demoDisparityUpdate(sliderValues,heyes, hfix, hpoints,hLRpoints, hdisparity, hscreen, points)
+
+
+            sizeCm = [30*16/9 30];
+            resPix = [1920 1080];
+            distance = 57;
+            slant = 0;
+            LeyeScreen = Geometry3D.MakeScreen(sizeCm, resPix, distance, slant);
+            ReyeScreen = Geometry3D.MakeScreen(sizeCm, resPix, distance, slant);
+
+            fixationSpot = [];
+            fixationSpot.X = 0;
+            fixationSpot.Y = 0;  
+            fixationSpot.Z = sliderValues.fixationDistance;
 
 
             % points = GeneratePoints(sliderValues.nDots, sliderValues.sizeStimCm, sliderValues.stimDistance);
-            eyes = MakeEyes(sliderValues.ipdmm/10, sliderValues.fixationDistance, sliderValues.torsionVersion, sliderValues.torsionVergence);
+            eyes = Geometry3D.MakeEyes(sliderValues.ipdmm/10, fixationSpot, sliderValues.torsionVersion, sliderValues.torsionVergence);
             points.Z = ones(size(points.Z))*sliderValues.stimDistance;
-            [t] = Points3DToEyes(points, eyes);
+
+
+            points{end,:} = [fixationSpot.X fixationSpot.Y fixationSpot.Z];
+
+            [t] = Geometry3D.Points3DToEyes(points, eyes);
+            screenPoints = Geometry3D.PointsEyesToScreen(eyes, t, LeyeScreen, ReyeScreen);
 
             set(hfix, 'ydata', sliderValues.fixationDistance);
             set(heyes, 'xdata', [eyes.L.X 0 eyes.R.X], 'ydata', [0 sliderValues.fixationDistance 0], 'zdata', [0 0 0]);
             set(hpoints, 'xdata', points.X, 'ydata',points.Z, 'zdata', points.Y);
 
+            set(hLRpoints.L, 'xdata', t.LNewX, 'ydata', t.LNewY);
+            set(hLRpoints.R, 'xdata', t.RNewX, 'ydata', t.RNewY);
+            
+
+
             set(hdisparity, 'xdata',(t.LNewX+t.RNewX)/2, 'ydata', (t.LNewY+t.RNewY)/2, 'udata', t.LNewX-t.RNewX, 'vdata', t.LNewY-t.RNewY);
+
+            set(hscreen.LPoints, 'xdata', screenPoints.LX, 'ydata',screenPoints.LY);
+            set(hscreen.RPoints, 'xdata', screenPoints.RX, 'ydata',screenPoints.RY);            
+            set(hscreen.LFP, 'xdata', screenPoints.LX(end), 'ydata', screenPoints.LY(end));            
+            set(hscreen.RFP, 'xdata', screenPoints.RX(end), 'ydata', screenPoints.RY(end));  
 
         end
 

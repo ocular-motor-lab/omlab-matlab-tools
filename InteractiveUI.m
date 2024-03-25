@@ -74,28 +74,32 @@ classdef InteractiveUI < matlab.apps.AppBase
             if ( app.updating)
                return
             end
-            app.updating = 1;
+            try
+                app.updating = 1;
 
-            if ( app.UIFigure.Visible == "on")
-                app.updateCallback(app.SliderValues);
+                if ( app.UIFigure.Visible == "on")
+                    app.updateCallback(app.SliderValues);
 
-                sliders = fieldnames(app.SliderValues);
-                for i=1:length(sliders)
-                    slider = sliders{i};
+                    sliders = fieldnames(app.SliderValues);
+                    for i=1:length(sliders)
+                        slider = sliders{i};
 
-                    sliderNum = 3;
-                    numFieldNum = 4;
+                        sliderNum = 3;
+                        numFieldNum = 4;
 
-                    lims = app.GridLayout.Children(i).Children(sliderNum).Limits;
-                    value = app.SliderValues.(slider);
-                    value = max(min(value, lims(2)),lims(1));
+                        lims = app.GridLayout.Children(i).Children(sliderNum).Limits;
+                        value = app.SliderValues.(slider);
+                        value = max(min(value, lims(2)),lims(1));
 
-                    app.GridLayout.Children(i).Children(sliderNum).Value = value;
-                    app.GridLayout.Children(i).Children(numFieldNum).Value = value;
+                        app.GridLayout.Children(i).Children(sliderNum).Value = value;
+                        app.GridLayout.Children(i).Children(numFieldNum).Value = value;
+                    end
+
                 end
-
+                app.updating = 0;
+            catch ex
+                ex.getReport()
             end
-            app.updating = 0;
         end
 
         function Update(app)
