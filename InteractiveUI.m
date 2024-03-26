@@ -29,6 +29,8 @@ classdef InteractiveUI < matlab.apps.AppBase
         t
 
         SliderValues = struct();
+
+        Data
     end
     properties(Access = private)
         sliderCount = 0;
@@ -78,7 +80,7 @@ classdef InteractiveUI < matlab.apps.AppBase
                 app.updating = 1;
 
                 if ( app.UIFigure.Visible == "on")
-                    app.updateCallback(app.SliderValues);
+                    app.updateCallback(app);
 
                     sliders = fieldnames(app.SliderValues);
                     for i=1:length(sliders)
