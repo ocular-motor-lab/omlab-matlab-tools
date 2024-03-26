@@ -9,7 +9,7 @@ classdef Geometry3D
 
         function demoDisparity(stimType)
             if (~exist("stimType", "var"))
-                stimType = 'PLANE';
+                stimType = 'GRID';
             end
             %%
             numDots = 100;
@@ -31,10 +31,11 @@ classdef Geometry3D
                 case 'GRID'
                     % TODO: need to update the update funciton so the Z is not overwritten by a
                     % constant distance. Just shift things.
-                    % worldPoints = table();
-                    % worldPoints.X = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
-                    % worldPoints.Y = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
-                    % worldPoints.Z = ones(numDots, 1)*stimDistance + worldPoints.X;
+                    [X,Y] = meshgrid([-10:2:10],[-10:2:10]);
+                     worldPoints = table();
+                     worldPoints.X = X(:);
+                     worldPoints.Y = Y(:);
+                     worldPoints.Z = ones(size(worldPoints.X))*stimDistance + worldPoints.X;
             end
 
             fixationSpot = [];
@@ -47,6 +48,7 @@ classdef Geometry3D
             s = InteractiveUI('DisparityCalculator',@(s) (Geometry3D.demoDisparityUpdate(s, worldPoints)), 0.2);
             s.AddControl('fixationDistance',30, [10 200])
             s.AddControl('stimDistance',    40, [10 200])
+            s.AddControl('stimScale',       1,  [0.1 10])
             s.AddControl('ipdmm',           60, [10 100])
             s.AddControl('torsionVersion',  0,  [-20 20])
             s.AddControl('torsionVergence', 0,  [-20 20])
@@ -183,6 +185,9 @@ classdef Geometry3D
             % TODO: Review how eye position is added (probably also needs
             % to be a rotation
 
+            % This needs to be different if we are simulating torsion or
+            % not
+
             screenPoints.LX = LeyeScreen.middleX + LeyeScreen.distance*tand(eyes.L.H + eyePoints.LNewX)*LeyeScreen.pixPerCmWidth;
             screenPoints.LY = LeyeScreen.middleY + LeyeScreen.distance*tand(eyes.L.V + eyePoints.LNewY)*LeyeScreen.pixPerCmHeight;
             screenPoints.RX = ReyeScreen.middleX + ReyeScreen.distance*tand(eyes.R.H + eyePoints.RNewX)*ReyeScreen.pixPerCmWidth;
@@ -196,7 +201,14 @@ classdef Geometry3D
             fp = points(end,:);
 
             % View the dots, eyes, and fixation dot
-            figure
+            scr_siz = get(0,'ScreenSize')
+            margin = floor(0.1*(scr_siz(4)));
+            figure('position',floor([...
+                margin...
+                margin...
+                scr_siz(3)*2.8/4 ...
+                scr_siz(4)*2/4 ...
+                ]))
             subplot(2,4,[1 2 5 6])
 
             hpoints=plot3(t.X,t.Z, t.Y,'o','Color','k'); hold on
@@ -206,11 +218,13 @@ classdef Geometry3D
 
             xlim(1.2*[min(t.X) max(t.X)])
             zlim(1.2*[min(t.Y) max(t.Y)])
-            ylim([-5 min(100,max(fp.Z, max(t.Z)))*1.2])
+            % ylim([-5 min(100,max(fp.Z, max(t.Z)))*2])
+            ylim([-5 200])
             xlabel('X (cm)')
             zlabel('Y (cm)')
             ylabel('Z (cm)')
-            view(-30,30)
+            view(-75,10)
+            title('3D world');
 
             hLRpoints = [];
             t = eyePoints;
@@ -225,12 +239,14 @@ classdef Geometry3D
             xlabel('X (deg)')
             ylabel('Y (deg)')
             legend({'Right Eye','Left Eye'})
+            title('Retinal position');
 
             subplot(2,4,4)
             hdisparity = quiver(t.RNewX, t.RNewY, t.LNewX-t.RNewX, t.LNewY-t.RNewY);
             % for i = 1:height(t)
             %     line([t.RAnglex(i,1) t.LAnglex(i,1)],[t.RAngley(i,1) t.LAngley(i,1)])
             % end
+            grid
             title('Disparity')
             set(gca,'xlim',[-20 20],'ylim',[-20 20])
 
@@ -244,13 +260,19 @@ classdef Geometry3D
             hLscreen.LPoints = plot(screenPoints.LX(1:end-1), screenPoints.LY(1:end-1), '+');
             hold
             hLscreen.LFP = plot(screenPoints.LX(end), screenPoints.LY(end), 'ro');
+            grid
             set(gca,'xlim',[0 1920],'ylim',[0 1080])
+            set(gca,'PlotBoxAspectRatio',[16 9 1])
+            title('Left eye screen (sim torsion)');
 
             subplot(2,4,8)
             hLscreen.RPoints = plot(screenPoints.RX(1:end-1), screenPoints.RY(1:end-1), '+');
             hold
             hLscreen.RFP = plot(screenPoints.RX(end), screenPoints.RY(end), 'ro');
+            grid
             set(gca,'xlim',[0 1920],'ylim',[0 1080])
+            set(gca,'PlotBoxAspectRatio',[16 9 1])
+            title('Right eye screen (sim torsion)');
             
         end
 
@@ -274,6 +296,9 @@ classdef Geometry3D
             % points = GeneratePoints(sliderValues.nDots, sliderValues.sizeStimCm, sliderValues.stimDistance);
             eyes = Geometry3D.MakeEyes(sliderValues.ipdmm/10, fixationSpot, sliderValues.torsionVersion, sliderValues.torsionVergence);
             
+            worldPoints.X = (worldPoints.X-mean(worldPoints.X))*sliderValues.stimScale + mean(worldPoints.X);
+            worldPoints.Y = (worldPoints.Y-mean(worldPoints.Y))*sliderValues.stimScale + mean(worldPoints.Y);
+
             worldPoints.Z = zeros(size(worldPoints.Z));
             for i = 1:height(worldPoints)
                 Ry = Geometry3D.RotY(deg2rad(sliderValues.PlaneSlant));
@@ -293,7 +318,7 @@ classdef Geometry3D
 
 
 
-            if ( ~isfield(s.Data, "heyes") )
+            if ( ~isfield(s.Data, "heyes") || ~isvalid(s.Data.heyes.l))
                 [heyes, hfix, hpoints, hLRpoints, hdisparity, hscreen] = Geometry3D.PlotPoints(worldPoints, eyePoints, screenPoints, eyes);
                 s.Data.heyes = heyes;
                 s.Data.hfix = hfix;
