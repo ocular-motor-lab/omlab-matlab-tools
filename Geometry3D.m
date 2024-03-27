@@ -115,13 +115,17 @@ classdef Geometry3D
 
             % Get the new xs in cm for the two eyes (transform the dots from head reference
             % to eye reference [nothing about eye angle here!])
-            t.newxR = points.X - eyes.R.X; % both in cm
-            t.newxL = points.X - eyes.L.X; % no need to do this for y bc the two eyes are only displaced horizontally on the head
+            t.RX = points.X - eyes.R.X; % both in cm
+            t.RY = points.Y;
+            t.RZ = points.Z;
+            t.LX = points.X - eyes.L.X; % no need to do this for y bc the two eyes are only displaced horizontally on the head
+            t.LY = points.Y;
+            t.LZ = points.Z;
 
             % Get the ANGLES of the dots relative to the (straight ahead) eye position in cm
             % TODO: do proper quaternions/rot matrices here maybe
-            t.DotsAngleRx = atan2d(t.newxR, points.Z);
-            t.DotsAngleLx = atan2d(t.newxL, points.Z);
+            t.DotsAngleRx = atan2d(t.RX, points.Z);
+            t.DotsAngleLx = atan2d(t.LX, points.Z);
             t.DotsAngleRy = atan2d(points.Y, (points.Z)./abs(cosd(t.DotsAngleRx)));
             t.DotsAngleLy = atan2d(points.Y, (points.Z)./abs(cosd(t.DotsAngleLx)));
 
@@ -134,44 +138,50 @@ classdef Geometry3D
             % % % % % t.LAngley = t.DotsAngleLy;
 
 
-            % Get the rotation matrices describing the eye angles
+            % Get the rotation matrices describing the eye angles (X coming
+            % out of the eye)
             REyeRM = eyes.R.RM;
             LEyeRM = eyes.L.RM;
 
             % Calculate the angles of the dots in the eye reference frame accounting
             % for the angles (vergence) of the eyes
-            for i = 1:height(t)
-                RDotRMx = Geometry3D.RotZ(deg2rad(t.DotsAngleRx(i)));
-                RDotRMy = Geometry3D.RotY(deg2rad(t.DotsAngleRy(i)));
-                t.RDotRM{i} = RDotRMx*RDotRMy; % Rot matrix defining the orientation (angles) of a dot relative to straight ahead eye direction.
-                t.RDotinEyeRM{i} = (t.RDotRM{i}'*REyeRM)'; % rot matrix defining the orientation of the dot relative to the eye actual direction.
+            % for i = 1:height(t)
+            %     RDotRMx = Geometry3D.RotZ(deg2rad(t.DotsAngleRx(i)));
+            %     RDotRMy = Geometry3D.RotY(deg2rad(t.DotsAngleRy(i)));
+            %     t.RDotRM{i} = RDotRMx*RDotRMy; % Rot matrix defining the orientation (angles) of a dot relative to straight ahead eye direction.
+            %     t.RDotinEyeRM{i} = (t.RDotRM{i}'*REyeRM)'; % rot matrix defining the orientation of the dot relative to the eye actual direction.
+            % 
+            %     LDotRMx = Geometry3D.RotZ(deg2rad(t.DotsAngleLx(i)));
+            %     LDotRMy = Geometry3D.RotY(deg2rad(t.DotsAngleLy(i)));
+            %     t.LDotRM{i} = LDotRMx*LDotRMy; % Rot matrix defining the orientation (angles) of a dot relative to straight ahead eye direction.
+            %     t.LDotinEyeRM{i} = (t.LDotRM{i}'*LEyeRM)'; % rot matrix defining the orientation of the dot relative to the eye actual direction.
+            % end
 
-                LDotRMx = Geometry3D.RotZ(deg2rad(t.DotsAngleLx(i)));
-                LDotRMy = Geometry3D.RotY(deg2rad(t.DotsAngleLy(i)));
-                t.LDotRM{i} = LDotRMx*LDotRMy; % Rot matrix defining the orientation (angles) of a dot relative to straight ahead eye direction.
-                t.LDotinEyeRM{i} = (t.LDotRM{i}'*LEyeRM)'; % rot matrix defining the orientation of the dot relative to the eye actual direction.
-            end
+            % TODO: Document!!! and make sure X and Y are correctly
+            % flipped. I Don't quite understand why. 
+            % Rotate the points to be in eye reference frame
+            Rzyx =  t{:,{'RZ' 'RX' 'RY'  }}*REyeRM;
+            Lzyx =  t{:,{'LZ' 'LX' 'LY'  }}*LEyeRM;
 
-            % test = pagetranspose(pagemtimes(pagetranspose(cat(3,t.RDotRM{:})),REyeRM));
-            %
-            % test = pagemtimes(t.RDotRM,REyeRM)
+            % % Get the hor vert tor rotations in fick
+            % for i = 1:height(t)
+            %     RHVT = Geometry3D.RotMat2Fick(t.RDotinEyeRM{i});
+            %     LHVT = Geometry3D.RotMat2Fick(t.LDotinEyeRM{i});
+            % 
+            %     t.RH(i) = rad2deg(RHVT(1));
+            %     t.RV(i) = rad2deg(RHVT(2));
+            %     t.LH(i) = rad2deg(LHVT(1));
+            %     t.LV(i) = rad2deg(LHVT(2));
+            % end
 
-            % Get the hor vert tor rotations in fick
-            for i = 1:height(t)
-                RHVT = Geometry3D.RotMat2Fick(t.RDotinEyeRM{i});
-                LHVT = Geometry3D.RotMat2Fick(t.LDotinEyeRM{i});
-
-                t.RNewX(i) = rad2deg(RHVT(1));
-                t.RNewY(i) = rad2deg(RHVT(2));
-                t.RNewZ(i) = rad2deg(RHVT(3));
-                t.LNewX(i) = rad2deg(LHVT(1));
-                t.LNewY(i) = rad2deg(LHVT(2));
-                t.LNewZ(i) = rad2deg(LHVT(3));
-            end
+            t.RH = atan2d(Rzyx(:,2), Rzyx(:,1));
+            t.RV = atan2d(Rzyx(:,3), (Rzyx(:,1))./abs(cosd(Rzyx(:,2))));
+            t.LH = atan2d(Lzyx(:,2), Lzyx(:,1));
+            t.LV = atan2d(Lzyx(:,3), (Lzyx(:,1))./abs(cosd(Lzyx(:,2))));
 
             % Get disparity!!
-            t.HDisparity = t.LNewX - t.RNewX;
-            t.VDisparity = t.LNewY - t.RNewY;
+            t.HDisparity = t.LH - t.RH;
+            t.VDisparity = t.LV - t.RV;
 
             eyepoints = t;
         end
@@ -188,10 +198,10 @@ classdef Geometry3D
             % This needs to be different if we are simulating torsion or
             % not
 
-            screenPoints.LX = LeyeScreen.middleX + LeyeScreen.distance*tand(eyes.L.H + eyePoints.LNewX)*LeyeScreen.pixPerCmWidth;
-            screenPoints.LY = LeyeScreen.middleY + LeyeScreen.distance*tand(eyes.L.V + eyePoints.LNewY)*LeyeScreen.pixPerCmHeight;
-            screenPoints.RX = ReyeScreen.middleX + ReyeScreen.distance*tand(eyes.R.H + eyePoints.RNewX)*ReyeScreen.pixPerCmWidth;
-            screenPoints.RY = ReyeScreen.middleY + ReyeScreen.distance*tand(eyes.R.V + eyePoints.RNewY)*ReyeScreen.pixPerCmHeight;
+            screenPoints.LX = LeyeScreen.middleX + LeyeScreen.distance*tand(eyes.L.H + eyePoints.LH)*LeyeScreen.pixPerCmWidth;
+            screenPoints.LY = LeyeScreen.middleY + LeyeScreen.distance*tand(eyes.L.V + eyePoints.LV)*LeyeScreen.pixPerCmHeight;
+            screenPoints.RX = ReyeScreen.middleX + ReyeScreen.distance*tand(eyes.R.H + eyePoints.RH)*ReyeScreen.pixPerCmWidth;
+            screenPoints.RY = ReyeScreen.middleY + ReyeScreen.distance*tand(eyes.R.V + eyePoints.RV)*ReyeScreen.pixPerCmHeight;
                 
         end
 
@@ -229,20 +239,20 @@ classdef Geometry3D
             hLRpoints = [];
             t = eyePoints;
             subplot(2,4,3)
-            hLRpoints.R = plot(t.RNewX, t.RNewY,'o');
+            hLRpoints.R = plot(t.RH, t.RV,'o');
             hold
-            hLRpoints.L = plot(t.LNewX, t.LNewY,'o');
+            hLRpoints.L = plot(t.LH, t.LV,'o');
             hLRpoints.FP = plot(0,0,'ro','linewidth',3);
             grid
-            xlim([min([t.RNewX t.LNewX],[],"all") max([t.RNewX t.LNewX],[],"all")])
-            ylim([min([t.RNewY t.LNewY],[],"all") max([t.RNewY t.LNewY],[],"all")])
+            xlim([min([t.RH t.LH],[],"all") max([t.RH t.LH],[],"all")])
+            ylim([min([t.RV t.LV],[],"all") max([t.RV t.LV],[],"all")])
             xlabel('X (deg)')
             ylabel('Y (deg)')
             legend({'Right Eye','Left Eye'})
             title('Retinal position');
 
             subplot(2,4,4)
-            hdisparity = quiver(t.RNewX, t.RNewY, t.LNewX-t.RNewX, t.LNewY-t.RNewY);
+            hdisparity = quiver(t.RH, t.RV, t.LH-t.RH, t.LV-t.RV, 'AutoScale', "off");
             % for i = 1:height(t)
             %     line([t.RAnglex(i,1) t.LAnglex(i,1)],[t.RAngley(i,1) t.LAngley(i,1)])
             % end
@@ -252,7 +262,7 @@ classdef Geometry3D
 
             % subplot(2,4,7)
             % for i = 1:height(t)
-            %     line([t.RNewX(i,1) t.LNewX(i,1)],[t.RNewY(i,1) t.LNewY(i,1)])
+            %     line([t.RH(i,1) t.LH(i,1)],[t.RV(i,1) t.LV(i,1)])
             % end
             % title('Disparity With Torsion')
 
@@ -298,13 +308,12 @@ classdef Geometry3D
             
             worldPoints.X = (worldPoints.X-mean(worldPoints.X))*sliderValues.stimScale + mean(worldPoints.X);
             worldPoints.Y = (worldPoints.Y-mean(worldPoints.Y))*sliderValues.stimScale + mean(worldPoints.Y);
-
+            
             worldPoints.Z = zeros(size(worldPoints.Z));
-            for i = 1:height(worldPoints)
-                Ry = Geometry3D.RotY(deg2rad(sliderValues.PlaneSlant));
-                Rz = Geometry3D.RotZ(deg2rad(sliderValues.PlaneTilt));
-                worldPoints{i,:} = (Rz*Ry* worldPoints{i,:}')';
-            end
+            Ry = Geometry3D.RotY(deg2rad(sliderValues.PlaneSlant));
+            Rz = Geometry3D.RotZ(deg2rad(sliderValues.PlaneTilt));
+            Rzy = Rz*Ry;
+            worldPoints{:,:} = (Rzy*worldPoints{:,:}')';
 
             worldPoints.Z = worldPoints.Z + sliderValues.stimDistance;
 
@@ -312,8 +321,9 @@ classdef Geometry3D
 
             worldPoints{end,:} = [fixationSpot.X fixationSpot.Y fixationSpot.Z];
 
-
+tic
             eyePoints = Geometry3D.Points3DToEyes(worldPoints, eyes);
+         toc   
             screenPoints = Geometry3D.PointsEyesToScreen(eyes, eyePoints, LeyeScreen, ReyeScreen);
 
 
@@ -340,12 +350,12 @@ classdef Geometry3D
             set(heyes.c, 'xdata', [eyes.L.X eyes.R.X], 'ydata', [0 0], 'zdata', [0 0]);
             set(hpoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', worldPoints.Y);
 
-            set(hLRpoints.L, 'xdata', eyePoints.LNewX, 'ydata', eyePoints.LNewY);
-            set(hLRpoints.R, 'xdata', eyePoints.RNewX, 'ydata', eyePoints.RNewY);
+            set(hLRpoints.L, 'xdata', eyePoints.LH, 'ydata', eyePoints.LV);
+            set(hLRpoints.R, 'xdata', eyePoints.RH, 'ydata', eyePoints.RV);
             
 
 
-            set(hdisparity, 'xdata',(eyePoints.LNewX+eyePoints.RNewX)/2, 'ydata', (eyePoints.LNewY+eyePoints.RNewY)/2, 'udata', eyePoints.LNewX-eyePoints.RNewX, 'vdata', eyePoints.LNewY-eyePoints.RNewY);
+            set(hdisparity, 'xdata',(eyePoints.LH+eyePoints.RH)/2, 'ydata', (eyePoints.LV+eyePoints.RV)/2, 'udata', eyePoints.LH-eyePoints.RH, 'vdata', eyePoints.LV-eyePoints.RV);
 
             set(hscreen.LPoints, 'xdata', screenPoints.LX(1:end-1), 'ydata',screenPoints.LY(1:end-1));
             set(hscreen.RPoints, 'xdata', screenPoints.RX(1:end-1), 'ydata',screenPoints.RY(1:end-1));            
