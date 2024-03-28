@@ -29,6 +29,7 @@ classdef InteractiveUI < matlab.apps.AppBase
         t
 
         SliderValues = struct();
+        period = 0.1;
 
         Data
     end
@@ -46,26 +47,23 @@ classdef InteractiveUI < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 645 721];
+            app.UIFigure.Position = [100 100 645 841];
             app.UIFigure.Name = 'MATLAB App';
             app.UIFigure.Resize = 'off';
 
             % Create GridLayout
             app.GridLayout = uigridlayout(app.UIFigure);
             app.GridLayout.ColumnWidth = {'1x'};
-            app.GridLayout.RowHeight = {60, 60, 60, 60, 60, 60, 60, 60, 60, 60};
+            app.GridLayout.RowHeight = {60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60};
         end
 
-        function InitTimer(app, period)
-            if ( ~exist('period','var'))
-                period = 0.1;
-            end
+        function InitTimer(app)
 
             % Setup timer to update psychtoolbox window
             % this is instead of a typical while loop.
             app.t = timer;
             app.t.TimerFcn = @(~,thisevent)app.UpdateTimer;
-            app.t.Period = period;
+            app.t.Period = app.period;
             app.t.ExecutionMode = 'fixedRate';
             app.t.TasksToExecute = 100000;
 
@@ -158,10 +156,12 @@ classdef InteractiveUI < matlab.apps.AppBase
                 clear app
             end
 
+            if ( exist("period","var"))
+                app.period = period;
+            end
             app.updateCallback = newUpdateCallback;
             app.UIFigure.Name = name;
 
-            app.InitTimer(period);
         end
 
         % Code that executes before app deletion
@@ -176,12 +176,14 @@ classdef InteractiveUI < matlab.apps.AppBase
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';
+
+            app.InitTimer();
         end
 
         function AddControl(app, name, defaultvalue, range)
 
-            if (app.sliderCount >= 10)
-                error('NO MORE SLIDERS ALLLOWED')
+            if (app.sliderCount >= 12)
+                error('NO MORE SLIDERS ALLLOWED (12 max)')
             end
             app.sliderCount =  app.sliderCount+1;
 
