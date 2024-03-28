@@ -7,16 +7,16 @@ classdef InteractiveUI < matlab.apps.AppBase
     % figure
     % ax = gca;
     % 
-    % s = SliderUI('geometry3D',@(sliderValues) (fun(sliderValues,ax)));
+    % s = SliderUI('geometry3D',@(app) (fun(app,ax)));
     % s.AddControl('freq',1, [1 10])
     % s.AddControl('phase',0, [0 360])
     % s.AddControl('amplitude',1, [0 10])
     % s.Open();
     % 
-    % function fun(sliderValues, ax)
+    % function fun(app, ax)
     %   cla(ax)
     %   x = 0:0.001:1;
-    %   plot(sin(x*2*pi*values.freq+deg2rad(sliderValues.phase))*values.amplitude);
+    %   plot(sin(x*2*pi*app.Values.freq+deg2rad(app.Values.phase))*app.values.amplitude);
     % end
 
 
@@ -28,7 +28,8 @@ classdef InteractiveUI < matlab.apps.AppBase
         % timer
         t
 
-        SliderValues = struct();
+        Values = struct();
+        InitialValues
         period = 0.1;
 
         Data
@@ -80,19 +81,25 @@ classdef InteractiveUI < matlab.apps.AppBase
                 if ( app.UIFigure.Visible == "on")
                     app.updateCallback(app);
 
-                    sliders = fieldnames(app.SliderValues);
+                    sliders = fieldnames(app.Values);
                     for i=1:length(sliders)
                         slider = sliders{i};
 
-                        sliderNum = 3;
-                        numFieldNum = 4;
+                        if (length(app.GridLayout.Children(i).Children) > 3)
+                            % if the control is a slider we need to keep
+                            % labels and sliders consistent
+                            sliderNum = 3;
+                            numFieldNum = 4;
 
-                        lims = app.GridLayout.Children(i).Children(sliderNum).Limits;
-                        value = app.SliderValues.(slider);
-                        value = max(min(value, lims(2)),lims(1));
+                            if (  class(app.GridLayout.Children(i).Children(sliderNum)) == "matlab.ui.control.Slider" )
+                                lims = app.GridLayout.Children(i).Children(sliderNum).Limits;
+                                value = app.Values.(slider);
+                                value = max(min(value, lims(2)),lims(1));
 
-                        app.GridLayout.Children(i).Children(sliderNum).Value = value;
-                        app.GridLayout.Children(i).Children(numFieldNum).Value = value;
+                                app.GridLayout.Children(i).Children(sliderNum).Value = value;
+                                app.GridLayout.Children(i).Children(numFieldNum).Value = value;
+                            end
+                        end
                     end
 
                 end
@@ -109,7 +116,7 @@ classdef InteractiveUI < matlab.apps.AppBase
         % Value changing function: Slider
         function SliderValueChanging(app, event)
             changingValue = event.Value;
-            app.SliderValues.(event.Source.Tag) = changingValue;
+            app.Values.(event.Source.Tag) = changingValue;
 
             app.Update();
         end
@@ -117,7 +124,7 @@ classdef InteractiveUI < matlab.apps.AppBase
         % Value changed function: Slider
         function SliderValueChanged(app, event)
             value = event.Source.Value;
-            app.SliderValues.(event.Source.Tag) = value;
+            app.Values.(event.Source.Tag) = value;
             app.Update();
         end
 
@@ -125,9 +132,9 @@ classdef InteractiveUI < matlab.apps.AppBase
         function ButtonPushed(app, event)
             switch(event.Source.Text)
                 case '+'
-                    app.SliderValues.(event.Source.Tag) = app.SliderValues.(event.Source.Tag) + 1;
+                    app.Values.(event.Source.Tag) = app.Values.(event.Source.Tag) + 1;
                 case '-'
-                    app.SliderValues.(event.Source.Tag) = app.SliderValues.(event.Source.Tag) - 1;
+                    app.Values.(event.Source.Tag) = app.Values.(event.Source.Tag) - 1;
             end
             app.Update();
         end
@@ -135,7 +142,7 @@ classdef InteractiveUI < matlab.apps.AppBase
         % Value changed function: EditField
         function EditFieldValueChanged(app, event)
             value = event.Source.Value;
-            app.SliderValues.(event.Source.Tag) = value;
+            app.Values.(event.Source.Tag) = value;
             app.Update();
         end
     end
@@ -176,11 +183,17 @@ classdef InteractiveUI < matlab.apps.AppBase
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';
+            app.InitialValues = app.Values;
 
             app.InitTimer();
         end
 
-        function AddControl(app, name, defaultvalue, range)
+        function Reset(app)
+            app.Values = app.InitialValues;
+            app.Update();
+        end
+
+        function AddSlider(app, name, defaultvalue, range)
 
             if (app.sliderCount >= 12)
                 error('NO MORE SLIDERS ALLLOWED (12 max)')
@@ -189,7 +202,7 @@ classdef InteractiveUI < matlab.apps.AppBase
 
             textname = name;
             name = matlab.lang.makeValidName(name);
-            app.SliderValues.(name) = defaultvalue;
+            app.Values.(name) = defaultvalue;
 
             % Create Panel
             Panel = uipanel(app.GridLayout);
@@ -229,6 +242,39 @@ classdef InteractiveUI < matlab.apps.AppBase
             Button_2.Position = [204 16 29 23];
             Button_2.Text = '-';
             Button_2.Tag = name;
+
+            app.Update();
+
+        end
+
+
+        function AddDropDown(app, name, defaultvalue, values)
+
+            if (app.sliderCount >= 12)
+                error('NO MORE SLIDERS ALLLOWED (12 max)')
+            end
+            app.sliderCount =  app.sliderCount+1;
+
+            textname = name;
+            name = matlab.lang.makeValidName(name);
+            app.Values.(name) = values(defaultvalue);
+
+            % Create Panel
+            Panel = uipanel(app.GridLayout);
+            Panel.Layout.Row = app.sliderCount;
+            Panel.Layout.Column = 1;
+
+            % Create EditFieldLabel
+            EditFieldLabel = uilabel(Panel);
+            EditFieldLabel.HorizontalAlignment = 'right';
+            EditFieldLabel.Position = [8 16 115 22];
+            EditFieldLabel.Text = textname;
+
+            % Create DropDown
+            DropDown = uidropdown(Panel,"Items",values);
+            DropDown.Position = [250 14 303 33];
+            DropDown.ValueChangedFcn = createCallbackFcn(app, @SliderValueChanged, true);
+            DropDown.Tag = name;
 
             app.Update();
 

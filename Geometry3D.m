@@ -9,80 +9,21 @@ classdef Geometry3D
 
     methods(Static)
 
-        function demoDisparity(stimType)
-            if (~exist("stimType", "var"))
-                stimType = 'GRID';
-            end
-            %%
-            sizeStimCm = 20;
-
-
-            % Make some dots in world coordinates (XYZ)
-            % 
-            % Make a table to start putting everything together
-            switch (stimType)
-                case 'PLANE'
-                    numDots = 100;
-                    worldPoints = table();
-                    worldPoints.X = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
-                    worldPoints.Y = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
-                    worldPoints.Z = zeros(numDots, 1);
-                case 'GRID'
-                    % TODO: need to update the update funciton so the Z is not overwritten by a
-                    % constant distance. Just shift things.
-                    [X,Y] = meshgrid([-10:2:10],[-10:2:10]);
-                     worldPoints = table();
-                     worldPoints.X = X(:);
-                     worldPoints.Y = Y(:);
-                     worldPoints.Z = zeros(size(worldPoints.X));
-
-                case 'HLINE'
-                    % TODO: need to update the update funciton so the Z is not overwritten by a
-                    % constant distance. Just shift things.
-                    [X,Y] = meshgrid([-10:0.5:10],[0]*ones(size([-10:0.5:10])));
-                     worldPoints = table();
-                     worldPoints.X = X(:);
-                     worldPoints.Y = Y(:);
-                     worldPoints.Z = zeros(size(worldPoints.X));
-                case 'VLINE'
-                    % TODO: need to update the update funciton so the Z is not overwritten by a
-                    % constant distance. Just shift things.
-                    [X,Y] = meshgrid([0]*ones(size([-10:0.5:10])),[-10:0.5:10]);
-                     worldPoints = table();
-                     worldPoints.X = X(:);
-                     worldPoints.Y = Y(:);
-                     worldPoints.Z = zeros(size(worldPoints.X));
-
-
-
-                case 'CROSS'
-                    % TODO: need to update the update funciton so the Z is not overwritten by a
-                    % constant distance. Just shift things.
-                    [X,Y] = meshgrid([-10:0.5:10],[0]*ones(size([-10:0.5:10])));
-                     worldPoints = table();
-                     worldPoints.X = X(:);
-                     worldPoints.Y = Y(:);
-                     worldPoints.Z = zeros(size(worldPoints.X));
-                    % TODO: need to update the update funciton so the Z is not overwritten by a
-                    % constant distance. Just shift things.
-                    [X,Y] = meshgrid([0]*ones(size([-10:0.5:10])),[-10:0.5:10]);
-                     worldPoints2 = table();
-                     worldPoints2.X = X(:);
-                     worldPoints2.Y = Y(:);
-                     worldPoints2.Z = zeros(size(worldPoints2.X));
-
-                     worldPoints = cat(1,worldPoints, worldPoints2);
-            end
-
-            app = InteractiveUI('DisparityCalculator',@(app) (Geometry3D.demoDisparityUpdate(app, worldPoints)), 0.2);
-            app.AddControl('fixationDistance',30, [10 200])
-            app.AddControl('stimDistance',    40, [10 200])
-            app.AddControl('stimScale',       1,  [0.1 10])
-            app.AddControl('ipdmm',           60, [10 100])
-            app.AddControl('torsionVersion',  0,  [-20 20])
-            app.AddControl('torsionVergence', 0,  [-20 20])
-            app.AddControl('Plane slant',     0,  [-90 90])
-            app.AddControl('Plane Tilt',      0,  [0 90])
+        function demoDisparity()
+          
+            app = InteractiveUI('DisparityCalculator',@(app) (Geometry3D.demoDisparityUpdate(app)), 0.2);
+            app.AddDropDown('Stimulus',      1,  ["CROSS" "RANDOMPLANE" "GRIDPLANE" "HLINE" "VLINE"])
+            app.AddSlider('ipdmm',           60, [10 100])
+            app.AddSlider('stimScale',       1,  [0.1 10])
+            app.AddSlider('stimDistance',    40, [10 200])
+            app.AddSlider('fixationDistance',30, [10 200])
+            app.AddSlider('fixationX',        0, [-100 100])
+            app.AddSlider('fixationY',        0, [-100 100])
+            app.AddSlider('torsionVersion',  0,  [-20 20])
+            app.AddSlider('torsionVergence', 0,  [-20 20])
+            app.AddSlider('Plane slant',     0,  [-90 90])
+            app.AddSlider('Plane Tilt',      0,  [0 90])
+            app.AddDropDown('View3D',      1,  ["Oblique" "TOP" "SIDE"])
 
 
             app.Data.Screen = struct();
@@ -102,19 +43,19 @@ classdef Geometry3D
 
         function demoQuaternion()
             app = InteractiveUI('Quaternion demo',@(app) (Geometry3D.demoQuaternionUpdate(app)), 0.2);
-            app.AddControl('q0',1, [-1 1])
-            app.AddControl('q1',0, [-1 1])
-            app.AddControl('q2',0, [-1 1])
-            app.AddControl('q3',0, [-1 1])
+            app.AddSlider('q0',1, [-1 1])
+            app.AddSlider('q1',0, [-1 1])
+            app.AddSlider('q2',0, [-1 1])
+            app.AddSlider('q3',0, [-1 1])
 
-            app.AddControl('H',0, [-90 90])
-            app.AddControl('V',0, [-90 90])
-            app.AddControl('T',0, [-90 90])
+            app.AddSlider('H',0, [-90 90])
+            app.AddSlider('V',0, [-90 90])
+            app.AddSlider('T',0, [-90 90])
 
-            app.AddControl('x',0, [-1 1])
-            app.AddControl('y',0, [-1 1])
-            app.AddControl('z',0, [-1 1])
-            app.AddControl('a',0, [-180 180])
+            app.AddSlider('x',0, [-1 1])
+            app.AddSlider('y',0, [-1 1])
+            app.AddSlider('z',0, [-1 1])
+            app.AddSlider('a',0, [-180 180])
             
 
             app.Open();
@@ -130,26 +71,27 @@ classdef Geometry3D
             eyes.L.Y = 0;
             eyes.L.Y = 0;
 
-            % Orientation of eyes % TODO: DEFINE COORDINATE SYSTEM right
-            % now , is it fick? 
-            eyes.R.H = -atan2d(eyes.R.X, fixationSpot.Z);
-            eyes.R.V = 0;
+            % Orientation of eyes in helmoltz coordinates, they make more
+            % sense for 
+            eyes.R.V = atan2d((eyes.R.Y-fixationSpot.Y), fixationSpot.Z);
+            eyes.R.H = -atan2d((eyes.R.X-fixationSpot.X)./cosd(eyes.R.V), fixationSpot.Z);
             eyes.R.T = torsionVersion - torsionVergence;
-            eyes.L.H = -atan2d(eyes.L.X, fixationSpot.Z);
-            eyes.L.V = 0;
+            eyes.L.V = atan2d((eyes.L.Y-fixationSpot.Y), fixationSpot.Z);
+            eyes.L.H = -atan2d((eyes.L.X-fixationSpot.X)./cosd(eyes.L.V), fixationSpot.Z);
             eyes.L.T = torsionVersion + torsionVergence;
 
 
-            % Get the rotation matrices describing the eye angles
-            REyeRMx = Geometry3D.RotZ(deg2rad(eyes.R.H)); % all rows are the same so we can just use the first one
-            REyeRMy = Geometry3D.RotY(deg2rad(eyes.R.V));
-            REyeRMz = Geometry3D.RotX(deg2rad(eyes.R.T));
-            eyes.R.RM = REyeRMx*REyeRMy*REyeRMz; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
+            % Get the rotation matrices describing the eye angles in
+            % helmholtz order
+            RH = Geometry3D.RotZ(deg2rad(eyes.R.H)); % all rows are the same so we can just use the first one
+            RV = Geometry3D.RotY(deg2rad(eyes.R.V));
+            RT = Geometry3D.RotX(deg2rad(eyes.R.T));
+            eyes.R.RM = RV*RH*RT; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
 
-            LEyeRMx = Geometry3D.RotZ(deg2rad(eyes.L.H)); % all rows are the same so we can just use the first one
-            LEyeRMy = Geometry3D.RotY(deg2rad(eyes.L.V));
-            LEyeRMz = Geometry3D.RotX(deg2rad(eyes.L.T));
-            eyes.L.RM = LEyeRMx*LEyeRMy*LEyeRMz; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
+            LH = Geometry3D.RotZ(deg2rad(eyes.L.H)); % all rows are the same so we can just use the first one
+            LV = Geometry3D.RotY(deg2rad(eyes.L.V));
+            LT = Geometry3D.RotX(deg2rad(eyes.L.T));
+            eyes.L.RM = LV*LH*LT; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
 
         end
 
@@ -236,12 +178,15 @@ classdef Geometry3D
             %     t.LV(i) = rad2deg(LHVT(2));
             % end
 
-            t.RH = atan2d(Rzyx(:,2), Rzyx(:,1));
-            t.RV = atan2d(Rzyx(:,3), (Rzyx(:,1))./abs(cosd(Rzyx(:,2))));
-            t.LH = atan2d(Lzyx(:,2), Lzyx(:,1));
-            t.LV = atan2d(Lzyx(:,3), (Lzyx(:,1))./abs(cosd(Lzyx(:,2))));
+            % helmholtz coordinates make more sense for disparity
+            % because the vertical rotation first does not change the
+            % plane of regard
+            t.RV = atan2d(Rzyx(:,3), Rzyx(:,1));
+            t.RH = atan2d(Rzyx(:,2), Rzyx(:,1)./abs(cosd(t.RV)));
+            t.LV = atan2d(Lzyx(:,3), Lzyx(:,1));
+            t.LH = atan2d(Lzyx(:,2), Lzyx(:,1)./abs(cosd(t.LV)));
 
-            % Get disparity!!
+            % Get disparity!! % TODO this should be 3D disparity
             t.HDisparity = t.LH - t.RH;
             t.VDisparity = t.LV - t.RV;
 
@@ -292,7 +237,7 @@ classdef Geometry3D
 
     methods(Static, Access = private) % DEMO DISPARITY
 
-        function [f, heyes, hfix, hpoints, hspoints, hLRpoints, hdisparity, hLscreen] = demoDisparityInit(points, eyePoints, screenPoints, eyes)
+        function [f, heyes, hfix, hscreen, hpoints, hspoints, hLRpoints, hdisparity, hLscreen] = demoDisparityInitPlots(points, eyePoints, screenPoints, eyes, leftEyeScreen, rightScreen)
 
             t = points(1:end-1,:);
             fp = points(end,:);
@@ -300,42 +245,41 @@ classdef Geometry3D
             % View the dots, eyes, and fixation dot
             scr_siz = get(0,'ScreenSize');
             margin = floor(0.1*(scr_siz(4)));
-            f = figure('position',floor([...
+            f = figure('color','w','position',floor([...
                 margin...
                 margin...
                 scr_siz(3)*2.8/4 ...
                 scr_siz(4)*2/4 ...
                 ]));
-            subplot(2,4,[1 2 5 6], 'nextplot','add')
+            axes('OuterPosition',[ 0    0    0.5    1], 'nextplot','add')
 
             hpoints=plot3(t.X,t.Z, t.Y,'o','Color','k');
             hspoints=plot3(t.X,t.Z, zeros(size(t.Y)),'o','Color',[0.8 0.8 0.8]);
             hfix=plot3(fp.X,fp.Z,fp.Y,'o','Color','r','LineWidth',2, 'markersize',20); % fixation spot
-            heyes.c = plot3([eyes.L.X eyes.R.X], [eyes.L.Y eyes.R.Y], [0 0],'o','Color','b', 'markersize',50); % left eye fixation spot and right eye
+            heyes.c = plot3([eyes.L.X eyes.R.X], [eyes.L.Y eyes.R.Y], [0 0],'o','Color','b', 'markersize',30); % left eye fixation spot and right eye
             heyes.l = plot3([2*[-1 0 1 0  0 0 0] eyes.L.X 0 eyes.R.Y], [2*[ 0 0 0 0 -1 0 1] eyes.L.Y 0 eyes.R.Y],zeros(1,10),'-','Color','b'); % left eye fixation spot and right eye
 
-            xlim(1.2*[min([t.X;t.Y]) max([t.X;t.Y])])
-            zlim(1.2*[min([t.X;t.Y]) max([t.X;t.Y])])
+            grid
+            % xlim(1.2*[min([t.X;t.Y]) max([t.X;t.Y])])
+            % zlim(1.2*[min([t.X;t.Y]) max([t.X;t.Y])])
+            xlim([-100 100])
+            zlim([-100 100])
             % ylim([-5 min(100,max(fp.Z, max(t.Z)))*2])
             ylim([-5 200])
             xlabel('X (cm)')
             zlabel('Y (cm)')
             ylabel('Z (cm)')
-            view(-75,10)
+            view(-60,10)
             title('3D world');
-
+            hscreen = [];
+            % hscreen(1) = plot3([-1 -1 1 1 -1]*leftEyeScreen.widthCm/2+eyes.L.X, [1 1 1 1 1]*leftEyeScreen.ScreenDistance, [-1 1 1 -1 -1]*leftEyeScreen.heightCm/2);
+            % hscreen(2) = plot3([-1 -1 1 1 -1]*rightScreen.widthCm/2+eyes.R.X, [1 1 1 1 1]*rightScreen.ScreenDistance, [-1 1 1 -1 -1]*rightScreen.heightCm/2);
             hLRpoints = [];
             t = eyePoints;
-            subplot(2,4,3)
-            % hLRpoints.R = plot(t.RH, t.RV,'o');
-            ra = atan2(t.RV, t.RH );
-            re = sqrt(t.RH.^2 + t.RV.^2);
-            hLRpoints.R = polarplot(ra, re,'o');
-            set(gca, 'nextplot','add')
-
-            ra = atan2(t.LV, t.LH );
-            re = sqrt(t.LH.^2 + t.LV.^2);
-            hLRpoints.L = polarplot(ra, re,'o');
+            
+            polaraxes('OuterPosition',[0.44    0.3    0.28    0.7], 'nextplot','add')
+            hLRpoints.L = polarplot(zeros(size(t.LV)), zeros(size(t.LV)),'o');
+            hLRpoints.R = polarplot(zeros(size(t.RV)), zeros(size(t.RV)),'o');
             hLRpoints.FP = polarplot(0,0,'ro','linewidth',3);
             grid
             % xlim([min([t.RH t.LH],[],"all") max([t.RH t.LH],[],"all")])
@@ -346,16 +290,19 @@ classdef Geometry3D
             set(gca,'ThetaTickLabel',[])
             grid
             % legend({'Right Eye','Left Eye'})
-            title('Retinal position');
+            title('Visual field Left eye (blue) Right eye (red)');
 
-            subplot(2,4,4)
+            %-----------------------------
+            % disparity plot
+            %-----------------------------
+
+            
+            axes('OuterPosition',[ 0.65    0.3    0.35    0.7], 'nextplot','add')
+            set(gca, 'PlotBoxAspectRatio',[1 1 1])
             hdisparity = quiver(t.RH, t.RV, t.LH-t.RH, t.LV-t.RV, 'AutoScale', "off");
-            % for i = 1:height(t)
-            %     line([t.RAnglex(i,1) t.LAnglex(i,1)],[t.RAngley(i,1) t.LAngley(i,1)])
-            % end
             grid
-            title('Disparity')
-            set(gca,'xlim',[-30 30],'ylim',[-30 30])
+            title('Disparity (Helmholtz)')
+            set(gca,'xlim',[-30 30],'ylim',[-40 40])
 
             % subplot(2,4,7)
             % for i = 1:height(t)
@@ -363,7 +310,8 @@ classdef Geometry3D
             % end
             % title('Disparity With Torsion')
 
-            subplot(2,4,7, 'nextplot','add')
+            
+            axes('OuterPosition',[0.5493    0.0091    0.1566    0.3412], 'nextplot','add')
             hLscreen.LPoints = plot(screenPoints.LX(1:end-1), screenPoints.LY(1:end-1), '+');
             
             hLscreen.LFP = plot(screenPoints.LX(end), screenPoints.LY(end), 'ro');
@@ -373,7 +321,8 @@ classdef Geometry3D
             title('Left eye screen (sim torsion)');
 
 
-            subplot(2,4,8, 'nextplot','add')
+            
+            axes('OuterPosition',[  0.7625    0.0165    0.1566    0.3412], 'nextplot','add')
             hLscreen.RPoints = plot(screenPoints.RX(1:end-1), screenPoints.RY(1:end-1), '+');
             
             hLscreen.RFP = plot(screenPoints.RX(end), screenPoints.RY(end), 'ro');
@@ -384,30 +333,104 @@ classdef Geometry3D
             
         end
 
-        function demoDisparityUpdate(app, worldPoints)
+        function demoDisparityUpdate(app)
 
-            sliderValues = app.SliderValues;
+            Values = app.Values;
+
+            if (~isfield(app.Data,"stimulus"))
+                app.Data.stimulus = "NONE";
+            end
+
+            %%
+            sizeStimCm = 40;
+
+            if (app.Data.stimulus ~= string(Values.Stimulus) )
+                % Make some dots in world coordinates (XYZ)
+                %
+                % Make a table to start putting everything together
+                switch (Values.Stimulus)
+                    case 'RANDOMPLANE'
+                        numDots = 200;
+                        worldPoints = table();
+                        worldPoints.X = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
+                        worldPoints.Y = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
+                        worldPoints.Z = zeros(numDots, 1);
+                    case 'GRIDPLANE'
+                        % TODO: need to update the update funciton so the Z is not overwritten by a
+                        % constant distance. Just shift things.
+                        [X,Y] = meshgrid([-(sizeStimCm/2):1:(sizeStimCm/2)],[-(sizeStimCm/2):1:(sizeStimCm/2)]);
+                        worldPoints = table();
+                        worldPoints.X = X(:);
+                        worldPoints.Y = Y(:);
+                        worldPoints.Z = zeros(size(worldPoints.X));
+
+                    case 'HLINE'
+                        % TODO: need to update the update funciton so the Z is not overwritten by a
+                        % constant distance. Just shift things.
+                        [X,Y] = meshgrid([-(sizeStimCm/2):0.5:(sizeStimCm/2)],[0]*ones(size([-(sizeStimCm/2):0.5:(sizeStimCm/2)])));
+                        worldPoints = table();
+                        worldPoints.X = X(:);
+                        worldPoints.Y = Y(:);
+                        worldPoints.Z = zeros(size(worldPoints.X));
+                    case 'VLINE'
+                        % TODO: need to update the update funciton so the Z is not overwritten by a
+                        % constant distance. Just shift things.
+                        [X,Y] = meshgrid([0]*ones(size([-(sizeStimCm/2):0.5:(sizeStimCm/2)])),[-(sizeStimCm/2):0.5:(sizeStimCm/2)]);
+                        worldPoints = table();
+                        worldPoints.X = X(:);
+                        worldPoints.Y = Y(:);
+                        worldPoints.Z = zeros(size(worldPoints.X));
+
+
+
+                    case 'CROSS'
+                        % TODO: need to update the update funciton so the Z is not overwritten by a
+                        % constant distance. Just shift things.
+                        [X,Y] = meshgrid([-(sizeStimCm/2):0.5:(sizeStimCm/2)],[0]*ones(size([-(sizeStimCm/2):0.5:(sizeStimCm/2)])));
+                        worldPoints = table();
+                        worldPoints.X = X(:);
+                        worldPoints.Y = Y(:);
+                        worldPoints.Z = zeros(size(worldPoints.X));
+                        % TODO: need to update the update funciton so the Z is not overwritten by a
+                        % constant distance. Just shift things.
+                        [X,Y] = meshgrid([0]*ones(size([-(sizeStimCm/2):0.5:(sizeStimCm/2)])),[-(sizeStimCm/2):0.5:(sizeStimCm/2)]);
+                        worldPoints2 = table();
+                        worldPoints2.X = X(:);
+                        worldPoints2.Y = Y(:);
+                        worldPoints2.Z = zeros(size(worldPoints2.X));
+
+                        worldPoints = cat(1,worldPoints, worldPoints2);
+                end
+                app.Data.worldPoints = worldPoints;
+                app.Data.stimulus = Values.Stimulus;
+            else
+                worldPoints = app.Data.worldPoints;
+            end
+
+
 
             %% Update the points, eyes and screen acordint to the sliders
-            app.Data.FixationSpot.Z = sliderValues.fixationDistance;
+            app.Data.FixationSpot.X = Values.fixationX;
+            app.Data.FixationSpot.Y = Values.fixationY;
+            app.Data.FixationSpot.Z = Values.fixationDistance;
 
             leftEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
             rightEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
             
-            eyes = Geometry3D.MakeEyes(sliderValues.ipdmm/10, app.Data.FixationSpot, sliderValues.torsionVersion, sliderValues.torsionVergence);
+            eyes = Geometry3D.MakeEyes(Values.ipdmm/10, app.Data.FixationSpot, Values.torsionVersion, Values.torsionVergence);
 
             % Rotate the world points to apply the slant (rotates around
             % 0,0,0)
-            worldPoints.X = worldPoints.X*sliderValues.stimScale;
-            worldPoints.Y = worldPoints.Y*sliderValues.stimScale;
+            worldPoints.X = worldPoints.X*Values.stimScale;
+            worldPoints.Y = worldPoints.Y*Values.stimScale;
             worldPoints.Z = zeros(size(worldPoints.Z));
             
             % Rotate by slant and tilt
-            R = Geometry3D.Quat2RotMat(Geometry3D.AxisAngle2Quat([cosd(sliderValues.PlaneTilt) sind(sliderValues.PlaneTilt) 0],deg2rad(sliderValues.PlaneSlant)));
+            R = Geometry3D.Quat2RotMat(Geometry3D.AxisAngle2Quat([cosd(Values.PlaneTilt) sind(Values.PlaneTilt) 0],deg2rad(Values.PlaneSlant)));
             worldPoints{:,:} = (R*worldPoints{:,:}')';
 
             % Displace by distance
-            worldPoints.Z = worldPoints.Z + sliderValues.stimDistance;
+            worldPoints.Z = worldPoints.Z + Values.stimDistance;
 
             % Add the fixation spot to the world points to conver to eye
             % and screen points.
@@ -421,10 +444,11 @@ classdef Geometry3D
             if ( ~isfield(app.Data, "f") || ~isvalid(app.Data.f))
                 % If figure does not exist create it with all the plots and
                 % handles to them
-                [f, heyes, hfix, hpoints, hspoints, hLRpoints, hdisparity, hscreen] = Geometry3D.demoDisparityInit(worldPoints, eyePoints, screenPoints, eyes);
+                [f, heyes, hfix, hscreen, hpoints, hspoints, hLRpoints, hdisparity, hscreen] = Geometry3D.demoDisparityInitPlots(worldPoints, eyePoints, screenPoints, eyes, leftEyeScreen, rightEyeScreen);
                 app.Data.f = f;
                 app.Data.heyes = heyes;
                 app.Data.hfix = hfix;
+                app.Data.hscreen = hscreen;
                 app.Data.hpoints = hpoints;
                 app.Data.hspoints = hspoints;
                 app.Data.hLRpoints = hLRpoints;
@@ -433,19 +457,31 @@ classdef Geometry3D
             end
         
             % update 3D plot
-            set(app.Data.hfix, 'ydata', sliderValues.fixationDistance);
-            set(app.Data.heyes.l, 'xdata', [eyes.L.X 0 eyes.R.X], 'ydata', [0 sliderValues.fixationDistance 0], 'zdata', [0 0 0]);
+            set(app.Data.hfix, 'xdata', Values.fixationX);
+            set(app.Data.hfix, 'ydata', Values.fixationDistance);
+            set(app.Data.hfix, 'zdata', Values.fixationY);
+            set(app.Data.heyes.l, 'xdata', [eyes.L.X Values.fixationX eyes.R.X], 'ydata', [0 Values.fixationDistance 0], 'zdata', [0 Values.fixationY 0]);
             set(app.Data.heyes.c, 'xdata', [eyes.L.X eyes.R.X], 'ydata', [0 0], 'zdata', [0 0]);
             set(app.Data.hpoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', worldPoints.Y);
             set(app.Data.hspoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', app.Data.hspoints.Parent.XLim(1)*ones(size(worldPoints.Y)));
 
+            ax3d = app.Data.hfix.Parent;
+            switch(app.Values.View3D)
+                case 'Oblique'
+                    view(ax3d, -60,10)
+                case 'TOP'
+                    view(ax3d, -90,90)
+                case 'SIDE'
+                    view(ax3d, -90,0)
+            end
 
             % update retina plot
-            ra = atan2(eyePoints.RV, eyePoints.RH );
-            re = sqrt(eyePoints.RH.^2 + eyePoints.RV.^2);
+            ra = atan2( tand(eyePoints.RV) , tand(eyePoints.RH)./(abs(cosd(eyePoints.RV))));
+            re = atand(sqrt(tand(eyePoints.RV).^2 + (tand(eyePoints.RH)./(abs(cosd(eyePoints.RV)))).^2));
+            
             set(app.Data.hLRpoints.L, 'ThetaData', ra, 'RData', re);
-            ra = atan2(eyePoints.LV, eyePoints.LH );
-            re = sqrt(eyePoints.LH.^2 + eyePoints.LV.^2);
+            ra = atan2( tand(eyePoints.LV) , tand(eyePoints.LH)./abs(cosd(eyePoints.LV)));
+            re = atand(sqrt(tand(eyePoints.LV).^2 + (tand(eyePoints.LH)./(abs(cosd(eyePoints.LV)))).^2));
             set(app.Data.hLRpoints.R, 'ThetaData', ra, 'RData', re);
             
             % update disparity plot
@@ -464,7 +500,7 @@ classdef Geometry3D
     end
 
     methods(Static, Access = private) % DEMO QUATERNIONS
-        function [f, h] = demoQuaternionInit(app)
+        function [f, h] = demoQuaternionInitPlots(app)
 
             f = figure;
 
@@ -474,13 +510,13 @@ classdef Geometry3D
 
         function demoQuaternionUpdate(app)
             
-            sliderValues = app.SliderValues;
-            q = [sliderValues.q0 sliderValues.q1 sliderValues.q2 sliderValues.q3];
+            Values = app.Values;
+            q = [Values.q0 Values.q1 Values.q2 Values.q3];
 
             if ( ~isfield(app.Data, "f") || ~isvalid(app.Data.f))
                 % If figure does not exist create it with all the plots and
                 % handles to them
-                [f, h] = Geometry3D.demoQuaternionInit();
+                [f, h] = Geometry3D.demoQuaternionInitPlots();
                 app.Data.f = f;
                 app.Data.h = h;
 
@@ -504,22 +540,22 @@ classdef Geometry3D
                 q(c) = nc*sqrt(1-q(~c)^2)/norm(nc);
 
                 app.Data.LastQ = q;
-                app.SliderValues.q0  = q(1);
-                app.SliderValues.q1  = q(2);
-                app.SliderValues.q2  = q(3);
-                app.SliderValues.q3  = q(4);
+                app.Values.q0  = q(1);
+                app.Values.q1  = q(2);
+                app.Values.q2  = q(3);
+                app.Values.q3  = q(4);
             end
 
             [axis,angle] = Geometry3D.Quat2AxisAngle(q);
             HVT = Geometry3D.RotMat2Fick( Geometry3D.Quat2RotMat(q));
 
-            app.SliderValues.H  = rad2deg(HVT(1));
-            app.SliderValues.V  = rad2deg(HVT(2));
-            app.SliderValues.T  = rad2deg(HVT(3));
-            app.SliderValues.x  = axis(1);
-            app.SliderValues.y  = axis(2);
-            app.SliderValues.z  = axis(3);
-            app.SliderValues.a  = angle;
+            app.Values.H  = rad2deg(HVT(1));
+            app.Values.V  = rad2deg(HVT(2));
+            app.Values.T  = rad2deg(HVT(3));
+            app.Values.x  = axis(1);
+            app.Values.y  = axis(2);
+            app.Values.z  = axis(3);
+            app.Values.a  = angle;
 
         end
     end
