@@ -292,7 +292,7 @@ classdef Geometry3D
 
     methods(Static, Access = private) % DEMO DISPARITY
 
-        function [f, heyes, hfix, hpoints, hLRpoints, hdisparity, hLscreen] = demoDisparityInit(points, eyePoints, screenPoints, eyes)
+        function [f, heyes, hfix, hpoints, hspoints, hLRpoints, hdisparity, hLscreen] = demoDisparityInit(points, eyePoints, screenPoints, eyes)
 
             t = points(1:end-1,:);
             fp = points(end,:);
@@ -309,6 +309,7 @@ classdef Geometry3D
             subplot(2,4,[1 2 5 6], 'nextplot','add')
 
             hpoints=plot3(t.X,t.Z, t.Y,'o','Color','k');
+            hspoints=plot3(t.X,t.Z, zeros(size(t.Y)),'o','Color',[0.8 0.8 0.8]);
             hfix=plot3(fp.X,fp.Z,fp.Y,'o','Color','r','LineWidth',2, 'markersize',20); % fixation spot
             heyes.c = plot3([eyes.L.X eyes.R.X], [eyes.L.Y eyes.R.Y], [0 0],'o','Color','b', 'markersize',50); % left eye fixation spot and right eye
             heyes.l = plot3([2*[-1 0 1 0  0 0 0] eyes.L.X 0 eyes.R.Y], [2*[ 0 0 0 0 -1 0 1] eyes.L.Y 0 eyes.R.Y],zeros(1,10),'-','Color','b'); % left eye fixation spot and right eye
@@ -402,10 +403,8 @@ classdef Geometry3D
             worldPoints.Z = zeros(size(worldPoints.Z));
             
             % Rotate by slant and tilt
-            Ry = Geometry3D.RotX(deg2rad(sliderValues.PlaneSlant));
-            Rz = Geometry3D.RotY(deg2rad(sliderValues.PlaneTilt));
-            Rzy = Ry*Rz;
-            worldPoints{:,:} = (Rzy*worldPoints{:,:}')';
+            R = Geometry3D.Quat2RotMat(Geometry3D.AxisAngle2Quat([cosd(sliderValues.PlaneTilt) sind(sliderValues.PlaneTilt) 0],deg2rad(sliderValues.PlaneSlant)));
+            worldPoints{:,:} = (R*worldPoints{:,:}')';
 
             % Displace by distance
             worldPoints.Z = worldPoints.Z + sliderValues.stimDistance;
@@ -422,11 +421,12 @@ classdef Geometry3D
             if ( ~isfield(app.Data, "f") || ~isvalid(app.Data.f))
                 % If figure does not exist create it with all the plots and
                 % handles to them
-                [f, heyes, hfix, hpoints, hLRpoints, hdisparity, hscreen] = Geometry3D.demoDisparityInit(worldPoints, eyePoints, screenPoints, eyes);
+                [f, heyes, hfix, hpoints, hspoints, hLRpoints, hdisparity, hscreen] = Geometry3D.demoDisparityInit(worldPoints, eyePoints, screenPoints, eyes);
                 app.Data.f = f;
                 app.Data.heyes = heyes;
                 app.Data.hfix = hfix;
                 app.Data.hpoints = hpoints;
+                app.Data.hspoints = hspoints;
                 app.Data.hLRpoints = hLRpoints;
                 app.Data.hdisparity = hdisparity;
                 app.Data.hscreen = hscreen;
@@ -437,6 +437,7 @@ classdef Geometry3D
             set(app.Data.heyes.l, 'xdata', [eyes.L.X 0 eyes.R.X], 'ydata', [0 sliderValues.fixationDistance 0], 'zdata', [0 0 0]);
             set(app.Data.heyes.c, 'xdata', [eyes.L.X eyes.R.X], 'ydata', [0 0], 'zdata', [0 0]);
             set(app.Data.hpoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', worldPoints.Y);
+            set(app.Data.hspoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', app.Data.hspoints.Parent.XLim(1)*ones(size(worldPoints.Y)));
 
 
             % update retina plot
