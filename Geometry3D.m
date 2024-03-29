@@ -3,11 +3,19 @@ classdef Geometry3D
     %   Detailed explanation goes here
     %
     %   Coordinate system
+    %       For 3D world
     %       Z is positive forward
     %       X is positive to the right
     %       system)
     %       Y is positive up
     %
+    %       For eye reference frame
+    %       Z is positive up
+    %       X is positive forward
+    %       system)
+    %       Y is positive left
+    %
+    %       For euler angles we use helmholtz
     %       H is positive towards the right
     %       V is positive upwards
     %       T is positive top to the right
@@ -237,9 +245,10 @@ classdef Geometry3D
             hspoints = line(0,0, 0,'linestyle','none','marker','o','Color',[0.8 0.8 0.8]);
             hfix = line(0,0, 0,'linestyle','none','marker','o','Color','r','LineWidth',2, 'markersize',20);
 
-            heyes.c(1) = plot3([eyes.L.X], [eyes.L.Y ], 0,'o','Color','b', 'markersize',30); % left eye fixation spot and right eye
-            heyes.c(2) = plot3([eyes.R.X], [eyes.R.Y], 0,'o','Color','r', 'markersize',30); % left eye fixation spot and right eye
-            heyes.l = plot3([2*[-1 0 1 0  0 0 0] eyes.L.X 0 eyes.R.Y], [2*[ 0 0 0 0 -1 0 1] eyes.L.Y 0 eyes.R.Y],zeros(1,10),'-','Color','b'); % left eye fixation spot and right eye
+            heyes.c(1) = plot3([eyes.L.X], [eyes.L.Y ], 0,'o','Color','b', 'markersize',10); % left eye fixation spot and right eye
+            heyes.c(2) = plot3([eyes.R.X], [eyes.R.Y], 0,'o','Color','r', 'markersize',10); % left eye fixation spot and right eye
+            heyes.l = line(0,0,0,'linestyle','-','Color','b'); % left eye fixation spot and right eye
+            heyes.r = line(0,0,0,'linestyle','-','Color','r'); % left eye fixation spot and right eye
 
             grid
             % xlim(1.2*[min([t.X;t.Y]) max([t.X;t.Y])])
@@ -442,14 +451,57 @@ classdef Geometry3D
             lxfar = eyes.L.X - 10000*eyes.L.RM(2,1);
             lyfar = eyes.L.Y - 10000*eyes.L.RM(3,1);
             lzfar = eyes.L.Z + 10000*eyes.L.RM(1,1);
+            
             rxfar = eyes.R.X - 10000*eyes.R.RM(2,1);
             ryfar = eyes.R.Y - 10000*eyes.R.RM(3,1);
             rzfar = eyes.R.Z + 10000*eyes.R.RM(1,1);
+
+            lrx = eyes.L.X - 10*eyes.L.RM(2,2);
+            llx = eyes.L.X + 10*eyes.L.RM(2,2);
+            lry = eyes.L.Y - 10*eyes.L.RM(3,2);
+            lly = eyes.L.Y + 10*eyes.L.RM(3,2);
+            lrz = eyes.L.Z + 10*eyes.L.RM(1,2);
+            llz = eyes.L.Z - 10*eyes.L.RM(1,2);
+
+            rrx = eyes.R.X - 10*eyes.R.RM(2,2);
+            rlx = eyes.R.X + 10*eyes.R.RM(2,2);
+            rry = eyes.R.Y - 10*eyes.R.RM(3,2);
+            rly = eyes.R.Y + 10*eyes.R.RM(3,2);
+            rrz = eyes.R.Z + 10*eyes.R.RM(1,2);
+            rlz = eyes.R.Z - 10*eyes.R.RM(1,2);
+
+            rbx = eyes.R.X - 10*eyes.R.RM(2,3);
+            rtx = eyes.R.X + 10*eyes.R.RM(2,3);
+            rby = eyes.R.Y - 10*eyes.R.RM(3,3);
+            rty = eyes.R.Y + 10*eyes.R.RM(3,3);
+            rbz = eyes.R.Z + 10*eyes.R.RM(1,3);
+            rtz = eyes.R.Z - 10*eyes.R.RM(1,3);
+
+
+            lbx = eyes.L.X - 10*eyes.L.RM(2,3);
+            ltx = eyes.L.X + 10*eyes.L.RM(2,3);
+            lby = eyes.L.Y - 10*eyes.L.RM(3,3);
+            lty = eyes.L.Y + 10*eyes.L.RM(3,3);
+            lbz = eyes.L.Z + 10*eyes.L.RM(1,3);
+            ltz = eyes.L.Z - 10*eyes.L.RM(1,3);
             
             set(app.Data.hfix, 'xdata', Values.fixationX);
             set(app.Data.hfix, 'ydata', Values.fixationDistance);
             set(app.Data.hfix, 'zdata', Values.fixationY);
-            set(app.Data.heyes.l, 'xdata', [eyes.L.X lxfar nan eyes.R.X rxfar ], 'ydata', [eyes.L.Z lzfar nan eyes.R.Z rzfar ], 'zdata', [eyes.L.Y lyfar nan eyes.R.Y ryfar ]);
+            set(app.Data.heyes.l, ...
+                'xdata', [eyes.L.X lxfar ...
+                nan lbx ltx nan lrx llx], ...
+                'ydata', [eyes.L.Z lzfar  ...
+                nan lbz ltz nan lrz llz], ...
+                'zdata', [eyes.L.Y lyfar ...
+                nan lby lty nan lry lly]);
+            set(app.Data.heyes.r, ...
+                'xdata', [ eyes.R.X rxfar ...
+                nan rbx rtx nan rrx rlx ], ...
+                'ydata', [ eyes.R.Z rzfar ...
+                nan rbz rtz nan rrz rlz ], ...
+                'zdata', [ eyes.R.Y ryfar ...
+                nan rby rty nan rry rly]);
             set(app.Data.heyes.c(1), 'xdata', [eyes.L.X]);
             set(app.Data.heyes.c(2), 'xdata', [eyes.R.X]);
 

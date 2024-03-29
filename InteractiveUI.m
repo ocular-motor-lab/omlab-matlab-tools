@@ -56,6 +56,14 @@ classdef InteractiveUI < matlab.apps.AppBase
             app.GridLayout = uigridlayout(app.UIFigure);
             app.GridLayout.ColumnWidth = {'1x'};
             app.GridLayout.RowHeight = {60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60};
+
+            m = uimenu(app.UIFigure, 'Text','Menu');
+            mitem = uimenu(m,'Text','Reset');
+            mitem.MenuSelectedFcn = @MenuSelected;
+
+            function MenuSelected(src,event)
+                app.Reset();
+            end
         end
 
         function InitTimer(app)
