@@ -206,6 +206,7 @@ classdef InteractiveUI < matlab.apps.AppBase
             if (app.sliderCount >= 12)
                 error('NO MORE SLIDERS ALLLOWED (12 max)')
             end
+            
             app.sliderCount =  app.sliderCount+1;
 
             textname = name;

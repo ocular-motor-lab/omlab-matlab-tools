@@ -32,14 +32,14 @@ classdef Geometry3D
           
             app = InteractiveUI('DisparityCalculator',@(app) (Geometry3D.demoDisparityUpdate(app)), 0.2);
             app.AddDropDown('Stimulus',      1,  ["CROSS" "RANDOMPLANE" "GRIDPLANE" "HLINE" "VLINE"])
-            app.AddSlider('ipdmm',           60, [10 100])
-            app.AddSlider('stimScale',       1,  [0.1 10])
-            app.AddSlider('stimDistance',    40, [10 200])
-            app.AddSlider('fixationDistance',30, [10 200])
-            app.AddSlider('fixationX',        0, [-100 100])
-            app.AddSlider('fixationY',        0, [-100 100])
-            app.AddSlider('torsionVersion',  0,  [-20 20])
-            app.AddSlider('torsionVergence', 0,  [-20 20])
+            app.AddSlider('IPD mm',           60, [10 100])
+            app.AddSlider('Stimulus Scale',       1,  [0.1 10])
+            app.AddSlider('Stimulus Distance',    40, [10 200])
+            app.AddSlider('Fixation Distance',30, [10 200])
+            app.AddSlider('Fixation X',        0, [-100 100])
+            app.AddSlider('Fixation Y',        0, [-100 100])
+            app.AddSlider('Torsion Version',  0,  [-20 20])
+            app.AddSlider('Torsion Vergence', 0,  [-20 20])
             app.AddSlider('Plane slant',     0,  [-90 90])
             app.AddSlider('Plane Tilt',      0,  [0 90])
             app.AddDropDown('View3D',      1,  ["Oblique" "TOP" "SIDE"])
@@ -401,19 +401,19 @@ classdef Geometry3D
 
 
             %% Update the points, eyes and screen acordint to the sliders
-            app.Data.FixationSpot.X = Values.fixationX;
-            app.Data.FixationSpot.Y = Values.fixationY;
-            app.Data.FixationSpot.Z = Values.fixationDistance;
+            app.Data.FixationSpot.X = Values.FixationX;
+            app.Data.FixationSpot.Y = Values.FixationY;
+            app.Data.FixationSpot.Z = Values.FixationDistance;
 
             leftEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
             rightEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
             
-            eyes = Geometry3D.MakeEyes(Values.ipdmm/10, app.Data.FixationSpot, Values.torsionVersion, Values.torsionVergence);
+            eyes = Geometry3D.MakeEyes(Values.IPDMm/10, app.Data.FixationSpot, Values.TorsionVersion, Values.TorsionVergence);
 
             % Rotate the world points to apply the slant (rotates around
             % 0,0,0)
-            worldPoints.X = worldPoints.X*Values.stimScale;
-            worldPoints.Y = worldPoints.Y*Values.stimScale;
+            worldPoints.X = worldPoints.X*Values.StimulusScale;
+            worldPoints.Y = worldPoints.Y*Values.StimulusScale;
             worldPoints.Z = zeros(size(worldPoints.Z));
             
             % Rotate by slant and tilt
@@ -421,7 +421,7 @@ classdef Geometry3D
             worldPoints{:,:} = (R*worldPoints{:,:}')';
 
             % Displace by distance
-            worldPoints.Z = worldPoints.Z + Values.stimDistance;
+            worldPoints.Z = worldPoints.Z + Values.StimulusDistance;
 
             % Add the fixation spot to the world points to conver to eye
             % and screen points.
@@ -485,9 +485,9 @@ classdef Geometry3D
             lbz = eyes.L.Z + 10*eyes.L.RM(1,3);
             ltz = eyes.L.Z - 10*eyes.L.RM(1,3);
             
-            set(app.Data.hfix, 'xdata', Values.fixationX);
-            set(app.Data.hfix, 'ydata', Values.fixationDistance);
-            set(app.Data.hfix, 'zdata', Values.fixationY);
+            set(app.Data.hfix, 'xdata', Values.FixationX);
+            set(app.Data.hfix, 'ydata', Values.FixationDistance);
+            set(app.Data.hfix, 'zdata', Values.FixationY);
             set(app.Data.heyes.l, ...
                 'xdata', [eyes.L.X lxfar ...
                 nan lbx ltx nan lrx llx], ...
