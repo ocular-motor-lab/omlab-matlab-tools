@@ -6,3 +6,5 @@ To run, download or clone the respository and just run the matlab command from t
 ```
 >> Geometry3D.demoDisparity
 ```
+Then this graphical interactive tool should open:
+![Screenshot of diparity demo.](DemoDisparity.png)
