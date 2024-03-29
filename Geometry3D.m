@@ -83,15 +83,15 @@ classdef Geometry3D
 
             % Get the rotation matrices describing the eye angles in
             % helmholtz order
-            RH = Geometry3D.RotZ(deg2rad(eyes.R.H)); % all rows are the same so we can just use the first one
-            RV = Geometry3D.RotY(deg2rad(eyes.R.V));
-            RT = Geometry3D.RotX(deg2rad(eyes.R.T));
-            eyes.R.RM = RV*RH*RT; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
+            RH = Geometry3D.RotY(deg2rad(eyes.R.H)); % all rows are the same so we can just use the first one
+            RV = Geometry3D.RotX(deg2rad(eyes.R.V));
+            RT = Geometry3D.RotZ(deg2rad(eyes.R.T));
+            eyes.R.RM = RT*RH*RV; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
 
-            LH = Geometry3D.RotZ(deg2rad(eyes.L.H)); % all rows are the same so we can just use the first one
-            LV = Geometry3D.RotY(deg2rad(eyes.L.V));
-            LT = Geometry3D.RotX(deg2rad(eyes.L.T));
-            eyes.L.RM = LV*LH*LT; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
+            LH = Geometry3D.RotY(deg2rad(eyes.L.H)); % all rows are the same so we can just use the first one
+            LV = Geometry3D.RotX(deg2rad(eyes.L.V));
+            LT = Geometry3D.RotZ(deg2rad(eyes.L.T));
+            eyes.L.RM = LT*LH*LV; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
 
         end
 
@@ -126,65 +126,25 @@ classdef Geometry3D
             t.LY = points.Y;
             t.LZ = points.Z;
 
-            % Get the ANGLES of the dots relative to the (straight ahead) eye position in cm
-            % TODO: do proper quaternions/rot matrices here maybe
-            t.DotsAngleRx = atan2d(t.RX, points.Z);
-            t.DotsAngleLx = atan2d(t.LX, points.Z);
-            t.DotsAngleRy = atan2d(points.Y, (points.Z)./abs(cosd(t.DotsAngleRx)));
-            t.DotsAngleLy = atan2d(points.Y, (points.Z)./abs(cosd(t.DotsAngleLx)));
-
-            % % % % % % Calculate the angles of the dots in the eye reference frame accounting
-            % % % % % % for the angles (vergence) of the eyes
-            % % % % % % TODO: do proper quaternions/rot matrices here maybe
-            % % % % % t.RAnglex = t.DotsAngleRx - eyes.R.H; % both in deg
-            % % % % % t.LAnglex = t.DotsAngleLx - eyes.L.H;
-            % % % % % t.RAngley = t.DotsAngleRy;
-            % % % % % t.LAngley = t.DotsAngleLy;
-
-
             % Get the rotation matrices describing the eye angles (X coming
             % out of the eye)
             REyeRM = eyes.R.RM;
             LEyeRM = eyes.L.RM;
 
-            % Calculate the angles of the dots in the eye reference frame accounting
-            % for the angles (vergence) of the eyes
-            % for i = 1:height(t)
-            %     RDotRMx = Geometry3D.RotZ(deg2rad(t.DotsAngleRx(i)));
-            %     RDotRMy = Geometry3D.RotY(deg2rad(t.DotsAngleRy(i)));
-            %     t.RDotRM{i} = RDotRMx*RDotRMy; % Rot matrix defining the orientation (angles) of a dot relative to straight ahead eye direction.
-            %     t.RDotinEyeRM{i} = (t.RDotRM{i}'*REyeRM)'; % rot matrix defining the orientation of the dot relative to the eye actual direction.
-            % 
-            %     LDotRMx = Geometry3D.RotZ(deg2rad(t.DotsAngleLx(i)));
-            %     LDotRMy = Geometry3D.RotY(deg2rad(t.DotsAngleLy(i)));
-            %     t.LDotRM{i} = LDotRMx*LDotRMy; % Rot matrix defining the orientation (angles) of a dot relative to straight ahead eye direction.
-            %     t.LDotinEyeRM{i} = (t.LDotRM{i}'*LEyeRM)'; % rot matrix defining the orientation of the dot relative to the eye actual direction.
-            % end
-
             % TODO: Document!!! and make sure X and Y are correctly
             % flipped. I Don't quite understand why. 
             % Rotate the points to be in eye reference frame
-            Rzyx =  t{:,{'RZ' 'RX' 'RY'  }}*REyeRM;
-            Lzyx =  t{:,{'LZ' 'LX' 'LY'  }}*LEyeRM;
+            Rxyz =  t{:,{'RX' 'RY' 'RZ'  }}*REyeRM;
+            Lxyz =  t{:,{'LX' 'LY' 'LZ'  }}*LEyeRM;
 
-            % % Get the hor vert tor rotations in fick
-            % for i = 1:height(t)
-            %     RHVT = Geometry3D.RotMat2Fick(t.RDotinEyeRM{i});
-            %     LHVT = Geometry3D.RotMat2Fick(t.LDotinEyeRM{i});
-            % 
-            %     t.RH(i) = rad2deg(RHVT(1));
-            %     t.RV(i) = rad2deg(RHVT(2));
-            %     t.LH(i) = rad2deg(LHVT(1));
-            %     t.LV(i) = rad2deg(LHVT(2));
-            % end
 
             % helmholtz coordinates make more sense for disparity
             % because the vertical rotation first does not change the
             % plane of regard
-            t.RV = atan2d(Rzyx(:,3), Rzyx(:,1));
-            t.RH = atan2d(Rzyx(:,2), Rzyx(:,1)./abs(cosd(t.RV)));
-            t.LV = atan2d(Lzyx(:,3), Lzyx(:,1));
-            t.LH = atan2d(Lzyx(:,2), Lzyx(:,1)./abs(cosd(t.LV)));
+            t.RV = atan2d(Rxyz(:,2), Rxyz(:,3));
+            t.RH = atan2d(Rxyz(:,1), Rxyz(:,3)./abs(cosd(t.RV)));
+            t.LV = atan2d(Lxyz(:,2), Lxyz(:,3));
+            t.LH = atan2d(Lxyz(:,1), Lxyz(:,3)./abs(cosd(t.LV)));
 
             % Get disparity!! % TODO this should be 3D disparity
             t.HDisparity = t.LH - t.RH;
@@ -302,7 +262,7 @@ classdef Geometry3D
             hdisparity = quiver(t.RH, t.RV, t.LH-t.RH, t.LV-t.RV, 'AutoScale', "off");
             grid
             title('Disparity (Helmholtz)')
-            set(gca,'xlim',[-30 30],'ylim',[-40 40])
+            set(gca,'xlim',[-40 40],'ylim',[-40 40])
 
             % subplot(2,4,7)
             % for i = 1:height(t)
