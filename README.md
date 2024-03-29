@@ -1,7 +1,7 @@
 This will be a repository of a set of tools use in the lab. 
 
 # Disparity simulator
-The first one is a simulator of disparities in 3D.
+This is a tool to simulate and visualize disparities in 3D. Caused by either eye movements or displacements and slant/tilts of the stimulus. 
 
 To run, download or clone the respository and just run the matlab command from the repository folder 
 ```
