@@ -610,7 +610,7 @@ classdef Geometry3D
             [Z,X,Y] = sphere(res);
 
             % Plot the sphere
-            h.sphere = surf(R*X,R*Y,R*Z,'FaceAlpha', alpha,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8])
+            h.sphere = surf(R*X,R*Y,R*Z,'FaceAlpha', alpha,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8]);
             axis equal;
 
 % 
