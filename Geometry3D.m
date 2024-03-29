@@ -2,7 +2,18 @@ classdef Geometry3D
     %Geometry3D Summary of this class goes here
     %   Detailed explanation goes here
     %
+    %   Coordinate system
+    %       Z is positive forward
+    %       X is positive to the right
+    %       system)
+    %       Y is positive up
     %
+    %       H is positive towards the right
+    %       V is positive upwards
+    %       T is positive top to the right
+    %
+    %       Disparity is L - R
+    %   
 
     properties
     end
@@ -64,34 +75,37 @@ classdef Geometry3D
         function eyes = MakeEyes(ipdCm, fixationSpot, torsionVersion, torsionVergence)
 
             % Position of eyes
-            eyes.R.X =  ipdCm/2;
+            eyes.R.X = ipdCm/2;
             eyes.R.Y = 0;
             eyes.R.Z = 0;
-            eyes.L.X = -ipdCm/2;%
+            eyes.L.X = - ipdCm/2;%
             eyes.L.Y = 0;
-            eyes.L.Y = 0;
+            eyes.L.Z = 0;
 
             % Orientation of eyes in helmoltz coordinates, they make more
             % sense for 
-            eyes.R.V = atan2d((eyes.R.Y-fixationSpot.Y), fixationSpot.Z);
-            eyes.R.H = -atan2d((eyes.R.X-fixationSpot.X)./cosd(eyes.R.V), fixationSpot.Z);
+            % right is positive, Up is positive
+            eyes.R.V = atan2d(fixationSpot.Y-eyes.R.Y, fixationSpot.Z);
+            eyes.R.H = atan2d(fixationSpot.X-eyes.R.X, fixationSpot.Z./(cosd(eyes.R.V)));
             eyes.R.T = torsionVersion - torsionVergence;
-            eyes.L.V = atan2d((eyes.L.Y-fixationSpot.Y), fixationSpot.Z);
-            eyes.L.H = -atan2d((eyes.L.X-fixationSpot.X)./cosd(eyes.L.V), fixationSpot.Z);
+            eyes.L.V = atan2d(fixationSpot.Y-eyes.L.Y, fixationSpot.Z);
+            eyes.L.H = atan2d(fixationSpot.X-eyes.L.X, fixationSpot.Z./(cosd(eyes.L.V)));
             eyes.L.T = torsionVersion + torsionVergence;
 
 
             % Get the rotation matrices describing the eye angles in
             % helmholtz order
-            RH = Geometry3D.RotY(deg2rad(eyes.R.H)); % all rows are the same so we can just use the first one
-            RV = Geometry3D.RotX(deg2rad(eyes.R.V));
-            RT = Geometry3D.RotZ(deg2rad(eyes.R.T));
-            eyes.R.RM = RT*RH*RV; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
+            % Right hand rotations around Y are to the left, so we flip the
+            % sign of the rotation
+            RH = Geometry3D.RotZ(-deg2rad(eyes.R.H)); 
+            RV = Geometry3D.RotY(deg2rad(eyes.R.V));
+            RT = Geometry3D.RotX(deg2rad(eyes.R.T));
+            eyes.R.RM = RV*RH*RT; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
 
-            LH = Geometry3D.RotY(deg2rad(eyes.L.H)); % all rows are the same so we can just use the first one
-            LV = Geometry3D.RotX(deg2rad(eyes.L.V));
-            LT = Geometry3D.RotZ(deg2rad(eyes.L.T));
-            eyes.L.RM = LT*LH*LV; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
+            LH = Geometry3D.RotZ(-deg2rad(eyes.L.H)); 
+            LV = Geometry3D.RotY(deg2rad(eyes.L.V));
+            LT = Geometry3D.RotX(deg2rad(eyes.L.T));
+            eyes.L.RM = LV*LH*LT; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
 
         end
 
@@ -116,35 +130,41 @@ classdef Geometry3D
 
             t =table();
 
+            % The eye coordinate system is right handed
+            % with x pointing out
+            % y pointing to left
+            % z pointing up
+            %
+            % it is a bit messy to have a different coordinate system than 
+            % for the 3D scene, but I can't think of the rotations otherway
+            %
 
             % Get the new xs in cm for the two eyes (transform the dots from head reference
             % to eye reference [nothing about eye angle here!])
-            t.RX = points.X - eyes.R.X; % both in cm
-            t.RY = points.Y;
-            t.RZ = points.Z;
-            t.LX = points.X - eyes.L.X; % no need to do this for y bc the two eyes are only displaced horizontally on the head
-            t.LY = points.Y;
-            t.LZ = points.Z;
+            t.RY = -(points.X - eyes.R.X);
+            t.RZ = -points.Y;
+            t.RX = points.Z;
+            t.LY = -(points.X - eyes.L.X);
+            t.LZ = -points.Y;
+            t.LX = points.Z;
 
-            % Get the rotation matrices describing the eye angles (X coming
-            % out of the eye)
-            REyeRM = eyes.R.RM;
-            LEyeRM = eyes.L.RM;
-
-            % TODO: Document!!! and make sure X and Y are correctly
-            % flipped. I Don't quite understand why. 
             % Rotate the points to be in eye reference frame
-            Rxyz =  t{:,{'RX' 'RY' 'RZ'  }}*REyeRM;
-            Lxyz =  t{:,{'LX' 'LY' 'LZ'  }}*LEyeRM;
-
+            t{:,{'RX' 'RY' 'RZ'  }} =  t{:,{'RX' 'RY' 'RZ'  }}*eyes.R.RM;
+            t{:,{'LX' 'LY' 'LZ'  }} =  t{:,{'LX' 'LY' 'LZ'  }}*eyes.L.RM;
 
             % helmholtz coordinates make more sense for disparity
             % because the vertical rotation first does not change the
             % plane of regard
-            t.RV = atan2d(Rxyz(:,2), Rxyz(:,3));
-            t.RH = atan2d(Rxyz(:,1), Rxyz(:,3)./abs(cosd(t.RV)));
-            t.LV = atan2d(Lxyz(:,2), Lxyz(:,3));
-            t.LH = atan2d(Lxyz(:,1), Lxyz(:,3)./abs(cosd(t.LV)));
+            t.RV = atan2d(t.RZ, t.RX);
+            t.RH = atan2d(-t.RY, t.RX./abs(cosd(t.RV)));
+            t.LV = atan2d(t.LZ, t.LX);
+            t.LH = atan2d(-t.LY, t.LX./abs(cosd(t.LV)));
+            badidx = abs(t.RV)>=90 | abs(t.RH)>=90 ;
+            t.RV(badidx) = nan;
+            t.RH(badidx) = nan;
+            badidx = abs(t.LV)>=90 | abs(t.LH)>=90 ;
+            t.LV(badidx) = nan;
+            t.LH(badidx) = nan;
 
             % Get disparity!! % TODO this should be 3D disparity
             t.HDisparity = t.LH - t.RH;
@@ -213,10 +233,12 @@ classdef Geometry3D
                 ]));
             axes('OuterPosition',[ 0    0    0.5    1], 'nextplot','add')
 
-            hpoints=plot3(t.X,t.Z, t.Y,'o','Color','k');
-            hspoints=plot3(t.X,t.Z, zeros(size(t.Y)),'o','Color',[0.8 0.8 0.8]);
-            hfix=plot3(fp.X,fp.Z,fp.Y,'o','Color','r','LineWidth',2, 'markersize',20); % fixation spot
-            heyes.c = plot3([eyes.L.X eyes.R.X], [eyes.L.Y eyes.R.Y], [0 0],'o','Color','b', 'markersize',30); % left eye fixation spot and right eye
+            hpoints = line(0,0, 0,'linestyle','none','marker','o','Color','k');
+            hspoints = line(0,0, 0,'linestyle','none','marker','o','Color',[0.8 0.8 0.8]);
+            hfix = line(0,0, 0,'linestyle','none','marker','o','Color','r','LineWidth',2, 'markersize',20);
+
+            heyes.c(1) = plot3([eyes.L.X], [eyes.L.Y ], 0,'o','Color','b', 'markersize',30); % left eye fixation spot and right eye
+            heyes.c(2) = plot3([eyes.R.X], [eyes.R.Y], 0,'o','Color','r', 'markersize',30); % left eye fixation spot and right eye
             heyes.l = plot3([2*[-1 0 1 0  0 0 0] eyes.L.X 0 eyes.R.Y], [2*[ 0 0 0 0 -1 0 1] eyes.L.Y 0 eyes.R.Y],zeros(1,10),'-','Color','b'); % left eye fixation spot and right eye
 
             grid
@@ -261,7 +283,7 @@ classdef Geometry3D
             set(gca, 'PlotBoxAspectRatio',[1 1 1])
             hdisparity = quiver(t.RH, t.RV, t.LH-t.RH, t.LV-t.RV, 'AutoScale', "off");
             grid
-            title('Disparity (Helmholtz)')
+            title('Disparity (Helmholtz, L->R)')
             set(gca,'xlim',[-40 40],'ylim',[-40 40])
 
             % subplot(2,4,7)
@@ -318,7 +340,7 @@ classdef Geometry3D
                     case 'GRIDPLANE'
                         % TODO: need to update the update funciton so the Z is not overwritten by a
                         % constant distance. Just shift things.
-                        [X,Y] = meshgrid([-(sizeStimCm/2):1:(sizeStimCm/2)],[-(sizeStimCm/2):1:(sizeStimCm/2)]);
+                        [X,Y] = meshgrid([-(sizeStimCm/2):2:(sizeStimCm/2)],[-(sizeStimCm/2):2:(sizeStimCm/2)]);
                         worldPoints = table();
                         worldPoints.X = X(:);
                         worldPoints.Y = Y(:);
@@ -417,11 +439,20 @@ classdef Geometry3D
             end
         
             % update 3D plot
+            lxfar = eyes.L.X - 10000*eyes.L.RM(2,1);
+            lyfar = eyes.L.Y - 10000*eyes.L.RM(3,1);
+            lzfar = eyes.L.Z + 10000*eyes.L.RM(1,1);
+            rxfar = eyes.R.X - 10000*eyes.R.RM(2,1);
+            ryfar = eyes.R.Y - 10000*eyes.R.RM(3,1);
+            rzfar = eyes.R.Z + 10000*eyes.R.RM(1,1);
+            
             set(app.Data.hfix, 'xdata', Values.fixationX);
             set(app.Data.hfix, 'ydata', Values.fixationDistance);
             set(app.Data.hfix, 'zdata', Values.fixationY);
-            set(app.Data.heyes.l, 'xdata', [eyes.L.X Values.fixationX eyes.R.X], 'ydata', [0 Values.fixationDistance 0], 'zdata', [0 Values.fixationY 0]);
-            set(app.Data.heyes.c, 'xdata', [eyes.L.X eyes.R.X], 'ydata', [0 0], 'zdata', [0 0]);
+            set(app.Data.heyes.l, 'xdata', [eyes.L.X lxfar nan eyes.R.X rxfar ], 'ydata', [eyes.L.Z lzfar nan eyes.R.Z rzfar ], 'zdata', [eyes.L.Y lyfar nan eyes.R.Y ryfar ]);
+            set(app.Data.heyes.c(1), 'xdata', [eyes.L.X]);
+            set(app.Data.heyes.c(2), 'xdata', [eyes.R.X]);
+
             set(app.Data.hpoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', worldPoints.Y);
             set(app.Data.hspoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', app.Data.hspoints.Parent.XLim(1)*ones(size(worldPoints.Y)));
 
@@ -439,10 +470,10 @@ classdef Geometry3D
             ra = atan2( tand(eyePoints.RV) , tand(eyePoints.RH)./(abs(cosd(eyePoints.RV))));
             re = atand(sqrt(tand(eyePoints.RV).^2 + (tand(eyePoints.RH)./(abs(cosd(eyePoints.RV)))).^2));
             
-            set(app.Data.hLRpoints.L, 'ThetaData', ra, 'RData', re);
+            set(app.Data.hLRpoints.R, 'ThetaData', ra, 'RData', re);
             ra = atan2( tand(eyePoints.LV) , tand(eyePoints.LH)./abs(cosd(eyePoints.LV)));
             re = atand(sqrt(tand(eyePoints.LV).^2 + (tand(eyePoints.LH)./(abs(cosd(eyePoints.LV)))).^2));
-            set(app.Data.hLRpoints.R, 'ThetaData', ra, 'RData', re);
+            set(app.Data.hLRpoints.L, 'ThetaData', ra, 'RData', re);
             
             % update disparity plot
             set(app.Data.hdisparity, ...
@@ -531,21 +562,21 @@ classdef Geometry3D
         %
         %
 
-        % HORIZONTAL ROTATION
+        % HORIZONTAL ROTATION right handed
         function M = RotZ(theta)
             M = [   cos(theta)  -sin(theta)     0;
                 sin(theta)  cos(theta)      0;
                 0           0               1];
         end
 
-        % VERTICAL ROTATION
+        % VERTICAL ROTATION right handed
         function M = RotY(phi)
             M = [   cos(phi)  0               sin(phi);
                 0           1               0;
                 -sin(phi) 0               cos(phi)];
         end
 
-        % TORSIONAL ROTATION
+        % TORSIONAL ROTATION right handed
         function M = RotX(psi)
             M = [   1           0               0;
                 0           cos(psi)      -sin(psi);
