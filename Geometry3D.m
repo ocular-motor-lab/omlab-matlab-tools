@@ -30,7 +30,7 @@ classdef Geometry3D
 
         function demoDisparity()
           
-            app = InteractiveUI('DisparityCalculator',@(app) (Geometry3D.demoDisparityUpdate(app)), 0.2);
+            app = InteractiveUI('Disparity Simulator',@(app) (Geometry3D.demoDisparityUpdate(app)), 0.2);
             app.AddDropDown('Stimulus',      1,  ["CROSS" "RANDOMPLANE" "GRIDPLANE" "HLINE" "VLINE"])
             app.AddSlider('IPD mm',           60, [10 100])
             app.AddSlider('Stimulus Scale',       1,  [0.1 10])
@@ -60,6 +60,46 @@ classdef Geometry3D
 
         end
 
+
+        function demoMotionFlow()
+          
+            app = InteractiveUI('Motion Flow Simulator',@(app) (Geometry3D.demoDisparityUpdate(app)), 0.2);
+            app.AddDropDown('Stimulus',      1,  ["Ground plane" "Cloud"])
+            app.AddSlider('Eye height',           100,[0    500])
+            % app.AddSlider('Stimulus Scale',       1,  [0.1  10])
+            app.AddSlider('Fixation Distance',    30, [10   200])
+            app.AddSlider('Fixation X',           0,  [-100 100])
+            app.AddSlider('Fixation Y',           0,  [-100 100])
+            % app.AddSlider('Torsion Version',      0,  [-20  20])
+            % app.AddSlider('Torsion Vergence',     0,  [-20  20])
+            app.AddSlider('Ground plane slant',          0,  [-90  90])
+            app.AddSlider('Ground plane tilt',           0,  [0    90])
+            app.AddSlider('Angular velocity X',   0,  [-100 100])
+            app.AddSlider('Angular velocity Y',   0,  [-100 100])
+            app.AddSlider('Angular velocity Z',   0,  [-100 100])
+            app.AddSlider('Linear velocity X',    0,  [-100 100])
+            app.AddSlider('Linear velocity Y',    0,  [-100 100])
+            app.AddSlider('Linear velocity Z',    0,  [-100 100])
+            % app.AddDropDown('View3D',             1,  ["Oblique" "TOP" "SIDE"])
+
+            % 
+            % app.Data.Screen = struct();
+            % app.Data.Screen.SizeCm = [30*16/9 30];
+            % app.Data.Screen.ResPix = [1920 1080];
+            % app.Data.Screen.Distance = 57;
+            % app.Data.Screen.Slant = 0;
+            % 
+            % app.Data.FixationSpot = struct();
+            % app.Data.FixationSpot.X = 0;
+            % app.Data.FixationSpot.Y = 0;  
+            % app.Data.FixationSpot.Z = 0;
+
+            % Add average monocular motion flow and paralax flow
+
+            app.Open();
+
+        end
+
         function demoQuaternion()
             app = InteractiveUI('Quaternion demo',@(app) (Geometry3D.demoQuaternionUpdate(app)), 0.2);
             app.AddSlider('q0',1, [-1 1])
@@ -67,14 +107,20 @@ classdef Geometry3D
             app.AddSlider('q2',0, [-1 1])
             app.AddSlider('q3',0, [-1 1])
 
+            % app.AddDropDown('2D HVT Coordinate system',      1,  ["Helmholtz" "Fick" "Harns" "Hess"])
+            app.AddDropDown('2D HVT Coordinate system',      1,  ["Helmholtz" "Fick"])
             app.AddSlider('H',0, [-90 90])
             app.AddSlider('V',0, [-90 90])
             app.AddSlider('T',0, [-90 90])
 
-            app.AddSlider('x',0, [-1 1])
-            app.AddSlider('y',0, [-1 1])
-            app.AddSlider('z',0, [-1 1])
-            app.AddSlider('a',0, [-180 180])
+            % app.AddSlider('Listings angle',0, [-90 90])
+            % app.AddSlider('Listings eccentricity',0, [-90 90])
+            % app.AddSlider('Listings torsion',0, [-90 90])
+
+            % app.AddSlider('x',0, [-1 1])
+            % app.AddSlider('y',0, [-1 1])
+            % app.AddSlider('z',0, [-1 1])
+            % app.AddSlider('a',0, [-180 180])
             
 
             app.Open();
@@ -544,10 +590,42 @@ classdef Geometry3D
 
     methods(Static, Access = private) % DEMO QUATERNIONS
         function [f, h] = demoQuaternionInitPlots(app)
+            scr_siz = get(0,'ScreenSize');
+            margin = floor(0.1*(scr_siz(4)));
+            f = figure('color','w','position',floor([...
+                margin...
+                margin...
+                scr_siz(3)*2/4 ...
+                scr_siz(4)*2/4 ...
+                ]));
 
-            f = figure;
+            % Define the radius of the sphere
+            R = 1;
+            % Define the resolution of the sphere
+            res = 20;
+            % Define the transparency of the sphere
+            alpha = 0.8;
 
-            h = axis;
+            % Create the sphere
+            [Z,X,Y] = sphere(res);
+
+            % Plot the sphere
+            h.sphere = surf(R*X,R*Y,R*Z,'FaceAlpha', alpha,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8])
+            axis equal;
+
+% 
+% set(gcf, 'Renderer', 'OpenGL');
+% shading interp, material shiny, lighting phong, lightangle(0, 55);
+
+            view(45,30)
+            set(gca,'xlim',1.5*[-1 1],'ylim',1.5*[-1 1],'zlim',1.5*[-1 1])
+
+            h.ax = gca;
+
+            h.frame(1) = line(0,0,0,'linewidth',2,'color','k');
+            h.frame(2) = line(0,0,0,'linewidth',2,'color','r');
+            h.frame(3) = line(0,0,0,'linewidth',2,'color','k');
+            h.rotax = line(0,0,0,'linestyle','-','linewidth',2,'color','b');
 
         end
 
@@ -555,6 +633,7 @@ classdef Geometry3D
             
             Values = app.Values;
             q = [Values.q0 Values.q1 Values.q2 Values.q3];
+            hvt = [-Values.H -Values.V Values.T];
 
             if ( ~isfield(app.Data, "f") || ~isvalid(app.Data.f))
                 % If figure does not exist create it with all the plots and
@@ -564,7 +643,17 @@ classdef Geometry3D
                 app.Data.h = h;
 
                 app.Data.LastQ = q;
+                app.Data.Lasthvt = hvt;
+                app.Data.LastCS = app.Values.x2DHVTCoordinateSystem;
             end
+
+
+
+            steps = [0:10:360];
+            points = -90:10:90;
+
+            [xcirclesX, xcirclesY] = meshgrid(steps,points);
+            [ycirclesX, ycirclesY] = meshgrid(points,steps);
 
             
             q1 = app.Data.LastQ;
@@ -574,6 +663,7 @@ classdef Geometry3D
             % are zero transform to aligned with 1 0 0 because otherwise
             % there is a singularity
             c = (q-q1) == 0;
+            %sum(c)
             if ( sum(c)==3)
                 nc = q(c);
                 if ( sum(nc) == 0)
@@ -582,23 +672,100 @@ classdef Geometry3D
 
                 q(c) = nc*sqrt(1-q(~c)^2)/norm(nc);
 
-                app.Data.LastQ = q;
-                app.Values.q0  = q(1);
-                app.Values.q1  = q(2);
-                app.Values.q2  = q(3);
-                app.Values.q3  = q(4);
+                switch(app.Values.x2DHVTCoordinateSystem)
+                        case 'Fick'
+                            hvt = rad2deg(Geometry3D.RotMat2Fick(Geometry3D.Quat2RotMat(q)));
+                        case 'Helmholtz'
+                            hvt = rad2deg(Geometry3D.RotMat2Helm(Geometry3D.Quat2RotMat(q)));
+                        case 'Listings(AET)'
+                            hvt = rad2deg(Geometry3D.RotMat2Listings(Geometry3D.Quat2RotMat(q)));
+                end
+
+
+            elseif (~isequal(hvt, app.Data.Lasthvt)  )
+                % if the quaternion was not update check if the hvt was
+
+                switch(app.Values.x2DHVTCoordinateSystem)
+                    case 'Fick'
+                        q = Geometry3D.RotMat2Quat(Geometry3D.Fick2RotMat(deg2rad(hvt)));
+                    case 'Helmholtz'
+                        q = Geometry3D.RotMat2Quat(Geometry3D.Helm2RotMat(deg2rad(hvt)));
+                    case 'Listings(AET)'
+                        q = Geometry3D.RotMat2Quat(Geometry3D.Listings2RotMat(deg2rad(hvt)));
+                end
+            elseif (string(app.Data.LastCS) ~= string(app.Values.x2DHVTCoordinateSystem))
+
+                switch(app.Values.x2DHVTCoordinateSystem)
+                    case 'Fick'
+                        hvt = rad2deg(Geometry3D.RotMat2Fick(Geometry3D.Quat2RotMat(q)));
+                    case 'Helmholtz'
+                        hvt = rad2deg(Geometry3D.RotMat2Helm(Geometry3D.Quat2RotMat(q)));
+                    case 'Listings(AET)'
+                        hvt = rad2deg(Geometry3D.RotMat2Listings(Geometry3D.Quat2RotMat(q)));
+                end
             end
 
-            [axis,angle] = Geometry3D.Quat2AxisAngle(q);
-            HVT = Geometry3D.RotMat2Fick( Geometry3D.Quat2RotMat(q));
 
-            app.Values.H  = rad2deg(HVT(1));
-            app.Values.V  = rad2deg(HVT(2));
-            app.Values.T  = rad2deg(HVT(3));
-            app.Values.x  = axis(1);
-            app.Values.y  = axis(2);
-            app.Values.z  = axis(3);
-            app.Values.a  = angle;
+
+            switch(app.Values.x2DHVTCoordinateSystem)
+                case 'Fick'
+                    z = sind(xcirclesX);
+                    y = sind(xcirclesY).*cosd(xcirclesX);
+                    x = cosd(xcirclesX).*cosd(xcirclesY);
+                case 'Helmholtz'
+                    y = sind(xcirclesX);
+                    x = sind(xcirclesY).*cosd(xcirclesX);
+                    z = cosd(xcirclesX).*cosd(xcirclesY);
+                case 'Listings(AET)'
+                    x = sind(xcirclesX);
+                    z = sind(xcirclesY).*cosd(xcirclesX);
+                    y = cosd(xcirclesX).*cosd(xcirclesY);
+                    
+                % case 'Harns'
+                %     y = sind(xcirclesX).*cosd(xcirclesY);
+                %     x = sind(xcirclesY);
+                %     z = cosd(xcirclesX).*cosd(xcirclesY);
+                % case 'Hess'
+                %     y = sind(xcirclesX);
+                %     x = sind(xcirclesY);
+                %     z = cosd(xcirclesX).*cosd(xcirclesY);
+            end
+
+            set(app.Data.h.sphere, 'xdata',x, 'ydata',y, 'zdata',z)
+
+            
+            app.Data.Lasthvt = hvt;
+            app.Data.LastQ = q;
+            app.Data.LastCS = app.Values.x2DHVTCoordinateSystem;
+
+            app.Values.q0  = q(1);
+            app.Values.q1  = q(2);
+            app.Values.q2  = q(3);
+            app.Values.q3  = q(4);
+
+            app.Values.H  = -hvt(1);
+            app.Values.V  = -hvt(2);
+            app.Values.T  = hvt(3);
+            % app.Values.x  = axis(1);
+            % app.Values.y  = axis(2);
+            % app.Values.z  = axis(3);
+            % app.Values.a  = angle;
+
+
+            R = Geometry3D.Quat2RotMat(q);
+            c = R(:,1);
+            axis = R(:,3);
+            % 
+            set(app.Data.h.frame(1), 'xdata',1.2*[0 R(1,1)], 'ydata',1.2*[0 R(2,1)], 'zdata',1.2*[0 R(3,1)])
+            set(app.Data.h.frame(2), 'xdata',c(1)+ 0.5*[0 R(1,2)], 'ydata',c(2)+ 0.5*[0 R(2,2)], 'zdata',c(3)+ 0.5*[0 R(3,2)])
+            set(app.Data.h.frame(3), 'xdata',c(1)+ 0.2*[0 R(1,3)], 'ydata',c(2)+ 0.2*[0 R(2,3)], 'zdata',c(3)+ 0.2*[0 R(3,3)])
+
+            set(app.Data.h.rotax, 'xdata', 1.2*axis(1)*[0 1], 'ydata', 1.2*axis(2)*[0 1], 'zdata', 1.2*axis(3)*[0 1])
+            % 
+            % h.frame(1) = line(0,0,0,'linewidth',2);
+            % h.frame(2) = line(0,0,0,'linewidth',2);
+            % h.frame(3) = line(0,0,0,'linewidth',2);
+
 
         end
     end
@@ -641,41 +808,42 @@ classdef Geometry3D
         % Fick to rotation matrix
         function M = Fick2RotMat(HVT)
 
-            theta = HVT(1);
-            phi = HVT(2);
-            psi = HVT(3);
+            H = HVT(1);
+            V = HVT(2);
+            T = HVT(3);
 
-            M = Geometry3D.RotZ(theta)*Geometry3D.RotY(phi)*Geometry3D.RotX(psi);
+            M = Geometry3D.RotZ(H)*Geometry3D.RotY(V)*Geometry3D.RotX(T);
         end
 
         % Rotation matrix to Fick
         function HVT = RotMat2Fick(M)
             % TODO: Double check this.
-            Rzx = M(3,1);
-            Ryx = M(2,1);
-            Rzy = M(3,2);
+            r31 = M(3,1);
+            r21 = M(2,1);
+            r32 = M(3,2);
 
-            HVT(2) = -asin(Rzx);
-            HVT(1) = asin(Ryx/cos(HVT(2)));
-            HVT(3) = asin(Rzy/cos(HVT(2)));
+            HVT(2) = -asin(r31);
+            HVT(1) = asin(r21/cos(HVT(2)));
+            HVT(3) = asin(r32/cos(HVT(2)));
         end
 
         function M = Helm2RotMat(HVT)
-            theta = HVT(1);
-            phi = HVT(2);
-            psi = HVT(3);
 
-            M = Geometry3D.RotY(phi)*Geometry3D.RotZ(theta)*Geometry3D.RotX(psi);
+            H = HVT(1);
+            V = HVT(2);
+            T = HVT(3);
+
+            M = Geometry3D.RotY(V)*Geometry3D.RotZ(H)*Geometry3D.RotX(T);
         end
 
-        function HVT = RotMat2Helm(HVT)
-            Rzx = M(3,1);
-            Ryx = M(2,1);
-            Rzy = M(3,2);
+        function HVT = RotMat2Helm(M)
+            r21 = M(2,1);
+            r31 = M(3,1);
+            r23 = M(2,3);
 
-            HVT(1) = -asin(Rzx);
-            HVT(2) = asin(Ryx/cos(HVT(1)));
-            HVT(3) = asin(Rzy/cos(HVT(1)));
+            HVT(1) = asin(r21);
+            HVT(2) = -asin(r31/cos(HVT(1)));
+            HVT(3) = -asin(r23/cos(HVT(1)));
         end
 
         function M = List2Mat(ADT)
@@ -687,6 +855,7 @@ classdef Geometry3D
 
         function q = RotMat2Quat(M)
             % From quaternion navy book
+            M = M';
             m11 = M(1,1);
             m12 = M(1,2);
             m21 = M(2,1);
