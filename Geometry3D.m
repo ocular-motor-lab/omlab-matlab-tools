@@ -60,11 +60,59 @@ classdef Geometry3D
 
         end
 
+        function exmapleCalculateEyePoints()
+            %%
+
+            SizeCm = [30*16/9 30];
+            ResPix = [1920 1080];
+            ScreenDistance = 57;
+            ScreenSlant = 0;
+
+            IPDMm = 60;
+            FixationSpot = [];
+            FixationSpot.X = 0;
+            FixationSpot.Y = 0;
+            FixationSpot.Z = 50; % fixation spot distance
+            TorsionVersion = 0;
+            TorsionVergence = 0;
+
+            StimulusDistance = 50;
+            sizeStimCm = 40;
+            PlaneTilt = 0;
+            PlaneSlant = 0;
+
+            % make world points
+            numDots = 200;
+            worldPoints = table();
+            worldPoints.X = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
+            worldPoints.Y = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
+            worldPoints.Z = zeros(numDots, 1);
+
+            worldPoints.X = worldPoints.X;
+            worldPoints.Y = worldPoints.Y;
+            worldPoints.Z = zeros(size(worldPoints.Z));
+            % Rotate by slant and tilt
+            R = Geometry3D.Quat2RotMat(Geometry3D.AxisAngle2Quat([cosd(PlaneTilt) sind(PlaneTilt) 0],deg2rad(PlaneSlant)));
+            worldPoints{:,:} = (R*worldPoints{:,:}')';
+            % Displace by distance
+            worldPoints.Z = worldPoints.Z + StimulusDistance;
+            % end make world points
+
+
+
+            leftEyeScreen = Geometry3D.MakeScreen(SizeCm, ResPix, ScreenDistance, ScreenSlant);
+            rightEyeScreen = Geometry3D.MakeScreen(SizeCm, ResPix, ScreenDistance, ScreenSlant);
+            eyes = Geometry3D.MakeEyes(IPDMm/10, FixationSpot, TorsionVersion, TorsionVergence);
+
+            eyePoints = Geometry3D.Points3DToEyes(worldPoints, eyes);
+            screenPoints = Geometry3D.PointsEyesToScreen(eyes, eyePoints, leftEyeScreen, rightEyeScreen);
+        end
+
 
         function demoMotionFlow()
           
             app = InteractiveUI('Motion Flow Simulator',@(app) (Geometry3D.demoMotionFlowUpdate(app)), 0.2);
-            app.AddDropDown('Stimulus',      1,  ["Ground plane" "Cloud"])
+            app.AddDropDown('Stimulus',      1,  ["Ground plane" "Point cloud"])
             app.AddSlider('Eye height',           100,[0    500])
             % app.AddSlider('Stimulus Scale',       1,  [0.1  10])
             app.AddSlider('Fixation Distance',    30, [10   200])
