@@ -38,6 +38,9 @@ classdef InteractiveUI < matlab.apps.AppBase
         sliderCount = 0;
         updateCallback;
         updating = 0;
+
+        rowHeight = 50;
+        rowSpacing = 0;
     end
 
     % Component initialization
@@ -45,17 +48,19 @@ classdef InteractiveUI < matlab.apps.AppBase
 
         % Create UIFigure and components
         function createComponents(app)
+            N = 2;
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 645 841];
+            app.UIFigure.Position = [100 100 645 ((app.rowHeight+app.rowSpacing)*N)];
             app.UIFigure.Name = 'MATLAB App';
             app.UIFigure.Resize = 'off';
 
             % Create GridLayout
             app.GridLayout = uigridlayout(app.UIFigure);
             app.GridLayout.ColumnWidth = {'1x'};
-            app.GridLayout.RowHeight = {60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60};
+            app.GridLayout.RowHeight = app.rowHeight;
+            app.GridLayout.RowSpacing = app.rowSpacing;
 
             m = uimenu(app.UIFigure, 'Text','Menu');
             mitem = uimenu(m,'Text','Reset');
@@ -201,32 +206,40 @@ classdef InteractiveUI < matlab.apps.AppBase
             app.Update();
         end
 
-        function AddSlider(app, name, defaultvalue, range)
-
-            if (app.sliderCount >= 12)
-                error('NO MORE SLIDERS ALLLOWED (12 max)')
+        function Panel = AddPanel(app)
+            if (app.sliderCount >= 20)
+                error('NO MORE CONTROLS ALLLOWED (20 max)')
             end
             
             app.sliderCount =  app.sliderCount+1;
 
-            textname = name;
-            name = matlab.lang.makeValidName(name);
-            app.Values.(name) = defaultvalue;
+            % update figure size
+            app.UIFigure.Position = [app.UIFigure.Position(1:3) ((app.rowHeight+app.rowSpacing)*app.sliderCount)];
 
             % Create Panel
             Panel = uipanel(app.GridLayout);
             Panel.Layout.Row = app.sliderCount;
             Panel.Layout.Column = 1;
+            % Panel.BorderType = 'none';
+        end
+
+        function AddSlider(app, name, defaultvalue, range)
+
+            Panel = app.AddPanel();
+
+            textname = name;
+            name = matlab.lang.makeValidName(name);
+            app.Values.(name) = defaultvalue;
 
             % Create EditFieldLabel
             EditFieldLabel = uilabel(Panel);
             EditFieldLabel.HorizontalAlignment = 'right';
-            EditFieldLabel.Position = [8 16 115 22];
+            EditFieldLabel.Position = [2 16 140 22];
             EditFieldLabel.Text = textname;
 
             % Create EditField
             EditField = uieditfield(Panel, 'numeric');
-            EditField.Position = [133 16 60 22];
+            EditField.Position = [145 16 50 22];
             EditField.ValueChangedFcn = createCallbackFcn(app, @EditFieldValueChanged, true);
             EditField.Tag = name;
 
@@ -259,19 +272,11 @@ classdef InteractiveUI < matlab.apps.AppBase
 
         function AddDropDown(app, name, defaultvalue, values)
 
-            if (app.sliderCount >= 12)
-                error('NO MORE SLIDERS ALLLOWED (12 max)')
-            end
-            app.sliderCount =  app.sliderCount+1;
+            Panel = app.AddPanel();
 
             textname = name;
             name = matlab.lang.makeValidName(name);
             app.Values.(name) = values(defaultvalue);
-
-            % Create Panel
-            Panel = uipanel(app.GridLayout);
-            Panel.Layout.Row = app.sliderCount;
-            Panel.Layout.Column = 1;
 
             % Create EditFieldLabel
             EditFieldLabel = uilabel(Panel);
