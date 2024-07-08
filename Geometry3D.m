@@ -31,18 +31,20 @@ classdef Geometry3D
         function demoDisparity()
           
             app = InteractiveUI('Disparity Simulator',@(app) (Geometry3D.demoDisparityUpdate(app)), 0.2);
-            app.AddDropDown('Stimulus',      1,  ["CROSS" "RANDOMPLANE" "GRIDPLANE" "HLINE" "VLINE"])
-            app.AddSlider('IPD mm',           60, [10 100])
-            app.AddSlider('Stimulus Scale',       1,  [0.1 10])
-            app.AddSlider('Stimulus Distance',    40, [10 200])
-            app.AddSlider('Fixation Distance',30, [10 200])
-            app.AddSlider('Fixation X',        0, [-100 100])
-            app.AddSlider('Fixation Y',        0, [-100 100])
-            app.AddSlider('Torsion Version',  0,  [-20 20])
-            app.AddSlider('Torsion Vergence', 0,  [-20 20])
-            app.AddSlider('Plane slant',     0,  [-90 90])
-            app.AddSlider('Plane Tilt',      0,  [0 90])
-            app.AddDropDown('View3D',      1,  ["Oblique" "TOP" "SIDE"])
+            app.AddDropDown('Stimulus',         1,  ["CROSS" "RANDOMPLANE" "GRIDPLANE" "HLINE" "VLINE"])
+            app.AddSlider('IPD mm',             60, [10 100])
+            app.AddSlider('Stimulus Scale',     1,  [0.1 10])
+            app.AddSlider('Stimulus Distance',  40, [10 200])
+            app.AddSlider('Fixation Distance',  30, [10 200])
+            app.AddSlider('Fixation X',         0,  [-100 100])
+            app.AddSlider('Fixation Y',         0,  [-100 100])
+            app.AddSlider('Torsion Version',    0,  [-20 20])
+            app.AddSlider('Torsion Vergence',   0,  [-20 20])
+            app.AddSlider('Plane slant',        0,  [-90 90])
+            app.AddSlider('Plane Tilt',         0,  [0 90])
+            app.AddDropDown('View3D',           1,  ["Oblique" "TOP" "SIDE"])
+            app.AddSlider('Screen slant',       0,  [-30 30])
+            app.AddDropDown('Simulate torsion', 1,  ["Yes" "No"])
 
 
             app.Data.Screen = struct();
@@ -176,6 +178,11 @@ classdef Geometry3D
 
         function eyes = MakeEyes(ipdCm, fixationSpot, torsionVersion, torsionVergence)
 
+            % TODO: add deviations. Not sure how yet. Probably need six
+            % numbers to add all posible deviations. It would probably also
+            % change assumptions about the fixation spot and how it is
+            % being drawn
+
             % Position of eyes
             eyes.R.X = ipdCm/2;
             eyes.R.Y = 0;
@@ -185,11 +192,17 @@ classdef Geometry3D
             eyes.L.Z = 0;
 
             % Orientation of eyes in helmoltz coordinates, they make more
-            % sense for 
-            % right is positive, Up is positive
+            % sense for disparity because it naturally encodes first the
+            % plane of regard. That is, the plane containing the fixation
+            % spot and the center of the eyes. The horizontal eye position
+            % is the angle within that plane. 
+            %
+            % right is positive, Up is positive, top-pole to right is
+            % positive
             eyes.R.V = atan2d(fixationSpot.Y-eyes.R.Y, fixationSpot.Z);
             eyes.R.H = atan2d(fixationSpot.X-eyes.R.X, fixationSpot.Z./(cosd(eyes.R.V)));
             eyes.R.T = torsionVersion - torsionVergence;
+
             eyes.L.V = atan2d(fixationSpot.Y-eyes.L.Y, fixationSpot.Z);
             eyes.L.H = atan2d(fixationSpot.X-eyes.L.X, fixationSpot.Z./(cosd(eyes.L.V)));
             eyes.L.T = torsionVersion + torsionVergence;
@@ -230,7 +243,7 @@ classdef Geometry3D
         function [eyepoints] = Points3DToEyes(points, eyes )
 
 
-            t =table();
+            ep = table();
 
             % The eye coordinate system is right handed
             % with x pointing out
@@ -238,60 +251,61 @@ classdef Geometry3D
             % z pointing up
             %
             % it is a bit messy to have a different coordinate system than 
-            % for the 3D scene, but I can't think of the rotations otherway
+            % for the 3D scene, but I can't think of the rotations any
+            % other way 
             %
 
             % Get the new xs in cm for the two eyes (transform the dots from head reference
             % to eye reference [nothing about eye angle here!])
-            t.RY = -(points.X - eyes.R.X);
-            t.RZ = -points.Y;
-            t.RX = points.Z;
-            t.LY = -(points.X - eyes.L.X);
-            t.LZ = -points.Y;
-            t.LX = points.Z;
+            ep.RY0 = -(points.X - eyes.R.X);
+            ep.RZ0 = -points.Y;
+            ep.RX0 = points.Z;
+            ep.LY0 = -(points.X - eyes.L.X);
+            ep.LZ0 = -points.Y;
+            ep.LX0 = points.Z;
 
             % Rotate the points to be in eye reference frame
-            t{:,{'RX' 'RY' 'RZ'  }} =  t{:,{'RX' 'RY' 'RZ'  }}*eyes.R.RM;
-            t{:,{'LX' 'LY' 'LZ'  }} =  t{:,{'LX' 'LY' 'LZ'  }}*eyes.L.RM;
+            ep{:,{'RX' 'RY' 'RZ'  }} =  ep{:,{'RX0' 'RY0' 'RZ0'  }}*eyes.R.RM;
+            ep{:,{'LX' 'LY' 'LZ'  }} =  ep{:,{'LX0' 'LY0' 'LZ0'  }}*eyes.L.RM;
 
             % helmholtz coordinates make more sense for disparity
             % because the vertical rotation first does not change the
             % plane of regard
-            t.RV = atan2d(t.RZ, t.RX);
-            t.RH = atan2d(-t.RY, t.RX./abs(cosd(t.RV)));
-            t.LV = atan2d(t.LZ, t.LX);
-            t.LH = atan2d(-t.LY, t.LX./abs(cosd(t.LV)));
-            badidx = abs(t.RV)>=90 | abs(t.RH)>=90 ;
-            t.RV(badidx) = nan;
-            t.RH(badidx) = nan;
-            badidx = abs(t.LV)>=90 | abs(t.LH)>=90 ;
-            t.LV(badidx) = nan;
-            t.LH(badidx) = nan;
+            ep.RV = atan2d(ep.RZ, ep.RX);
+            ep.RH = atan2d(-ep.RY, ep.RX./abs(cosd(ep.RV)));
+            ep.LV = atan2d(ep.LZ, ep.LX);
+            ep.LH = atan2d(-ep.LY, ep.LX./abs(cosd(ep.LV)));
 
-            % Get disparity!! % TODO this should be 3D disparity
-            t.HDisparity = t.LH - t.RH;
-            t.VDisparity = t.LV - t.RV;
+            % remove points past 90 deg in each direction
+            badidx = abs(ep.RV)>=90 | abs(ep.RH)>=90 ;
+            ep.RV(badidx) = nan;
+            ep.RH(badidx) = nan;
+            badidx = abs(ep.LV)>=90 | abs(ep.LH)>=90 ;
+            ep.LV(badidx) = nan;
+            ep.LH(badidx) = nan;
 
-            eyepoints = t;
+            % Get disparity!! % TODO, mayber this should be 3D disparity
+            ep.HDisparity = ep.LH - ep.RH;
+            ep.VDisparity = ep.LV - ep.RV;
+
+            eyepoints = ep;
         end
 
 
         function screenPoints  = PointsEyesToScreen(eyes, eyePoints, LeyeScreen, ReyeScreen)
 
-            % TODO: correct for fick/helm or whatever coordinate systems we
-            % have in the eye posints
-            
-            % TODO: Review how eye position is added (probably also needs
-            % to be a rotation
+            % TODO: to simulate torsion we want to rotate the points only
+            % around the axis that goes trhough the fixation spot by how
+            % much the torsion is.
+            % This should work off of the points shifted (the ones with
+            % zero at the end). That way we don't need to undo the
+            % horizontal and vertical rotation that was done to rotate the
+            % points to full eye coordinates
 
-            % This needs to be different if we are simulating torsion or
-            % not
-
-            screenPoints.LX = LeyeScreen.middleX + LeyeScreen.ScreenDistance*tand(eyes.L.H + eyePoints.LH)*LeyeScreen.pixPerCmWidth;
-            screenPoints.LY = LeyeScreen.middleY + LeyeScreen.ScreenDistance*tand(eyes.L.V + eyePoints.LV)*LeyeScreen.pixPerCmHeight;
+            screenPoints.LX = LeyeScreen.middleX + LeyeScreen.ScreengiDistance*tand(eyes.L.H + eyePoints.LH)*LeyeScreen.pixPerCmWidth;
+            screenPoints.LY = LeyeScreen.middleY + LeyeScreen.ScreenDistance*tand(-eyes.L.V + eyePoints.LV)*LeyeScreen.pixPerCmHeight;
             screenPoints.RX = ReyeScreen.middleX + ReyeScreen.ScreenDistance*tand(eyes.R.H + eyePoints.RH)*ReyeScreen.pixPerCmWidth;
-            screenPoints.RY = ReyeScreen.middleY + ReyeScreen.ScreenDistance*tand(eyes.R.V + eyePoints.RV)*ReyeScreen.pixPerCmHeight;
-                
+            screenPoints.RY = ReyeScreen.middleY + ReyeScreen.ScreenDistance*tand(-eyes.R.V + eyePoints.RV)*ReyeScreen.pixPerCmHeight;
         end
 
 
@@ -321,18 +335,10 @@ classdef Geometry3D
 
         function [f, heyes, hfix, hscreen, hpoints, hspoints, hLRpoints, hdisparity, hLscreen] = demoDisparityInitPlots(points, eyePoints, screenPoints, eyes, leftEyeScreen, rightScreen)
 
-            t = points(1:end-1,:);
-            fp = points(end,:);
-
             % View the dots, eyes, and fixation dot
             scr_siz = get(0,'ScreenSize');
             margin = floor(0.1*(scr_siz(4)));
-            f = figure('color','w','position',floor([...
-                margin...
-                margin...
-                scr_siz(3)*2.8/4 ...
-                scr_siz(4)*2/4 ...
-                ]));
+            f = figure('color','w','position',floor([margin margin scr_siz(3)*2.8/4 scr_siz(4)*2/4 ]));
             axes('OuterPosition',[ 0    0    0.5    1], 'nextplot','add')
 
             hpoints = line(0,0, 0,'linestyle','none','marker','o','Color','k');
@@ -345,15 +351,8 @@ classdef Geometry3D
             heyes.r = line(0,0,0,'linestyle','-','Color','r'); % left eye fixation spot and right eye
 
             grid
-            % xlim(1.2*[min([t.X;t.Y]) max([t.X;t.Y])])
-            % zlim(1.2*[min([t.X;t.Y]) max([t.X;t.Y])])
-            xlim([-100 100])
-            zlim([-100 100])
-            % ylim([-5 min(100,max(fp.Z, max(t.Z)))*2])
-            ylim([-5 200])
-            xlabel('X (cm)')
-            zlabel('Y (cm)')
-            ylabel('Z (cm)')
+            xlim([-100 100]), zlim([-100 100]), ylim([-5 200]);
+            xlabel('X (cm)'), zlabel('Y (cm)'), ylabel('Z (cm)');
             view(-60,10)
             title('3D world');
             hscreen = [];
@@ -443,7 +442,7 @@ classdef Geometry3D
                     case 'GRIDPLANE'
                         % TODO: need to update the update funciton so the Z is not overwritten by a
                         % constant distance. Just shift things.
-                        [X,Y] = meshgrid([-(sizeStimCm/2):2:(sizeStimCm/2)],[-(sizeStimCm/2):2:(sizeStimCm/2)]);
+                        [X,Y] = meshgrid(-(sizeStimCm/2):2:(sizeStimCm/2),-(sizeStimCm/2):2:(sizeStimCm/2));
                         worldPoints = table();
                         worldPoints.X = X(:);
                         worldPoints.Y = Y(:);
@@ -452,7 +451,7 @@ classdef Geometry3D
                     case 'HLINE'
                         % TODO: need to update the update funciton so the Z is not overwritten by a
                         % constant distance. Just shift things.
-                        [X,Y] = meshgrid([-(sizeStimCm/2):0.5:(sizeStimCm/2)],[0]*ones(size([-(sizeStimCm/2):0.5:(sizeStimCm/2)])));
+                        [X,Y] = meshgrid(-(sizeStimCm/2):0.5:(sizeStimCm/2),(0)*ones(size(-(sizeStimCm/2):0.5:(sizeStimCm/2))));
                         worldPoints = table();
                         worldPoints.X = X(:);
                         worldPoints.Y = Y(:);
@@ -460,7 +459,7 @@ classdef Geometry3D
                     case 'VLINE'
                         % TODO: need to update the update funciton so the Z is not overwritten by a
                         % constant distance. Just shift things.
-                        [X,Y] = meshgrid([0]*ones(size([-(sizeStimCm/2):0.5:(sizeStimCm/2)])),[-(sizeStimCm/2):0.5:(sizeStimCm/2)]);
+                        [X,Y] = meshgrid((0)*ones(size(-(sizeStimCm/2):0.5:(sizeStimCm/2))),-(sizeStimCm/2):0.5:(sizeStimCm/2));
                         worldPoints = table();
                         worldPoints.X = X(:);
                         worldPoints.Y = Y(:);
@@ -471,14 +470,14 @@ classdef Geometry3D
                     case 'CROSS'
                         % TODO: need to update the update funciton so the Z is not overwritten by a
                         % constant distance. Just shift things.
-                        [X,Y] = meshgrid([-(sizeStimCm/2):0.5:(sizeStimCm/2)],[0]*ones(size([-(sizeStimCm/2):0.5:(sizeStimCm/2)])));
+                        [X,Y] = meshgrid(-(sizeStimCm/2):0.5:(sizeStimCm/2),(0)*ones(size(-(sizeStimCm/2):0.5:(sizeStimCm/2))));
                         worldPoints = table();
                         worldPoints.X = X(:);
                         worldPoints.Y = Y(:);
                         worldPoints.Z = zeros(size(worldPoints.X));
                         % TODO: need to update the update funciton so the Z is not overwritten by a
                         % constant distance. Just shift things.
-                        [X,Y] = meshgrid([0]*ones(size([-(sizeStimCm/2):0.5:(sizeStimCm/2)])),[-(sizeStimCm/2):0.5:(sizeStimCm/2)]);
+                        [X,Y] = meshgrid((0)*ones(size(-(sizeStimCm/2):0.5:(sizeStimCm/2))),-(sizeStimCm/2):0.5:(sizeStimCm/2));
                         worldPoints2 = table();
                         worldPoints2.X = X(:);
                         worldPoints2.Y = Y(:);
@@ -498,6 +497,7 @@ classdef Geometry3D
             app.Data.FixationSpot.X = Values.FixationX;
             app.Data.FixationSpot.Y = Values.FixationY;
             app.Data.FixationSpot.Z = Values.FixationDistance;
+            app.Data.Screen.Slant = Values.ScreenSlant;
 
             leftEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
             rightEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
@@ -756,6 +756,7 @@ classdef Geometry3D
             app.Data.FixationSpot.X = Values.FixationX;
             app.Data.FixationSpot.Y = Values.FixationY;
             app.Data.FixationSpot.Z = Values.FixationDistance;
+            app.Data.Screen.Slant = Values.ScreenSlant;
 
             leftEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
             rightEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
