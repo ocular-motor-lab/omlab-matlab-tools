@@ -302,7 +302,7 @@ classdef Geometry3D
             % horizontal and vertical rotation that was done to rotate the
             % points to full eye coordinates
 
-            screenPoints.LX = LeyeScreen.middleX + LeyeScreen.ScreengiDistance*tand(eyes.L.H + eyePoints.LH)*LeyeScreen.pixPerCmWidth;
+            screenPoints.LX = LeyeScreen.middleX + LeyeScreen.ScreenDistance*tand(eyes.L.H + eyePoints.LH)*LeyeScreen.pixPerCmWidth;
             screenPoints.LY = LeyeScreen.middleY + LeyeScreen.ScreenDistance*tand(-eyes.L.V + eyePoints.LV)*LeyeScreen.pixPerCmHeight;
             screenPoints.RX = ReyeScreen.middleX + ReyeScreen.ScreenDistance*tand(eyes.R.H + eyePoints.RH)*ReyeScreen.pixPerCmWidth;
             screenPoints.RY = ReyeScreen.middleY + ReyeScreen.ScreenDistance*tand(-eyes.R.V + eyePoints.RV)*ReyeScreen.pixPerCmHeight;
