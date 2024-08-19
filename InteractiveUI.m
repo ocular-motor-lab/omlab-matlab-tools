@@ -46,44 +46,6 @@ classdef InteractiveUI < matlab.apps.AppBase
     % Component initialization
     methods (Access = private)
 
-        % Create UIFigure and components
-        function createComponents(app)
-            N = 2;
-
-            % Create UIFigure and hide until all components are created
-            app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 645 ((app.rowHeight+app.rowSpacing)*N)];
-            app.UIFigure.Name = 'MATLAB App';
-            app.UIFigure.Resize = 'off';
-
-            % Create GridLayout
-            app.GridLayout = uigridlayout(app.UIFigure);
-            app.GridLayout.ColumnWidth = {'1x'};
-            app.GridLayout.RowHeight = app.rowHeight;
-            app.GridLayout.RowSpacing = app.rowSpacing;
-
-            m = uimenu(app.UIFigure, 'Text','Menu');
-            mitem = uimenu(m,'Text','Reset');
-            mitem.MenuSelectedFcn = @MenuSelected;
-
-            function MenuSelected(src,event)
-                app.Reset();
-            end
-        end
-
-        function InitTimer(app)
-
-            % Setup timer to update psychtoolbox window
-            % this is instead of a typical while loop.
-            app.t = timer;
-            app.t.TimerFcn = @(~,thisevent)app.UpdateTimer;
-            app.t.Period = app.period;
-            app.t.ExecutionMode = 'fixedRate';
-            app.t.TasksToExecute = 100000;
-
-            start(app.t)
-        end
-
         function UpdateTimer(app)
             if ( app.updating)
                return
@@ -167,7 +129,23 @@ classdef InteractiveUI < matlab.apps.AppBase
         function app = InteractiveUI(name, newUpdateCallback, period)
 
             % Create UIFigure and components
-            createComponents(app)
+            N = 2;
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [100 100 645 ((app.rowHeight+app.rowSpacing)*N)];
+            app.UIFigure.Name = 'MATLAB App';
+            app.UIFigure.Resize = 'off';
+
+            % Create GridLayout
+            app.GridLayout = uigridlayout(app.UIFigure);
+            app.GridLayout.ColumnWidth = {'1x'};
+            app.GridLayout.RowHeight = app.rowHeight;
+            app.GridLayout.RowSpacing = app.rowSpacing;
+
+            m = uimenu(app.UIFigure, 'Text','Menu');
+            mitem = uimenu(m,'Text','Reset');
+            mitem.MenuSelectedFcn = @(src,event) app.Reset();
 
             % Register the app with App Designer
             registerApp(app, app.UIFigure)
@@ -198,7 +176,15 @@ classdef InteractiveUI < matlab.apps.AppBase
             app.UIFigure.Visible = 'on';
             app.InitialValues = app.Values;
 
-            app.InitTimer();
+            % Setup timer to update psychtoolbox window
+            % this is instead of a typical while loop.
+            app.t = timer;
+            app.t.TimerFcn = @(~,thisevent)app.UpdateTimer;
+            app.t.Period = app.period;
+            app.t.ExecutionMode = 'fixedRate';
+            app.t.TasksToExecute = 100000;
+
+            start(app.t)
         end
 
         function Reset(app)
@@ -289,6 +275,7 @@ classdef InteractiveUI < matlab.apps.AppBase
             DropDown.Position = [250 14 303 33];
             DropDown.ValueChangedFcn = createCallbackFcn(app, @SliderValueChanged, true);
             DropDown.Tag = name;
+            DropDown.Value = DropDown.Items{defaultvalue};
 
             app.Update();
 

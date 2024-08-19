@@ -21,15 +21,407 @@ classdef Geometry3D
     %       T is positive top to the right
     %
     %       Disparity is L - R
-    %   
+    %
 
     properties
     end
 
     methods(Static)
 
+
+        function demoCoordinateSystemsAndPlane()
+
+            app = InteractiveUI('Coordinate systems',@(app) (Geometry3D.demoCoordinateSystemsAndPlaneUpdate(app)), 0.1); 
+            app.AddDropDown('Coordinate System',   1,  ["Fick", "Helmholtz", "Harms","Hess"])
+            % app.AddSlider('Eye Radius',           0.02,  [0.01    1])
+            %app.AddDropDown('Stimulus',      1,  ["Ground plane" "Point cloud"])
+            app.AddSlider('Azimuth',           40,  [-90 90])
+            app.AddSlider('Elevation',           20,  [-90 90])
+            % app.AddSlider('Torsion Version',      0,  [-20  20])
+            % app.AddSlider('Torsion Vergence',     0,  [-20  20])
+            %app.AddSlider('Ground plane slant',          0,  [-90  90])
+            % app.AddSlider('Ground plane tilt',           0,  [0    90])
+            app.AddSlider('Angular velocity X (deg/s)',   1,  [-5 5])
+            app.AddSlider('Angular velocity Y (deg/s)',   -0.5,  [-5 5])
+            app.AddSlider('Angular velocity Z (deg/s)',   1.3,  [-5 5])
+            app.AddSlider('Linear velocity X (m/s)',    0.05,  [-5 5])
+            app.AddSlider('Linear velocity Y (m/s)',    0.1,  [-5 5])
+            app.AddSlider('Linear velocity Z (m/s)',    -0.1,  [-5 5])
+            % app.AddDropDown('View3D',             1,  ["Oblique" "TOP" "SIDE"])
+
+            %
+            % app.Data.Screen = struct();
+            % app.Data.Screen.SizeCm = [30*16/9 30];
+            % app.Data.Screen.ResPix = [1920 1080];
+            % app.Data.Screen.Distance = 57;
+            % app.Data.Screen.Slant = 0;
+            %
+            % app.Data.FixationSpot = struct();
+            % app.Data.FixationSpot.X = 0;
+            % app.Data.FixationSpot.Y = 0;
+            % app.Data.FixationSpot.Z = 0;
+
+            % Add average monocular motion flow and paralax flow
+
+            app.Open();
+        end
+        %%
+        function demoCoordinateSystemsAndPlaneUpdate(app)
+
+
+            if ( ~isfield(app.Data,'hs'))
+                % Initialize graphics
+
+                app.Data.hs = struct();
+
+                app.Data.hs.f = figure('color','white');
+
+                app.Data.hs.ax1 = subplot(1,1,1,'nextplot','add');
+                colors = get(gca,'colororder');
+
+                % draw sphere
+                view(125,15)
+                axis equal;
+                app.Data.hs.meshSphere = mesh(zeros(2,2),zeros(2,2),zeros(2,2),'FaceAlpha', 0.9,'facecolor',[1 1 1]);
+                xlabel(gca,'x')
+                ylabel(gca,'y')
+                zlabel(gca,'z')
+                % line of sight
+                set(gca,'xlim',[-1 1],'ylim',[-1 1],'zlim',[-1 1],'ClippingStyle','rectangle')
+                app.Data.hs.TextSys = text(0,0,2, 'hi','FontWeight','bold','HorizontalAlignment','center');
+
+                set(gca,'xtick',[],'ytick',[],'ztick',[])
+                set(gca,'visible','off')
+
+
+                % draw axis
+                quiver3(0,0,0,1*2.5, 0, 0,'color',colors(2,:),'linewidth',2);
+                quiver3(0,0,0,0, 1*1.5, 0, 0,'color',colors(1,:),'linewidth',2);
+                quiver3(0,0,0,0, 0, 1*1.5 ,'color',colors(5,:),'linewidth',2);
+                text(2.6,0,0, 'x','fontsize',14,'FontWeight','normal','HorizontalAlignment','center');
+                text(0,1.7,0, 'y','fontsize',14,'FontWeight','normal','HorizontalAlignment','center');
+                text(0,0,1.55, 'z','fontsize',14,'FontWeight','normal','HorizontalAlignment','center');
+
+
+                % draw velocity vectors
+                app.Data.hs.quiverw = quiver3(0,0,0, 1 , -0.5 , 1.3 ,'color',colors(3,:),'linewidth',2);
+                app.Data.hs.textw = text(1,-0.5,1.3, '\omega','fontsize',14,'FontWeight','normal','HorizontalAlignment','right');
+                app.Data.hs.quiverv = quiver3(0,0,0, 0.5, 1,-1 ,'color',colors(4,:),'linewidth',2);
+                app.Data.hs.textv = text(0.5,1.1,-1, 'v','fontsize',14,'FontWeight','normal','HorizontalAlignment','left');
+
+                % draw point
+                app.Data.hs.meshpoint = mesh(zeros(2,2), zeros(2,2),zeros(2,2), 'EdgeColor','none','FaceColor','k');
+                app.Data.hs.textpoint = text(0*1.2,0*1.2,0*1.2, '(\theta,\psi)','fontsize',14, 'FontWeight','normal','HorizontalAlignment','right','VerticalAlignment','top');
+
+                % draw tangent
+                app.Data.hs.meshtangent = mesh(zeros(2,2), zeros(2,2),zeros(2,2), 'EdgeColor',[0.5 0.5 0.5],'FaceAlpha', 0.3,'facecolor',[0.8 0.8 0.8]);
+                app.Data.hs.quiverdaz = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','k','linewidth',2 );
+                app.Data.hs.quiverdel = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','k','linewidth',2 );
+                app.Data.hs.quivertvw = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','r','linewidth',2 );
+                app.Data.hs.quivertvv = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','g','linewidth',2 );
+                app.Data.hs.quivertv  = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','b','linewidth',2 );
+            end
+
+            % get data and update
+
+            R = 1; % radius of the eye
+            step = 10;
+            [az, el] = meshgrid(deg2rad(-80:step:80),deg2rad(-80:step:80)); % azimuths and elevations to include
+
+            paz = deg2rad(app.Values.Azimuth);
+            pel = deg2rad(app.Values.Elevation);
+
+            sys = app.Values.CoordinateSystem;
+            set(app.Data.hs.TextSys, 'String',sys)
+
+            % calculate spherical coordinates depending on the coordinate system
+            switch(sys)
+                case 'Fick'
+                    [x,y,z] = Geometry3D.FickToSphere(az,el);
+                    [px,py,pz] = Geometry3D.FickToSphere(paz,pel);
+                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.FickLinearInverseJacobian(paz, pel);
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(paz, pel);
+                    [dazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.FickRotationalJacobian(paz, pel);
+                case 'Helmholtz'
+                    [x,y,z] = Geometry3D.HelmholtzToSphere(az,el);
+                    [px,py,pz] = Geometry3D.HelmholtzToSphere(paz,pel);
+                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HelmholtzLinearInverseJacobian(paz, pel);
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(paz, pel);
+                    [dazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HelmholtzRotationalJacobian(paz, pel);
+                case 'Listings'
+                    [x,y,z] = Geometry3D.ListingsToSphere(az,el);
+                    [px,py,pz] = Geometry3D.ListingsToSphere(paz,pel);
+                case 'Harms'
+                    [x,y,z] = Geometry3D.HarmsToSphere(az,el);
+                    [px,py,pz] = Geometry3D.HarmsToSphere(paz,pel);
+                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HarmsLinearInverseJacobian(paz, pel);
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsLinearJacobian(paz, pel);
+                    [dazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HarmsRotationalJacobian(paz, pel);
+                case 'Hess'
+                    [x,y,z] = Geometry3D.HessToSphere(az,el);
+                    [px,py,pz] = Geometry3D.HessToSphere(paz,pel);
+            end
+
+            % scale by radius so the translations are in the right units (m)
+            z = z*R;
+            x = x*R;
+            y = y*R;
+
+            % udpate sphere
+            set(app.Data.hs.meshSphere, 'xdata',x,'ydata',y,'zdata',z)
+
+
+            w = deg2rad( [app.Values.AngularVelocityX_deg_s_ , app.Values.AngularVelocityY_deg_s_ , app.Values.AngularVelocityZ_deg_s_] );
+            v = [app.Values.LinearVelocityX_m_s_, app.Values.LinearVelocityY_m_s_, app.Values.LinearVelocityZ_m_s_];
+            set(app.Data.hs.quiverw, 'UData',w(1),'VData',w(2),'WData',w(3));
+            set(app.Data.hs.quiverv, 'UData',v(1),'VData',v(2),'WData',v(3));
+            set(app.Data.hs.textw,'Position',w);
+            set(app.Data.hs.textv,'Position',v);
+
+            % update point
+            [psx,psy,psz] = sphere(10);
+            set(app.Data.hs.meshpoint, 'xdata',psx*0.05+px,'ydata',psy*0.05+py,'zdata',psz*0.05+pz)
+            set(app.Data.hs.textpoint, 'Position', [px*1.2,py*1.2,pz*1.2])
+
+            % draw tangent plane
+            set(app.Data.hs.quiverdaz, 'xdata',px,'ydata',py,'zdata',pz);
+            set(app.Data.hs.quiverdel, 'xdata',px,'ydata',py,'zdata',pz);
+            set(app.Data.hs.quiverdaz, 'UData',dxdaz,'VData',dydaz,'WData',dzdaz);
+            set(app.Data.hs.quiverdel, 'UData',dxdel,'VData',dydel,'WData',dzdel);
+
+            [daz,del] = meshgrid(-0.5:0.1:1.2,-0.5:0.1:1.2);
+            set(app.Data.hs.meshtangent, 'xdata',daz*dxdaz + del*dxdel + px,'ydata',daz*dydaz + del*dydel +py,'zdata',daz*dzdaz + del*dzdel +pz)
+
+            Ji =[dxdaz, dydaz, dzdaz; dxdel, dydel, dzdel]'; % base of the tangent plane
+            tvw = Ji*[dazwx, rdazwy, rdazwz; rdelwx, rdelwy, rdelwz]*w';
+            tvv = Ji*[dazdx, dazdy, dazdz; deldx, deldy, deldz]*v';
+            tv = tvw + tvw;
+
+            set(app.Data.hs.quivertvw, 'xdata',px,'ydata',py,'zdata',pz);
+            set(app.Data.hs.quivertvv, 'xdata',px,'ydata',py,'zdata',pz);
+            set(app.Data.hs.quivertv, 'xdata',px,'ydata',py,'zdata',pz);
+            set(app.Data.hs.quivertvw, 'UData',tvw(1),'VData',tvw(2),'WData',tvw(3));
+            set(app.Data.hs.quivertvv, 'UData',tvv(1),'VData',tvv(2),'WData',tvv(3));
+            set(app.Data.hs.quivertv, 'UData',tv(1),'VData',tv(2),'WData',tv(3));
+
+
+
+
+            % draw flat sphere
+            if ( 0)
+                subplot(2,2,2,'nextplot','add');
+
+                z = z*R;
+                x = x*R;
+                y = y*R;
+
+
+
+                axis equal;
+                mesh(x*0,y,z,'FaceAlpha', 0.9,'facecolor',[1 1 1]);
+
+                set(gca,'xtick',[],'ytick',[],'ztick',[])
+                view(90,0)
+                set(gca,'visible','off')
+
+
+                line([R R ],[0 R*1.1 ],[0 0 ],'color',colors(1,:),'linewidth',2)
+                line([R R ],[0 0 ],[0 R*1.1 ],'color',colors(5,:),'linewidth',2)
+                hs = scatter3([R R ],[0 0 ],[0 0 ], 'MarkerFaceColor',colors(2,:),'MarkerEdgeColor','none' );
+                text(1.1,0,0, 'x','FontWeight','normal','HorizontalAlignment','right','VerticalAlignment','top')
+                text(0,1.4,0, 'y','FontWeight','normal','HorizontalAlignment','center')
+                text(0,0,1.4, 'z','FontWeight','normal','HorizontalAlignment','center')
+
+                [psx,psy,psz] = sphere(10);
+                mesh(psx*0.05+px, psy*0.05+py,psz*0.05+pz, 'EdgeColor','none','FaceColor','k')
+                text(px*1.2,py*1.2,pz*1.2, '(\theta,\psi)','fontsize',14, 'FontWeight','normal','HorizontalAlignment','left','VerticalAlignment','bottom')
+
+
+                subplot(2,2,3,'nextplot','add');
+
+
+                z = z*R;
+                x = x*R;
+                y = y*R;
+
+                % draw sphere
+                axis equal;
+                mesh(x*0,y./x,z./x,'FaceAlpha', 0.9,'facecolor',[1 1 1]);
+
+                set(gca,'xtick',[],'ytick',[],'ztick',[])
+                view(90,0)
+                %                 set(gca,'visible','off')
+                title(altTitles{i})
+                ylabel('Azimuth lines')
+                zlabel('Elevantion lines')
+
+                set(gca,'xlim',[-3 3],'ylim',[-3 3], 'zlim',[-3 3])
+
+                [psx,psy,psz] = sphere(10);
+                mesh(psx*0.1+0, psy*0.1+py./px,psz*0.1+pz./px, 'EdgeColor','none','FaceColor','k')
+                text(0,py./px*1.2,pz./px*1.2, '(\theta,\psi)','fontsize',14, 'FontWeight','normal','HorizontalAlignment','left','VerticalAlignment','bottom')
+            end
+        end
+
+        function demoCoordinateSystems(WHICHFLOW)
+
+            if ( nargin <1)
+                Geometry3D.demoCoordinateSystems('linear')
+                Geometry3D.demoCoordinateSystems('rotational')
+                return
+            end
+
+            R = 0.025; % radius of the eye
+            step = 10;
+            [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
+            coordinateSystems = { 'Listings', 'Fick','Helmholtz', 'Harms','Hess'};
+
+
+
+
+            f = figure('color','white');
+            f.Position = [f.Position(1) f.Position(2) 4*f.Position(3) f.Position(4)];
+
+            for i=1:length(coordinateSystems)
+                sys = coordinateSystems{i};
+                subplot(4,length(coordinateSystems),i,'nextplot','add');
+
+                % calculate spherical coordinates depending on the coordinate system
+                switch(sys)
+                    case 'Fick'
+                        [x,y,z] = Geometry3D.FickToSphere(az,el);
+                    case 'Helmholtz'
+                        [x,y,z] = Geometry3D.HelmholtzToSphere(az,el);
+                    case 'Listings'
+                        [x,y,z] = Geometry3D.ListingsToSphere(az,el);
+                    case 'Harms'
+                        [x,y,z] = Geometry3D.HarmsToSphere(az,el);
+                    case 'Hess'
+                        [x,y,z] = Geometry3D.HessToSphere(az,el);
+                end
+
+                % scale by radius so the translations are in the right units (m)
+                z = z*R;
+                x = x*R;
+                y = y*R;
+
+                % draw sphere
+                view(125,15)
+                axis equal;
+                mesh(x,y,z,'FaceAlpha', 0.9,'facecolor',[1 1 1]);
+                xlabel(gca,'x')
+                ylabel(gca,'y')
+                zlabel(gca,'z')
+                % line of sight
+                line([0 R*1.5 ],[0 0 ],[0 0 ],'color','r','linewidth',2)
+                title(sys)
+
+
+
+                % calculate jacobians for linear or rotational velocity
+                % That is, how much a tiny translation or rotation affect the position
+                % of a point in the sphere.
+                %
+                % For rotation is easy because the point remains in the sphere.
+                %
+                % For translation is a bit trickier because the point moves outside of
+                % the sphere and the vector of motion has to be projected into a
+                % tangent plane.
+                %
+                % the strategy is to move all the points in the sphere and then
+                % calculate the vector from the original point to the new point and
+                % project that vector onto the tangent plane by normalizing the second
+                % point. So it is a vector between two points in the sphere so we can
+                % calcuate it the vector on the actual coordinates of the azimuth and
+                % elevation system. For very small displacements the tangent plane and
+                % the local surface of the sphere should be approximately the same.
+
+                dv = 0.00001; % differential position change in m
+                % This this placements actually needs to be multiplied by
+                % the ration between the eye radius and the distance of the
+                % object seen by this receptor. Right now wea assume ration
+                % of 1.
+                dw = 0.1; % differential angular rotation in deg
+
+                az2 = az;
+                el2 = el;
+
+                colorsflow = {'r' 'b' 'k'};
+                dims = {'x' 'y' 'z'};
+
+                dxyz = {[dv,0,0],[0,dv,0],[0,0,dv]};
+                dRM = {Geometry3D.RotX(dw), Geometry3D.RotY(dw), Geometry3D.RotZ(dw)};
+
+                for vi=1:3
+
+                    if ( strcmp( WHICHFLOW , 'linear' ) )
+                        % add a tiny displacement in the corresponding component to all the
+                        % points in the sphere.
+                        x2 = x - dxyz{vi}(1);
+                        y2 = y - dxyz{vi}(2);
+                        z2 = z - dxyz{vi}(3);
+                    else
+                        % add a tiny rotation in the corresponding component to all the
+                        % points in the sphere.
+                        pointsrot = [x(:) y(:) z(:)]*dRM{vi};
+                        x2 = reshape(pointsrot(:,1),size(x));
+                        y2 = reshape(pointsrot(:,2),size(y));
+                        z2 = reshape(pointsrot(:,3),size(z));
+                    end
+
+                    % project the tiny displacement onto the sphere
+                    % (this is the step I am least sure of)
+                    % But I think it should be correct because it is the projection
+                    % onto a tangent plane.
+                    % I do so by simply normalizing the vector so we find the point on
+                    % the sphere that is closes tot he displaced point.
+                    nrm = sqrt(x2.^2 + y2.^2 + z2.^2);
+                    x2 = x2 ./ nrm;
+                    y2 = y2 ./ nrm;
+                    z2 = z2 ./ nrm;
+
+                    switch(sys)
+                        case 'Fick'
+                            [az2, el2 ] = Geometry3D.SphereToFick(x2,y2,z2);
+                        case 'Helmholtz'
+                            [az2, el2 ] = Geometry3D.SphereToHelmholtz(x2,y2,z2);
+                        case 'Listings'
+                            az2 = nan(size(az));
+                            el2 = nan(size(el));
+                        case 'Harms'
+                            [az2, el2 ] = Geometry3D.SphereToHarms(x2,y2,z2);
+                        case 'Hess'
+                            [az2, el2 ] = Geometry3D.SphereToHess(x2,y2,z2);
+                    end
+
+
+                    subplot(4,length(coordinateSystems),i+length(coordinateSystems)*vi);
+                    quiver(az, el, az2-az, el2-el, colorsflow{vi});
+
+                    switch(WHICHFLOW)
+                        case 'linear'
+                            title(['Flow due to ' WHICHFLOW  ' motion along ',dims{vi}])
+                        case 'rotational'
+                            title(['Flow due to ' WHICHFLOW  ' motion around ',dims{vi}])
+                    end
+                    if ( i > 1)
+                        xlabel('Azimuth (deg)')
+                        ylabel('Elevation (deg)')
+                    else
+                        xlabel('Angle (deg)')
+                        ylabel('Eccentricity (deg)')
+                    end
+                    grid on
+
+                    axis equal;
+                    set(gca,'xlim',[-80 80],'ylim',[-80 80])
+                end
+
+            end
+        end
+
         function demoDisparity()
-          
+
             app = InteractiveUI('Disparity Simulator',@(app) (Geometry3D.demoDisparityUpdate(app)), 0.2);
             app.AddDropDown('Stimulus',         1,  ["CROSS" "RANDOMPLANE" "GRIDPLANE" "HLINE" "VLINE"])
             app.AddSlider('IPD mm',             60, [10 100])
@@ -55,7 +447,7 @@ classdef Geometry3D
 
             app.Data.FixationSpot = struct();
             app.Data.FixationSpot.X = 0;
-            app.Data.FixationSpot.Y = 0;  
+            app.Data.FixationSpot.Y = 0;
             app.Data.FixationSpot.Z = 0;
 
             app.Open();
@@ -110,9 +502,8 @@ classdef Geometry3D
             screenPoints = Geometry3D.PointsEyesToScreen(eyes, eyePoints, leftEyeScreen, rightEyeScreen);
         end
 
-
         function demoMotionFlow()
-          
+
             app = InteractiveUI('Motion Flow Simulator',@(app) (Geometry3D.demoMotionFlowUpdate(app)), 0.2);
             app.AddDropDown('Stimulus',      1,  ["Ground plane" "Point cloud"])
             app.AddSlider('Eye height',           100,[0    500])
@@ -132,16 +523,16 @@ classdef Geometry3D
             app.AddSlider('Linear velocity Z',    0,  [-100 100])
             % app.AddDropDown('View3D',             1,  ["Oblique" "TOP" "SIDE"])
 
-            % 
+            %
             % app.Data.Screen = struct();
             % app.Data.Screen.SizeCm = [30*16/9 30];
             % app.Data.Screen.ResPix = [1920 1080];
             % app.Data.Screen.Distance = 57;
             % app.Data.Screen.Slant = 0;
-            % 
+            %
             % app.Data.FixationSpot = struct();
             % app.Data.FixationSpot.X = 0;
-            % app.Data.FixationSpot.Y = 0;  
+            % app.Data.FixationSpot.Y = 0;
             % app.Data.FixationSpot.Z = 0;
 
             % Add average monocular motion flow and paralax flow
@@ -151,14 +542,14 @@ classdef Geometry3D
         end
 
         function demoQuaternion()
-            app = InteractiveUI('Quaternion demo',@(app) (Geometry3D.demoQuaternionUpdate(app)), 0.2);
+            app = InteractiveUI('Quaternion demo',@(app) (Geometry3D.demoQuaternionUpdate(app)), 1);
             app.AddSlider('q0',1, [-1 1])
             app.AddSlider('q1',0, [-1 1])
             app.AddSlider('q2',0, [-1 1])
             app.AddSlider('q3',0, [-1 1])
 
             % app.AddDropDown('2D HVT Coordinate system',      1,  ["Helmholtz" "Fick" "Harns" "Hess"])
-            app.AddDropDown('2D HVT Coordinate system',      1,  ["Helmholtz" "Fick"])
+            app.AddDropDown('2D HVT Coordinate system',      1,  ["Helmholtz" "Fick" "Harms" "Hess"])
             app.AddSlider('H',0, [-90 90])
             app.AddSlider('V',0, [-90 90])
             app.AddSlider('T',0, [-90 90])
@@ -171,7 +562,7 @@ classdef Geometry3D
             % app.AddSlider('y',0, [-1 1])
             % app.AddSlider('z',0, [-1 1])
             % app.AddSlider('a',0, [-180 180])
-            
+
 
             app.Open();
         end
@@ -195,7 +586,7 @@ classdef Geometry3D
             % sense for disparity because it naturally encodes first the
             % plane of regard. That is, the plane containing the fixation
             % spot and the center of the eyes. The horizontal eye position
-            % is the angle within that plane. 
+            % is the angle within that plane.
             %
             % right is positive, Up is positive, top-pole to right is
             % positive
@@ -212,12 +603,12 @@ classdef Geometry3D
             % helmholtz order
             % Right hand rotations around Y are to the left, so we flip the
             % sign of the rotation
-            RH = Geometry3D.RotZ(-deg2rad(eyes.R.H)); 
+            RH = Geometry3D.RotZ(-deg2rad(eyes.R.H));
             RV = Geometry3D.RotY(deg2rad(eyes.R.V));
             RT = Geometry3D.RotX(deg2rad(eyes.R.T));
             eyes.R.RM = RV*RH*RT; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
 
-            LH = Geometry3D.RotZ(-deg2rad(eyes.L.H)); 
+            LH = Geometry3D.RotZ(-deg2rad(eyes.L.H));
             LV = Geometry3D.RotY(deg2rad(eyes.L.V));
             LT = Geometry3D.RotX(deg2rad(eyes.L.T));
             eyes.L.RM = LV*LH*LT; % Rot matrix defining the orientation of the eye relative to straight ahead direction.
@@ -235,7 +626,7 @@ classdef Geometry3D
 
             screen.ScreenDistance = distance;
             screen.ScreenDistance = distance;
-            
+
             screen.ScreenSlant = slant;
         end
 
@@ -250,9 +641,9 @@ classdef Geometry3D
             % y pointing to left
             % z pointing up
             %
-            % it is a bit messy to have a different coordinate system than 
+            % it is a bit messy to have a different coordinate system than
             % for the 3D scene, but I can't think of the rotations any
-            % other way 
+            % other way
             %
 
             % Get the new xs in cm for the two eyes (transform the dots from head reference
@@ -360,7 +751,7 @@ classdef Geometry3D
             % hscreen(2) = plot3([-1 -1 1 1 -1]*rightScreen.widthCm/2+eyes.R.X, [1 1 1 1 1]*rightScreen.ScreenDistance, [-1 1 1 -1 -1]*rightScreen.heightCm/2);
             hLRpoints = [];
             t = eyePoints;
-            
+
             polaraxes('OuterPosition',[0.44    0.3    0.28    0.7], 'nextplot','add')
             hLRpoints.L = polarplot(zeros(size(t.LV)), zeros(size(t.LV)),'o');
             hLRpoints.R = polarplot(zeros(size(t.RV)), zeros(size(t.RV)),'o');
@@ -380,7 +771,7 @@ classdef Geometry3D
             % disparity plot
             %-----------------------------
 
-            
+
             axes('OuterPosition',[ 0.65    0.3    0.35    0.7], 'nextplot','add')
             set(gca, 'PlotBoxAspectRatio',[1 1 1])
             hdisparity = quiver(t.RH, t.RV, t.LH-t.RH, t.LV-t.RV, 'AutoScale', "off");
@@ -394,10 +785,10 @@ classdef Geometry3D
             % end
             % title('Disparity With Torsion')
 
-            
+
             axes('OuterPosition',[0.5493    0.0091    0.1566    0.3412], 'nextplot','add')
             hLscreen.LPoints = plot(screenPoints.LX(1:end-1), screenPoints.LY(1:end-1), '+');
-            
+
             hLscreen.LFP = plot(screenPoints.LX(end), screenPoints.LY(end), 'ro');
             grid
             set(gca,'xlim',[0 1920],'ylim',[0 1080])
@@ -405,16 +796,16 @@ classdef Geometry3D
             title('Left eye screen (sim torsion)');
 
 
-            
+
             axes('OuterPosition',[  0.7625    0.0165    0.1566    0.3412], 'nextplot','add')
             hLscreen.RPoints = plot(screenPoints.RX(1:end-1), screenPoints.RY(1:end-1), '+');
-            
+
             hLscreen.RFP = plot(screenPoints.RX(end), screenPoints.RY(end), 'ro');
             grid
             set(gca,'xlim',[0 1920],'ylim',[0 1080])
             set(gca,'PlotBoxAspectRatio',[16 9 1])
             title('Right eye screen (sim torsion)');
-            
+
         end
 
         function demoDisparityUpdate(app)
@@ -501,7 +892,7 @@ classdef Geometry3D
 
             leftEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
             rightEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
-            
+
             eyes = Geometry3D.MakeEyes(Values.IPDMm/10, app.Data.FixationSpot, Values.TorsionVersion, Values.TorsionVergence);
 
             % Rotate the world points to apply the slant (rotates around
@@ -509,7 +900,7 @@ classdef Geometry3D
             worldPoints.X = worldPoints.X*Values.StimulusScale;
             worldPoints.Y = worldPoints.Y*Values.StimulusScale;
             worldPoints.Z = zeros(size(worldPoints.Z));
-            
+
             % Rotate by slant and tilt
             R = Geometry3D.Quat2RotMat(Geometry3D.AxisAngle2Quat([cosd(Values.PlaneTilt) sind(Values.PlaneTilt) 0],deg2rad(Values.PlaneSlant)));
             worldPoints{:,:} = (R*worldPoints{:,:}')';
@@ -540,12 +931,12 @@ classdef Geometry3D
                 app.Data.hdisparity = hdisparity;
                 app.Data.hscreen = hscreen;
             end
-        
+
             % update 3D plot
             lxfar = eyes.L.X - 10000*eyes.L.RM(2,1);
             lyfar = eyes.L.Y - 10000*eyes.L.RM(3,1);
             lzfar = eyes.L.Z + 10000*eyes.L.RM(1,1);
-            
+
             rxfar = eyes.R.X - 10000*eyes.R.RM(2,1);
             ryfar = eyes.R.Y - 10000*eyes.R.RM(3,1);
             rzfar = eyes.R.Z + 10000*eyes.R.RM(1,1);
@@ -578,7 +969,7 @@ classdef Geometry3D
             lty = eyes.L.Y + 10*eyes.L.RM(3,3);
             lbz = eyes.L.Z + 10*eyes.L.RM(1,3);
             ltz = eyes.L.Z - 10*eyes.L.RM(1,3);
-            
+
             set(app.Data.hfix, 'xdata', Values.FixationX);
             set(app.Data.hfix, 'ydata', Values.FixationDistance);
             set(app.Data.hfix, 'zdata', Values.FixationY);
@@ -615,12 +1006,12 @@ classdef Geometry3D
             % update retina plot
             ra = atan2( tand(eyePoints.RV) , tand(eyePoints.RH)./(abs(cosd(eyePoints.RV))));
             re = atand(sqrt(tand(eyePoints.RV).^2 + (tand(eyePoints.RH)./(abs(cosd(eyePoints.RV)))).^2));
-            
+
             set(app.Data.hLRpoints.R, 'ThetaData', ra, 'RData', re);
             ra = atan2( tand(eyePoints.LV) , tand(eyePoints.LH)./abs(cosd(eyePoints.LV)));
             re = atand(sqrt(tand(eyePoints.LV).^2 + (tand(eyePoints.LH)./(abs(cosd(eyePoints.LV)))).^2));
             set(app.Data.hLRpoints.L, 'ThetaData', ra, 'RData', re);
-            
+
             % update disparity plot
             set(app.Data.hdisparity, ...
                 'xdata',eyePoints.RH, 'ydata', eyePoints.RV, ...
@@ -628,9 +1019,9 @@ classdef Geometry3D
 
             % update screen plots
             set(app.Data.hscreen.LPoints, 'xdata', screenPoints.LX(1:end-1), 'ydata',screenPoints.LY(1:end-1));
-            set(app.Data.hscreen.RPoints, 'xdata', screenPoints.RX(1:end-1), 'ydata',screenPoints.RY(1:end-1));            
-            set(app.Data.hscreen.LFP, 'xdata', screenPoints.LX(end), 'ydata', screenPoints.LY(end));            
-            set(app.Data.hscreen.RFP, 'xdata', screenPoints.RX(end), 'ydata', screenPoints.RY(end));  
+            set(app.Data.hscreen.RPoints, 'xdata', screenPoints.RX(1:end-1), 'ydata',screenPoints.RY(1:end-1));
+            set(app.Data.hscreen.LFP, 'xdata', screenPoints.LX(end), 'ydata', screenPoints.LY(end));
+            set(app.Data.hscreen.RFP, 'xdata', screenPoints.RX(end), 'ydata', screenPoints.RY(end));
 
         end
 
@@ -681,7 +1072,7 @@ classdef Geometry3D
             % hscreen(2) = plot3([-1 -1 1 1 -1]*rightScreen.widthCm/2+eyes.R.X, [1 1 1 1 1]*rightScreen.ScreenDistance, [-1 1 1 -1 -1]*rightScreen.heightCm/2);
             hLRpoints = [];
             t = eyePoints;
-            
+
             % polaraxes('OuterPosition',[0.44    0.3    0.28    0.7], 'nextplot','add')
             % hLRpoints.L = polarplot(zeros(size(t.LV)), zeros(size(t.LV)),'o');
             % hLRpoints.R = polarplot(zeros(size(t.RV)), zeros(size(t.RV)),'o');
@@ -701,19 +1092,19 @@ classdef Geometry3D
             % disparity plot
             %-----------------------------
 
-            
+
             axes('OuterPosition',[ 0.65    0.1    0.35    0.9], 'nextplot','add')
             set(gca, 'PlotBoxAspectRatio',[1 1 1])
             hdisparity = quiver(t.RH, t.RV, t.LH-t.RH, t.LV-t.RV, 'AutoScale', "off");
             grid
             title('Disparity (Helmholtz, L->R)')
             set(gca,'xlim',[-40 40],'ylim',[-40 40])
-            
+
         end
 
         function demoMotionFlowUpdate(app)
 
-            Values = app.Values; 
+            Values = app.Values;
 
             if (~isfield(app.Data,"stimulus"))
                 app.Data.stimulus = "NONE";
@@ -722,7 +1113,7 @@ classdef Geometry3D
             %%
             sizeStimCm = 40;
 
-%             ["Ground plane" "Cloud"])
+            %             ["Ground plane" "Cloud"])
 
             if (app.Data.stimulus ~= string(Values.Stimulus) )
                 % Make some dots in world coordinates (XYZ)
@@ -760,7 +1151,7 @@ classdef Geometry3D
 
             leftEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
             rightEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
-            
+
             eyes = Geometry3D.MakeEyes(Values.IPDMm/10, app.Data.FixationSpot, Values.TorsionVersion, Values.TorsionVergence);
 
             % Rotate the world points to apply the slant (rotates around
@@ -768,7 +1159,7 @@ classdef Geometry3D
             worldPoints.X = worldPoints.X*Values.StimulusScale;
             worldPoints.Y = worldPoints.Y*Values.StimulusScale;
             worldPoints.Z = zeros(size(worldPoints.Z));
-            
+
             % Rotate by slant and tilt
             R = Geometry3D.Quat2RotMat(Geometry3D.AxisAngle2Quat([cosd(Values.PlaneTilt) sind(Values.PlaneTilt) 0],deg2rad(Values.PlaneSlant)));
             worldPoints{:,:} = (R*worldPoints{:,:}')';
@@ -799,12 +1190,12 @@ classdef Geometry3D
                 app.Data.hdisparity = hdisparity;
                 app.Data.hscreen = hscreen;
             end
-        
+
             % update 3D plot
             lxfar = eyes.L.X - 10000*eyes.L.RM(2,1);
             lyfar = eyes.L.Y - 10000*eyes.L.RM(3,1);
             lzfar = eyes.L.Z + 10000*eyes.L.RM(1,1);
-            
+
             rxfar = eyes.R.X - 10000*eyes.R.RM(2,1);
             ryfar = eyes.R.Y - 10000*eyes.R.RM(3,1);
             rzfar = eyes.R.Z + 10000*eyes.R.RM(1,1);
@@ -837,7 +1228,7 @@ classdef Geometry3D
             lty = eyes.L.Y + 10*eyes.L.RM(3,3);
             lbz = eyes.L.Z + 10*eyes.L.RM(1,3);
             ltz = eyes.L.Z - 10*eyes.L.RM(1,3);
-            
+
             set(app.Data.hfix, 'xdata', Values.FixationX);
             set(app.Data.hfix, 'ydata', Values.FixationDistance);
             set(app.Data.hfix, 'zdata', Values.FixationY);
@@ -874,12 +1265,12 @@ classdef Geometry3D
             % update retina plot
             ra = atan2( tand(eyePoints.RV) , tand(eyePoints.RH)./(abs(cosd(eyePoints.RV))));
             re = atand(sqrt(tand(eyePoints.RV).^2 + (tand(eyePoints.RH)./(abs(cosd(eyePoints.RV)))).^2));
-            
+
             set(app.Data.hLRpoints.R, 'ThetaData', ra, 'RData', re);
             ra = atan2( tand(eyePoints.LV) , tand(eyePoints.LH)./abs(cosd(eyePoints.LV)));
             re = atand(sqrt(tand(eyePoints.LV).^2 + (tand(eyePoints.LH)./(abs(cosd(eyePoints.LV)))).^2));
             set(app.Data.hLRpoints.L, 'ThetaData', ra, 'RData', re);
-            
+
             % update disparity plot
             set(app.Data.hdisparity, ...
                 'xdata',eyePoints.RH, 'ydata', eyePoints.RV, ...
@@ -887,15 +1278,16 @@ classdef Geometry3D
 
             % update screen plots
             set(app.Data.hscreen.LPoints, 'xdata', screenPoints.LX(1:end-1), 'ydata',screenPoints.LY(1:end-1));
-            set(app.Data.hscreen.RPoints, 'xdata', screenPoints.RX(1:end-1), 'ydata',screenPoints.RY(1:end-1));            
-            set(app.Data.hscreen.LFP, 'xdata', screenPoints.LX(end), 'ydata', screenPoints.LY(end));            
-            set(app.Data.hscreen.RFP, 'xdata', screenPoints.RX(end), 'ydata', screenPoints.RY(end));  
+            set(app.Data.hscreen.RPoints, 'xdata', screenPoints.RX(1:end-1), 'ydata',screenPoints.RY(1:end-1));
+            set(app.Data.hscreen.LFP, 'xdata', screenPoints.LX(end), 'ydata', screenPoints.LY(end));
+            set(app.Data.hscreen.RFP, 'xdata', screenPoints.RX(end), 'ydata', screenPoints.RY(end));
 
         end
 
     end
 
     methods(Static, Access = private) % DEMO QUATERNIONS
+
         function [f, h] = demoQuaternionInitPlots(app)
             scr_siz = get(0,'ScreenSize');
             margin = floor(0.1*(scr_siz(4)));
@@ -917,12 +1309,12 @@ classdef Geometry3D
             [Z,X,Y] = sphere(res);
 
             % Plot the sphere
-            h.sphere = surf(R*X,R*Y,R*Z,'FaceAlpha', alpha,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8]);
+            h.sphere = mesh(R*X,R*Y,R*Z,'FaceAlpha', alpha,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8]);
             axis equal;
 
-% 
-% set(gcf, 'Renderer', 'OpenGL');
-% shading interp, material shiny, lighting phong, lightangle(0, 55);
+            %
+            % set(gcf, 'Renderer', 'OpenGL');
+            % shading interp, material shiny, lighting phong, lightangle(0, 55);
 
             view(45,30)
             set(gca,'xlim',1.5*[-1 1],'ylim',1.5*[-1 1],'zlim',1.5*[-1 1])
@@ -937,7 +1329,7 @@ classdef Geometry3D
         end
 
         function demoQuaternionUpdate(app)
-            
+
             Values = app.Values;
             q = [Values.q0 Values.q1 Values.q2 Values.q3];
             hvt = [-Values.H -Values.V Values.T];
@@ -959,10 +1351,9 @@ classdef Geometry3D
             steps = [0:10:360];
             points = -90:10:90;
 
-            [xcirclesX, xcirclesY] = meshgrid(steps,points);
-            [ycirclesX, ycirclesY] = meshgrid(points,steps);
+            [az, el] = meshgrid(steps,points);
 
-            
+
             q1 = app.Data.LastQ;
 
             % Update only the 3 values not changed by the user
@@ -980,12 +1371,12 @@ classdef Geometry3D
                 q(c) = nc*sqrt(1-q(~c)^2)/norm(nc);
 
                 switch(app.Values.x2DHVTCoordinateSystem)
-                        case 'Fick'
-                            hvt = rad2deg(Geometry3D.RotMat2Fick(Geometry3D.Quat2RotMat(q)));
-                        case 'Helmholtz'
-                            hvt = rad2deg(Geometry3D.RotMat2Helm(Geometry3D.Quat2RotMat(q)));
-                        case 'Listings(AET)'
-                            hvt = rad2deg(Geometry3D.RotMat2Listings(Geometry3D.Quat2RotMat(q)));
+                    case 'Fick'
+                        hvt = rad2deg(Geometry3D.RotMat2Fick(Geometry3D.Quat2RotMat(q)));
+                    case 'Helmholtz'
+                        hvt = rad2deg(Geometry3D.RotMat2Helm(Geometry3D.Quat2RotMat(q)));
+                    case 'Listings(AET)'
+                        hvt = rad2deg(Geometry3D.RotMat2Listings(Geometry3D.Quat2RotMat(q)));
                 end
 
 
@@ -1012,35 +1403,56 @@ classdef Geometry3D
                 end
             end
 
-
+            xlabel(app.Data.h.ax,'x')
+            ylabel(app.Data.h.ax,'y')
+            zlabel(app.Data.h.ax,'z')
 
             switch(app.Values.x2DHVTCoordinateSystem)
                 case 'Fick'
-                    z = sind(xcirclesX);
-                    y = sind(xcirclesY).*cosd(xcirclesX);
-                    x = cosd(xcirclesX).*cosd(xcirclesY);
+                    z = sind(az);
+                    y = sind(el).*cosd(az);
+                    x = cosd(az).*cosd(el);
                 case 'Helmholtz'
-                    y = sind(xcirclesX);
-                    x = sind(xcirclesY).*cosd(xcirclesX);
-                    z = cosd(xcirclesX).*cosd(xcirclesY);
+                    y = sind(az);
+                    x = sind(el).*cosd(az);
+                    z = cosd(az).*cosd(el);
                 case 'Listings(AET)'
-                    x = sind(xcirclesX);
-                    z = sind(xcirclesY).*cosd(xcirclesX);
-                    y = cosd(xcirclesX).*cosd(xcirclesY);
-                    
-                % case 'Harns'
-                %     y = sind(xcirclesX).*cosd(xcirclesY);
-                %     x = sind(xcirclesY);
-                %     z = cosd(xcirclesX).*cosd(xcirclesY);
-                % case 'Hess'
-                %     y = sind(xcirclesX);
-                %     x = sind(xcirclesY);
-                %     z = cosd(xcirclesX).*cosd(xcirclesY);
+                    x = sind(az);
+                    z = sind(el).*cosd(az);
+                    y = cosd(az).*cosd(el);
+
+                case 'Harms'
+                    x = sqrt(1./(1+tand(az).^2+tand(el).^2));
+                    x(az > 90 | az < -90) = -x(az > 90 | az < -90);
+                    x(az == 90 | az == -90 | el == 90 | el == -90) = 0;
+
+                    z = tand(el).*x;
+                    y = tand(az).*x;
+
+                    z(el == 90 | el == -90) = 1;
+                    z(el == 90 | el == -90) = 1;
+                    y(el == 90 | el == -90) = 0;
+
+                    z(az == 90 | az == -90) = 0;
+                    y(az == 90 | az == -90) = 1;
+                case 'Hess'
+                    z = sind(el);
+                    y = sind(az);
+                    x = sqrt(1-z.^2-y.^2);
+                    x(az >= 90 | az <= -90) = -x(az >= 90 | az <= -90);
+                    x(az == 90 | az == -90) = 0;
+
+                    outsidepoints = (z.^2+y.^2)>=1;
+                    z(outsidepoints) = nan;
+                    y(outsidepoints) = nan;
+                    x(outsidepoints) = nan;
+                    % x = real(x);
             end
 
             set(app.Data.h.sphere, 'xdata',x, 'ydata',y, 'zdata',z)
+            %             set(app.Data.h)
+            %
 
-            
             app.Data.Lasthvt = hvt;
             app.Data.LastQ = q;
             app.Data.LastCS = app.Values.x2DHVTCoordinateSystem;
@@ -1062,13 +1474,13 @@ classdef Geometry3D
             R = Geometry3D.Quat2RotMat(q);
             c = R(:,1);
             axis = R(:,3);
-            % 
+            %
             set(app.Data.h.frame(1), 'xdata',1.2*[0 R(1,1)], 'ydata',1.2*[0 R(2,1)], 'zdata',1.2*[0 R(3,1)])
             set(app.Data.h.frame(2), 'xdata',c(1)+ 0.5*[0 R(1,2)], 'ydata',c(2)+ 0.5*[0 R(2,2)], 'zdata',c(3)+ 0.5*[0 R(3,2)])
             set(app.Data.h.frame(3), 'xdata',c(1)+ 0.2*[0 R(1,3)], 'ydata',c(2)+ 0.2*[0 R(2,3)], 'zdata',c(3)+ 0.2*[0 R(3,3)])
 
             set(app.Data.h.rotax, 'xdata', 1.2*axis(1)*[0 1], 'ydata', 1.2*axis(2)*[0 1], 'zdata', 1.2*axis(3)*[0 1])
-            % 
+            %
             % h.frame(1) = line(0,0,0,'linewidth',2);
             % h.frame(2) = line(0,0,0,'linewidth',2);
             % h.frame(3) = line(0,0,0,'linewidth',2);
@@ -1172,9 +1584,9 @@ classdef Geometry3D
             m32 = M(3,2);
             m31 = M(3,1);
             m13 = M(1,3);
-            
+
             q0 = 1/2*sqrt(1+m11+m22+m33);
-            
+
             q = [q0 (m23-m32)/(4*q0) (m31-m13)/(4*q0) (m12-m21)/(4*q0)];
         end
 
@@ -1210,7 +1622,7 @@ classdef Geometry3D
         function q = AxisAngle2Quat(axis, angle)
             q = [cos(angle/2) sin(angle/2)*axis/norm(axis)];
         end
-            
+
         %
         %         function M = Quat2RotMat(q)
         %         end
@@ -1261,6 +1673,293 @@ classdef Geometry3D
             text(Ynew(1),Ynew(2),Ynew(3),'r_y')
             text(Znew(1),Znew(2),Znew(3),'r_z')
         end
+    end
+
+    %% Spherical coordinate methods
+    methods(Static)
+        % Functions to converte between spherical coordinates and coordinate
+        % sysstems for 2D rotations
+
+        % Listings is a polar system with angle and eccentricity
+        % Fick is a azimuth as latitudes (parallels) and elevation as longitudes (meridians)
+        % Helmoltz is a azimuth as longitudes (meridians) and elevation as latitudes (parallels)
+        % Harms is a azimuth as longitudes (meridians) and elevation as longitudes (meridians)
+        % Hess is a azimuth as latitudes (parallels) and elevation as latitudes (parallels)
+
+        function [x, y, z] = FickToSphere(az, el)
+            x = cos( el ) .* cos( az );
+            y = sin( az ) .* cos( el );   % longitude
+            z = sin( el );                 % latitude
+        end
+
+        function [az,el] = SphereToFick(x,y,z)
+            D = sqrt( x.^2 + y.^2 + z.^2 );
+
+            az = atan2( y, x );   % longitude
+            el = asin( z / D );   % latitude
+        end
+
+        function [x, y, z] = HelmholtzToSphere(az,el)
+
+            x = cos( az ) .* cos( el );
+            y = sin( az );                 % latitude
+            z = sin( el ) .* cos( az );   % longitude
+        end
+
+        function [az,el] = SphereToHelmholtz(x,y,z)
+            D = sqrt( x.^2 + y.^2 + z.^2 );
+
+            az = asin( y / D );  % latitude
+            el = atan2( z, x );  % longitude
+        end
+
+        function [x, y, z] = HarmsToSphere(az, el)
+            azdeg = rad2deg(az);
+            eldeg = rad2deg(el);
+            x = 1 ./ sqrt(1 + tan(az).^2 + tan(el).^2 );
+            x(azdeg > 90 | azdeg < -90) = -x(azdeg > 90 | azdeg < -90);
+            x(azdeg == 90 | azdeg == -90 | eldeg == 90 | eldeg == -90) = 0;
+
+            y = tan(az) .* x;
+            z = tan(el) .* x;
+
+            z(eldeg == 90 ) = 1;
+            z( eldeg == -90) = 1;
+            y(eldeg == 90 | eldeg == -90) = 0;
+
+            z(azdeg == 90 | azdeg == -90) = 0;
+            y(azdeg == 90 ) = 1;
+            y(azdeg == -90) = -1;
+        end
+
+        function [az,el] = SphereToHarms(x,y,z)
+            az = atan2(y,x);  % longitude
+            el = atan2(z,x);  % longitude
+        end
+
+
+        function [dazdx, dazdy, dazdz, deldx, deldy, deldz] = FickLinearJacobian(az, el)
+            % units should be deg/m
+
+            [x, y, z] = Geometry3D.FickToSphere(az, el);
+            % this are just the derivatives of the SphereToHarms function
+
+            % D = sqrt(x.^2+y.^2+z.^2);
+            % az = atan2d(y,x);
+            % el = asind(z/D);
+
+            dazdx =  -y./(y.^2+x.^2);
+            dazdy = x./(y.^2+x.^2);
+            dazdz = zeros(size(az));
+
+            DD = sqrt(x.^2+y.^2);
+            deldx = -z.*x ./ DD;
+            deldy = -z.*y ./ DD;
+            deldz =  DD;
+        end
+
+        function [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = FickRotationalJacobian(az, el)
+            % unitless or deg per deg or rad per rad
+            [x, y, z] = Geometry3D.FickToSphere(az, el);
+
+            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(az, el);
+
+            % this uses the property that the linear velocity of a point on the
+            % sphere rotating by an angular velocity is the cross product of the
+            % coordinates of the point and the angular velocity.
+            %
+            % so then we can multiply the linear jacobian by the cross product
+            % matrix equivalent of the point coordinates
+
+            dazwxdt = 0*dazdx + z.*dazdy - y.*dazdz;
+            dazwydt = -z.*dazdx - 0.*dazdy + x.*dazdz;
+            dazwzdt = y.*dazdx - x.*dazdy + 0*dazdz;
+
+            delwxdt = 0*deldx + z.*deldy - y.*deldz ;
+            delwydt = -z.*deldx + 0*deldy + x.*deldz;
+            delwzdt = y.*deldx - x.*deldy + 0.*deldz ;
+        end
+        
+        function [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel]  = FickLinearInverseJacobian(az, el)
+            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(az, el);
+
+            dxdaz = dazdx;
+            dydaz = dazdy;
+            dzdaz = dazdz;
+            dxdel = deldx;
+            dydel = deldy;
+            dzdel = deldz;
+        end
+
+        function [dazdx, dazdy, dazdz, deldx, deldy, deldz] = HelmholtzLinearJacobian(az, el)
+            % units should be deg/m
+
+            [x, y, z] = Geometry3D.HelmholtzToSphere(az, el);
+            % this are just the derivatives of the SphereToHarms function
+
+            % D = sqrt(x.^2+y.^2+z.^2);
+            % az = atan2d(y,x);
+            % el = asind(z/D);
+
+            DD = sqrt(x.^2+z.^2);
+            dazdx = -y.*x ./ DD;
+            dazdy =  DD;
+            dazdz = -z.*y ./ DD;
+
+            deldx =  -z./(z.^2+x.^2);
+            deldy = zeros(size(az));
+            deldz = x./(z.^2+x.^2);
+        end
+
+        function [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = HelmholtzRotationalJacobian(az, el)
+            % unitless or deg per deg or rad per rad
+            [x, y, z] = Geometry3D.HelmholtzToSphere(az, el);
+
+            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(az, el);
+
+            % this uses the property that the linear velocity of a point on the
+            % sphere rotating by an angular velocity is the cross product of the
+            % coordinates of the point and the angular velocity.
+            %
+            % so then we can multiply the linear jacobian by the cross product
+            % matrix equivalent of the point coordinates
+
+            dazwxdt = 0*dazdx + z.*dazdy - y.*dazdz;
+            dazwydt = -z.*dazdx - 0.*dazdy + x.*dazdz;
+            dazwzdt = y.*dazdx - x.*dazdy + 0*dazdz;
+
+            delwxdt = 0*deldx + z.*deldy - y.*deldz ;
+            delwydt = -z.*deldx + 0*deldy + x.*deldz;
+            delwzdt = y.*deldx - x.*deldy + 0.*deldz ;
+        end
+        
+        function [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel]  = HelmholtzLinearInverseJacobian(az, el)
+            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(az, el);
+
+            dxdaz = dazdx;
+            dydaz = dazdy;
+            dzdaz = dazdz;
+            dxdel = deldx;
+            dydel = deldy;
+            dzdel = deldz;
+        end
+
+
+
+        function [dazdx, dazdy, dazdz, deldx, deldy, deldz] = HarmsLinearJacobian(az, el)
+            [x, y, z] = Geometry3D.HarmsToSphere(az, el);
+
+            % az = atan2d(y,x);
+            % el = atan2d(z,x);
+            %
+            % x = 1/sqrt(1+tan(az)^2 +tan(el)^2)
+            % y = tan(az)*x
+            % z = tan(el)*x
+            %
+            %
+            % this are just the derivatives of the SphereToHarms function
+            dazdx = -y./(y.^2+x.^2);
+            dazdy = x./(y.^2+x.^2);
+            dazdz = zeros(size(az));
+
+            deldx = -z./(z.^2+x.^2);
+            deldy = zeros(size(el));
+            deldz = x./(z.^2+x.^2);
+
+            % D = sqrt(1+tand(az).^2+tand(el).^2);
+            %
+            %
+            % dazdx = rad2deg( D .* -tand(az)./(1+tand(az).^2));
+            % dazdy = rad2deg( D .* 1./(1+tand(az).^2));
+            % dazdz = rad2deg(zeros(size(az)));
+            %
+            % deldx = rad2deg( D .* -tand(el)./(1+tand(el).^2));
+            % deldy = rad2deg(zeros(size(el)));
+            % deldz = rad2deg( D .* 1./(1+tand(el).^2));
+        end
+
+        function [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = HarmsLinearInverseJacobian(az, el)
+
+
+            % Precompute common terms
+            sec_az_squared = sec(az).^2;
+            sec_el_squared = sec(el).^2;
+            tan_az = tan(az);
+            tan_el = tan(el);
+            denominator = (1 + tan_az.^2 + tan_el.^2).^(3/2); % convert to deg from radians
+
+            % Calculate each element of the Jacobian matrix
+            dxdaz = -tan_az .* sec_az_squared ./ denominator;
+            dxdel = -tan_el .* sec_el_squared ./ denominator;
+
+            dydaz = sec_az_squared ./ denominator;
+            dydel = -tan_az .* tan_el .* sec_el_squared ./ denominator;
+
+            dzdaz = -tan_az .* tan_el .* sec_az_squared ./ denominator;
+            dzdel = sec_el_squared ./ denominator;
+        end
+
+        function [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = HarmsRotationalJacobian(az, el)
+            [x, y, z] = Geometry3D.HarmsToSphere(az, el);
+
+            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsLinearJacobian(az, el);
+
+            % this uses the property that the linear velocity of a point on the
+            % sphere rotating by an angular velocity is the cross product of the
+            % coordinates of the point and the angular velocity.
+            %
+            % so then we can multiply the linear jacobian by the cross product
+            % matrix equivalent of the point coordinates
+
+            dazwxdt = 0*dazdx + z.*dazdy - y.*dazdz;
+            dazwydt = -z.*dazdx - 0.*dazdy + x.*dazdz;
+            dazwzdt = y.*dazdx - x.*dazdy + 0*dazdz;
+
+            delwxdt = 0*deldx + z.*deldy - y.*deldz;
+            delwydt = -z.*deldx + 0*deldy + x.*deldz;
+            delwzdt = y.*deldx - x.*deldy + 0.*deldz;
+        end
+
+
+        function [x, y, z] = HessToSphere(az, el)
+            azdeg = rad2deg(az);
+
+            z = sind(el);
+            y = sind(az);
+            x = sqrt(1-z.^2-y.^2);
+            % Need to flip negative azimuts
+            x(azdeg >= 90 | azdeg <= -90) = -x(azdeg >= 90 | azdeg <= -90);
+            % Need to force zero at 90 deg azimuth to avoid some complex
+            % numbers that can appear numerically
+            x(azdeg == 90 | azdeg == -90) = 0;
+
+            % some of the combinations of azimuth and elevation actually
+            % don't exist within the sphere.
+            outsidepoints = (z.^2+y.^2)>=1;
+            z(outsidepoints) = nan;
+            y(outsidepoints) = nan;
+            x(outsidepoints) = nan;
+            % x = real(x);
+        end
+
+        function [az,el] = SphereToHess(~,y,z)
+            D = sqrt( x.^2 + y.^2 + z.^2 );
+
+            el = asin( z / D ); % latitude
+            az = asin( y / D ); % latitude
+        end
+
+        function [x, y, z] = ListingsToSphere(angle, eccentricity)
+            x = cos( eccentricity );
+            y = sin( eccentricity ) .* cos( angle );
+            z = sin( eccentricity ) .* sin( angle );
+        end
+
+        function [angle, ecc] = SphereToListings(x,y,z)
+            ecc = acos(x);
+            angle = atan2(z,y);
+        end
+
     end
 end
 
