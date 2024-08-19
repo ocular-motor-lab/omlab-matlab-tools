@@ -49,6 +49,8 @@ classdef Geometry3D
             app.AddSlider('Linear velocity Z (m/s)',    -1,  [-5 5])
             % app.AddDropDown('View3D',             1,  ["Oblique" "TOP" "SIDE"])
 
+            app.AddMenu('Reset to zero', @ResetToZero)
+
             %
             % app.Data.Screen = struct();
             % app.Data.Screen.SizeCm = [30*16/9 30];
@@ -64,6 +66,17 @@ classdef Geometry3D
             % Add average monocular motion flow and paralax flow
 
             app.Open();
+
+            function ResetToZero(app)
+                app.Values.Azimuth = 0;
+                app.Values.Elevation =0;
+                app.Values.AngularVelocityX_deg_s_= 0;
+                app.Values.AngularVelocityY_deg_s_= 0;
+                app.Values.AngularVelocityZ_deg_s_= 0;
+                app.Values.LinearVelocityX_m_s_= 0;
+                app.Values.LinearVelocityY_m_s_= 0;
+                app.Values.LinearVelocityZ_m_s_= 0;
+            end
         end
         %%
         function demoCoordinateSystemsAndPlaneUpdate(app)
@@ -114,12 +127,12 @@ classdef Geometry3D
                 app.Data.hs.textpoint = text(0*1.2,0*1.2,0*1.2, '(\theta,\psi)','fontsize',14, 'FontWeight','normal','HorizontalAlignment','right','VerticalAlignment','top');
 
                 % draw tangent
-                app.Data.hs.meshtangent = mesh(zeros(2,2), zeros(2,2),zeros(2,2), 'EdgeColor',[0.5 0.5 0.5],'FaceAlpha', 0.3,'facecolor',[0.8 0.8 0.8]);
-                app.Data.hs.quiverdaz = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','k','linewidth',2);
-                app.Data.hs.quiverdel = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','k','linewidth',2 );
+                app.Data.hs.meshtangent = mesh(zeros(2,2), zeros(2,2),zeros(2,2), 'EdgeColor',[0.7 0.7 0.7],'FaceAlpha', 0.3,'facecolor',[0.8 0.8 0.8]);
+                app.Data.hs.quiverdaz = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color',[0.6 0.6 0.6],'linewidth',2);
+                app.Data.hs.quiverdel = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color',[0.6 0.6 0.6],'linewidth',2);
                 app.Data.hs.quivertvw = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color',colors(3,:),'linewidth',2  ,'LineStyle',':');
                 app.Data.hs.quivertvv = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color',colors(4,:),'linewidth',2  ,'LineStyle',':');
-                app.Data.hs.quivertv  = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','k','linewidth',2 ,'LineStyle','--');
+                app.Data.hs.quivertv  = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','k','linewidth',2 );
 
 
                 % draw flat
@@ -128,27 +141,28 @@ classdef Geometry3D
 
 %                 app.Data.hs.meshflat = mesh(zeros(2,2), zeros(2,2), zeros(2,2) ,'FaceAlpha', 0.9,'facecolor',[1 1 1]);
 
-                set(gca,'xtick',[],'ytick',[])
+                % set(gca,'xtick',[],'ytick',[])
 %                 view(90,0)
                 %                 set(gca,'visible','off')
 %                 title(altTitles{i})
                 xlabel('Azimuth ')
                 ylabel('Elevantion ')
 
-                set(gca,'xlim',[-1.5 1.5],'ylim',[-1.5 1.5])
+                set(gca,'xlim',[-60 60],'ylim',[-60 60])
+          
 
 %                 app.Data.hs.meshpointflat = mesh(zeros(2,2), zeros(2,2),zeros(2,2), 'EdgeColor','none','FaceColor','k');
                 app.Data.hs.textpointflat = text(0*1.2,0*1.2, '(\theta,\psi)','fontsize',14, 'FontWeight','normal','HorizontalAlignment','right','VerticalAlignment','top');
 
-                app.Data.hs.quiverdazflat = quiver(0,0, 0*2 ,0*2,'color','k','linewidth',2);
-                app.Data.hs.quiverdelflat = quiver(0,0, 0*2 ,0*2,'color','k','linewidth',2 );
+                app.Data.hs.quiverdazflat = quiver(0,0, 0*2 ,0*2,'color',[0.6 0.6 0.6],'linewidth',2);
+                app.Data.hs.quiverdelflat = quiver(0,0, 0*2 ,0*2,'color',[0.6 0.6 0.6],'linewidth',2 );
                 app.Data.hs.quivertvwflat = quiver(0,0, 0*2 ,0*2,'color',colors(3,:),'linewidth',2  ,'LineStyle',':');
                 app.Data.hs.quivertvvflat = quiver(0,0, 0*2,0*2,'color',colors(4,:),'linewidth',2  ,'LineStyle',':');
-                app.Data.hs.quivertvflat  = quiver(0,0, 0*2,0*2,'color','k','linewidth',2 ,'LineStyle','--');
+                app.Data.hs.quivertvflat  = quiver(0,0, 0*2,0*2,'color','k','linewidth',2);
 
 
-                app.Data.hs.quivertJwflat = quiver(0,0, 0*2 ,0*2,'color',colors(3,:),'linewidth',1);
-                app.Data.hs.quivertJvflat = quiver(0,0, 0*2 ,0*2,'color',colors(4,:),'linewidth',1);
+                app.Data.hs.quivertJwflat = quiver(0,0, 0*2 ,0*2,'color',colors(3,:),'linewidth',1,'LineStyle',':');
+                app.Data.hs.quivertJvflat = quiver(0,0, 0*2 ,0*2,'color',colors(4,:),'linewidth',1,'LineStyle',':');
                 app.Data.hs.quivertAllvflat  = quiver(0,0, 0*2 ,0*2,'color','k','linewidth',1);
 
                 legend([app.Data.hs.quivertJvflat app.Data.hs.quivertJwflat app.Data.hs.quivertAllvflat],{'Linear motion' 'Rotational motion' 'Total motion'})
@@ -157,7 +171,7 @@ classdef Geometry3D
             % get data and update
 
             R = 1; % radius of the eye
-            step = 10;
+            step = 5;
             [az, el] = meshgrid(deg2rad(-80:step:80),deg2rad(-80:step:80)); % azimuths and elevations to include
 
             paz = deg2rad(app.Values.Azimuth);
@@ -256,42 +270,46 @@ classdef Geometry3D
 
 
             % update flat
-%             set(app.Data.hs.meshflat, 'xdata',x*0,'ydata',y./x,'zdata',z./x)
-%             set(app.Data.hs.meshpointflat, 'xdata',psx*0.1+0,'ydata',psy*0.05+py./px,'zdata',psz*0.05+pz./px)
-%             set(app.Data.hs.textpointflat, 'Position', [0,py./px,pz./px])
-%             set(app.Data.hs.meshflat, 'xdata',x*0,'ydata',az,'zdata',el)
-%             set(app.Data.hs.meshpointflat, 'xdata',psx*0.1+0,'ydata',psy*0.05+paz,'zdata',psz*0.05+pel)
-            set(app.Data.hs.textpointflat, 'Position', [paz,pel])
 
+            pazdeg = rad2deg(paz);
+            peldeg = rad2deg(pel);
+            azdeg = rad2deg(az);
+            eldeg = rad2deg(el);
+            wdeg = rad2deg(w);
+            vdeg = rad2deg(v);
 
-            set(app.Data.hs.quiverdazflat, 'xdata',paz,'ydata',pel);
-            set(app.Data.hs.quiverdelflat, 'xdata',paz,'ydata',pel);
-            set(app.Data.hs.quiverdazflat, 'UData',dydaz,'VData',dzdaz);
-            set(app.Data.hs.quiverdelflat, 'UData',dydel,'VData',dzdel);
+            set(app.Data.hs.textpointflat, 'Position', [pazdeg, peldeg]);
 
-            tvw = [rdazwx, rdazwy, rdazwz; rdelwx, rdelwy, rdelwz]*w';
-            tvv = [dazdx, dazdy, dazdz; deldx, deldy, deldz]*v';
-            tv = tvw + tvv;
+            set(app.Data.hs.quiverdazflat, 'xdata', pazdeg, 'ydata', peldeg);
+            set(app.Data.hs.quiverdelflat, 'xdata', pazdeg, 'ydata', peldeg);
+            set(app.Data.hs.quiverdazflat, 'UData', rad2deg(dydaz), 'VData', rad2deg(dzdaz));
+            set(app.Data.hs.quiverdelflat, 'UData', rad2deg(dydel), 'VData', rad2deg(dzdel));
 
+            tvwdeg = [rdazwx, rdazwy, rdazwz; rdelwx, rdelwy, rdelwz] * wdeg';
+            tvvdeg = [dazdx, dazdy, dazdz; deldx, deldy, deldz] * vdeg';
+            tvdeg = tvwdeg + tvvdeg;
 
-            ww = squeeze(pagemtimes(Jw,w'));
-            vv = squeeze(pagemtimes(Jv,v'));
-            allv = ww+vv;
+            wwdeg = squeeze(pagemtimes(Jw, wdeg'))';
+            vvdeg = squeeze(pagemtimes(Jv, vdeg'))';
+            allvdeg = wwdeg + vvdeg;
+
+            wwdeg(abs(azdeg)>60 | abs(eldeg)>60) = nan;
+            vvdeg(abs(azdeg)>60 | abs(eldeg)>60) = nan;
+            allvdeg(abs(azdeg)>60 | abs(eldeg)>60) = nan;
+
+            set(app.Data.hs.quivertJwflat, 'xdata', azdeg(:), 'ydata', eldeg(:), 'UData', wwdeg(:,1), 'VData', wwdeg(:,2));
+            set(app.Data.hs.quivertJvflat, 'xdata', azdeg(:), 'ydata', eldeg(:), 'UData', vvdeg(:,1), 'VData', vvdeg(:,2));
+            set(app.Data.hs.quivertAllvflat, 'xdata', azdeg(:), 'ydata', eldeg(:), 'UData', allvdeg(:,1), 'VData', allvdeg(:,2));
+
+            set(app.Data.hs.quivertvwflat, 'xdata', pazdeg, 'ydata', peldeg);
+            set(app.Data.hs.quivertvvflat, 'xdata', pazdeg, 'ydata', peldeg);
+            set(app.Data.hs.quivertvflat, 'xdata', pazdeg, 'ydata', peldeg);
+            set(app.Data.hs.quivertvwflat, 'UData', tvwdeg(1), 'VData', tvwdeg(2));
+            set(app.Data.hs.quivertvvflat, 'UData', tvvdeg(1), 'VData', tvvdeg(2));
+            set(app.Data.hs.quivertvflat, 'UData', tvdeg(1), 'VData', tvdeg(2));
+  
             
-
-            set(app.Data.hs.quivertJwflat, 'xdata', az(:),'ydata',el(:),     'UData',ww(1,:)' , 'VData',ww(2,:)');
-            set(app.Data.hs.quivertJvflat, 'xdata', az(:), 'ydata',el(:),    'UData',vv(1,:)' , 'VData',vv(2,:)');
-            set(app.Data.hs.quivertAllvflat, 'xdata', az(:),'ydata',el(:),   'UData',allv(1,:)' ,'VData',allv(2,:)');
-
-
-
-            set(app.Data.hs.quivertvwflat, 'xdata',paz,'ydata',pel);
-            set(app.Data.hs.quivertvvflat, 'xdata',paz,'ydata',pel);
-            set(app.Data.hs.quivertvflat, 'xdata',paz,'ydata',pel);
-            set(app.Data.hs.quivertvwflat, 'UData',tvw(1),'VData',tvw(2));
-            set(app.Data.hs.quivertvvflat, 'UData',tvv(1),'VData',tvv(2));
-            set(app.Data.hs.quivertvflat, 'UData',tv(1),'VData',tv(2));
-
+            drawnow limitrate
 
 
             % draw flat sphere
@@ -1896,14 +1914,15 @@ classdef Geometry3D
         end
         
         function [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel]  = HelmholtzLinearInverseJacobian(az, el)
-            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(az, el);
 
-            dxdaz = dazdx;
-            dydaz = dazdy;
-            dzdaz = dazdz;
-            dxdel = deldx;
-            dydel = deldy;
-            dzdel = deldz;
+            dxdaz = -sin(az) .* cos(el);
+            dydaz = cos(az);
+            dzdaz = -sin(el) .* sin(az);
+
+            dxdel = -cos(az) .* sin(el);
+            dydel = zeros(size(az));
+            dzdel = cos(az) .* cos(el);
+
         end
 
 

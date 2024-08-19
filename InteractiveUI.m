@@ -24,6 +24,7 @@ classdef InteractiveUI < matlab.apps.AppBase
     properties (Access = public)
         UIFigure        matlab.ui.Figure
         GridLayout      matlab.ui.container.GridLayout
+        FigureMenu
 
         % timer
         t
@@ -143,8 +144,8 @@ classdef InteractiveUI < matlab.apps.AppBase
             app.GridLayout.RowHeight = app.rowHeight;
             app.GridLayout.RowSpacing = app.rowSpacing;
 
-            m = uimenu(app.UIFigure, 'Text','Menu');
-            mitem = uimenu(m,'Text','Reset');
+            app.FigureMenu = uimenu(app.UIFigure, 'Text','Menu');
+            mitem = uimenu(app.FigureMenu,'Text','Reset');
             mitem.MenuSelectedFcn = @(src,event) app.Reset();
 
             % Register the app with App Designer
@@ -279,6 +280,18 @@ classdef InteractiveUI < matlab.apps.AppBase
 
             app.Update();
 
+        end
+
+        function AddMenu(app, name, callback)
+
+            mitem = uimenu(app.FigureMenu,'Text',name);
+            mitem.MenuSelectedFcn = @(src,event)MenuUpdate(app, callback);
+        end
+
+        function MenuUpdate(app, callback)
+
+            callback(app);
+            app.Update();
         end
     end
 end
