@@ -35,18 +35,18 @@ classdef Geometry3D
             app.AddDropDown('Coordinate System',   1,  ["Fick", "Helmholtz", "Harms","Hess"])
             % app.AddSlider('Eye Radius',           0.02,  [0.01    1])
             %app.AddDropDown('Stimulus',      1,  ["Ground plane" "Point cloud"])
-            app.AddSlider('Azimuth',           40,  [-90 90])
+            app.AddSlider('Azimuth',           -40,  [-90 90])
             app.AddSlider('Elevation',           20,  [-90 90])
             % app.AddSlider('Torsion Version',      0,  [-20  20])
             % app.AddSlider('Torsion Vergence',     0,  [-20  20])
             %app.AddSlider('Ground plane slant',          0,  [-90  90])
             % app.AddSlider('Ground plane tilt',           0,  [0    90])
-            app.AddSlider('Angular velocity X (deg/s)',   1,  [-5 5])
-            app.AddSlider('Angular velocity Y (deg/s)',   -0.5,  [-5 5])
-            app.AddSlider('Angular velocity Z (deg/s)',   1.3,  [-5 5])
-            app.AddSlider('Linear velocity X (m/s)',    0.05,  [-5 5])
-            app.AddSlider('Linear velocity Y (m/s)',    0.1,  [-5 5])
-            app.AddSlider('Linear velocity Z (m/s)',    -0.1,  [-5 5])
+            app.AddSlider('Angular velocity X (deg/s)',   1*60,  [-100 100] )
+            app.AddSlider('Angular velocity Y (deg/s)',   -0.5*60,  [-100 100])
+            app.AddSlider('Angular velocity Z (deg/s)',   1.3*60,  [-100 100])
+            app.AddSlider('Linear velocity X (m/s)',    .5,  [-5 5])
+            app.AddSlider('Linear velocity Y (m/s)',    1,  [-5 5])
+            app.AddSlider('Linear velocity Z (m/s)',    -1,  [-5 5])
             % app.AddDropDown('View3D',             1,  ["Oblique" "TOP" "SIDE"])
 
             %
@@ -76,7 +76,7 @@ classdef Geometry3D
 
                 app.Data.hs.f = figure('color','white');
 
-                app.Data.hs.ax1 = subplot(1,1,1,'nextplot','add');
+                app.Data.hs.ax1 = subplot(1,2,1,'nextplot','add');
                 colors = get(gca,'colororder');
 
                 % draw sphere
@@ -104,9 +104,9 @@ classdef Geometry3D
 
 
                 % draw velocity vectors
-                app.Data.hs.quiverw = quiver3(0,0,0, 1 , -0.5 , 1.3 ,'color',colors(3,:),'linewidth',2);
+                app.Data.hs.quiverw = quiver3(0,0,0, 1 , -0.5 , 1.3 ,'color',colors(3,:),'linewidth',2,'LineStyle','-.');
                 app.Data.hs.textw = text(1,-0.5,1.3, '\omega','fontsize',14,'FontWeight','normal','HorizontalAlignment','right');
-                app.Data.hs.quiverv = quiver3(0,0,0, 0.5, 1,-1 ,'color',colors(4,:),'linewidth',2);
+                app.Data.hs.quiverv = quiver3(0,0,0, 0.5, 1,-1 ,'color',colors(4,:),'linewidth',2,'LineStyle','-.');
                 app.Data.hs.textv = text(0.5,1.1,-1, 'v','fontsize',14,'FontWeight','normal','HorizontalAlignment','left');
 
                 % draw point
@@ -115,11 +115,43 @@ classdef Geometry3D
 
                 % draw tangent
                 app.Data.hs.meshtangent = mesh(zeros(2,2), zeros(2,2),zeros(2,2), 'EdgeColor',[0.5 0.5 0.5],'FaceAlpha', 0.3,'facecolor',[0.8 0.8 0.8]);
-                app.Data.hs.quiverdaz = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','k','linewidth',2 );
+                app.Data.hs.quiverdaz = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','k','linewidth',2);
                 app.Data.hs.quiverdel = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','k','linewidth',2 );
-                app.Data.hs.quivertvw = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','r','linewidth',2 );
-                app.Data.hs.quivertvv = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','g','linewidth',2 );
-                app.Data.hs.quivertv  = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','b','linewidth',2 );
+                app.Data.hs.quivertvw = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color',colors(3,:),'linewidth',2  ,'LineStyle',':');
+                app.Data.hs.quivertvv = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color',colors(4,:),'linewidth',2  ,'LineStyle',':');
+                app.Data.hs.quivertv  = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','k','linewidth',2 ,'LineStyle','--');
+
+
+                % draw flat
+                app.Data.hs.ax2 = subplot(1,2,2,'nextplot','add');
+                axis equal;
+
+%                 app.Data.hs.meshflat = mesh(zeros(2,2), zeros(2,2), zeros(2,2) ,'FaceAlpha', 0.9,'facecolor',[1 1 1]);
+
+                set(gca,'xtick',[],'ytick',[])
+%                 view(90,0)
+                %                 set(gca,'visible','off')
+%                 title(altTitles{i})
+                xlabel('Azimuth ')
+                ylabel('Elevantion ')
+
+                set(gca,'xlim',[-1.5 1.5],'ylim',[-1.5 1.5])
+
+%                 app.Data.hs.meshpointflat = mesh(zeros(2,2), zeros(2,2),zeros(2,2), 'EdgeColor','none','FaceColor','k');
+                app.Data.hs.textpointflat = text(0*1.2,0*1.2, '(\theta,\psi)','fontsize',14, 'FontWeight','normal','HorizontalAlignment','right','VerticalAlignment','top');
+
+                app.Data.hs.quiverdazflat = quiver(0,0, 0*2 ,0*2,'color','k','linewidth',2);
+                app.Data.hs.quiverdelflat = quiver(0,0, 0*2 ,0*2,'color','k','linewidth',2 );
+                app.Data.hs.quivertvwflat = quiver(0,0, 0*2 ,0*2,'color',colors(3,:),'linewidth',2  ,'LineStyle',':');
+                app.Data.hs.quivertvvflat = quiver(0,0, 0*2,0*2,'color',colors(4,:),'linewidth',2  ,'LineStyle',':');
+                app.Data.hs.quivertvflat  = quiver(0,0, 0*2,0*2,'color','k','linewidth',2 ,'LineStyle','--');
+
+
+                app.Data.hs.quivertJwflat = quiver(0,0, 0*2 ,0*2,'color',colors(3,:),'linewidth',1);
+                app.Data.hs.quivertJvflat = quiver(0,0, 0*2 ,0*2,'color',colors(4,:),'linewidth',1);
+                app.Data.hs.quivertAllvflat  = quiver(0,0, 0*2 ,0*2,'color','k','linewidth',1);
+
+                legend([app.Data.hs.quivertJvflat app.Data.hs.quivertJwflat app.Data.hs.quivertAllvflat],{'Linear motion' 'Rotational motion' 'Total motion'})
             end
 
             % get data and update
@@ -139,24 +171,41 @@ classdef Geometry3D
                 case 'Fick'
                     [x,y,z] = Geometry3D.FickToSphere(az,el);
                     [px,py,pz] = Geometry3D.FickToSphere(paz,pel);
+
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(az, el);
+                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.FickRotationalJacobian(az, el);
+                    Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, length(az(:))),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, length(az(:))));
+                    Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, length(az(:))),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, length(az(:))));
+
                     [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.FickLinearInverseJacobian(paz, pel);
                     [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(paz, pel);
-                    [dazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.FickRotationalJacobian(paz, pel);
+                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.FickRotationalJacobian(paz, pel);
+
                 case 'Helmholtz'
                     [x,y,z] = Geometry3D.HelmholtzToSphere(az,el);
                     [px,py,pz] = Geometry3D.HelmholtzToSphere(paz,pel);
+
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(az, el);
+                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HelmholtzRotationalJacobian(az, el);
+                    Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, length(az(:))),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, length(az(:))));
+                    Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, length(az(:))),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, length(az(:))));
+
+                    
                     [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HelmholtzLinearInverseJacobian(paz, pel);
                     [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(paz, pel);
-                    [dazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HelmholtzRotationalJacobian(paz, pel);
-                case 'Listings'
-                    [x,y,z] = Geometry3D.ListingsToSphere(az,el);
-                    [px,py,pz] = Geometry3D.ListingsToSphere(paz,pel);
+                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HelmholtzRotationalJacobian(paz, pel);
                 case 'Harms'
                     [x,y,z] = Geometry3D.HarmsToSphere(az,el);
                     [px,py,pz] = Geometry3D.HarmsToSphere(paz,pel);
+
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsLinearJacobian(az, el);
+                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HarmsRotationalJacobian(az, el);
+                    Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, length(az(:))),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, length(az(:))));
+                    Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, length(az(:))),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, length(az(:))));
+
                     [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HarmsLinearInverseJacobian(paz, pel);
                     [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsLinearJacobian(paz, pel);
-                    [dazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HarmsRotationalJacobian(paz, pel);
+                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HarmsRotationalJacobian(paz, pel);
                 case 'Hess'
                     [x,y,z] = Geometry3D.HessToSphere(az,el);
                     [px,py,pz] = Geometry3D.HessToSphere(paz,pel);
@@ -193,9 +242,9 @@ classdef Geometry3D
             set(app.Data.hs.meshtangent, 'xdata',daz*dxdaz + del*dxdel + px,'ydata',daz*dydaz + del*dydel +py,'zdata',daz*dzdaz + del*dzdel +pz)
 
             Ji =[dxdaz, dydaz, dzdaz; dxdel, dydel, dzdel]'; % base of the tangent plane
-            tvw = Ji*[dazwx, rdazwy, rdazwz; rdelwx, rdelwy, rdelwz]*w';
+            tvw = Ji*[rdazwx, rdazwy, rdazwz; rdelwx, rdelwy, rdelwz]*w';
             tvv = Ji*[dazdx, dazdy, dazdz; deldx, deldy, deldz]*v';
-            tv = tvw + tvw;
+            tv = tvw + tvv;
 
             set(app.Data.hs.quivertvw, 'xdata',px,'ydata',py,'zdata',pz);
             set(app.Data.hs.quivertvv, 'xdata',px,'ydata',py,'zdata',pz);
@@ -204,6 +253,44 @@ classdef Geometry3D
             set(app.Data.hs.quivertvv, 'UData',tvv(1),'VData',tvv(2),'WData',tvv(3));
             set(app.Data.hs.quivertv, 'UData',tv(1),'VData',tv(2),'WData',tv(3));
 
+
+
+            % update flat
+%             set(app.Data.hs.meshflat, 'xdata',x*0,'ydata',y./x,'zdata',z./x)
+%             set(app.Data.hs.meshpointflat, 'xdata',psx*0.1+0,'ydata',psy*0.05+py./px,'zdata',psz*0.05+pz./px)
+%             set(app.Data.hs.textpointflat, 'Position', [0,py./px,pz./px])
+%             set(app.Data.hs.meshflat, 'xdata',x*0,'ydata',az,'zdata',el)
+%             set(app.Data.hs.meshpointflat, 'xdata',psx*0.1+0,'ydata',psy*0.05+paz,'zdata',psz*0.05+pel)
+            set(app.Data.hs.textpointflat, 'Position', [paz,pel])
+
+
+            set(app.Data.hs.quiverdazflat, 'xdata',paz,'ydata',pel);
+            set(app.Data.hs.quiverdelflat, 'xdata',paz,'ydata',pel);
+            set(app.Data.hs.quiverdazflat, 'UData',dydaz,'VData',dzdaz);
+            set(app.Data.hs.quiverdelflat, 'UData',dydel,'VData',dzdel);
+
+            tvw = [rdazwx, rdazwy, rdazwz; rdelwx, rdelwy, rdelwz]*w';
+            tvv = [dazdx, dazdy, dazdz; deldx, deldy, deldz]*v';
+            tv = tvw + tvv;
+
+
+            ww = squeeze(pagemtimes(Jw,w'));
+            vv = squeeze(pagemtimes(Jv,v'));
+            allv = ww+vv;
+            
+
+            set(app.Data.hs.quivertJwflat, 'xdata', az(:),'ydata',el(:),     'UData',ww(1,:)' , 'VData',ww(2,:)');
+            set(app.Data.hs.quivertJvflat, 'xdata', az(:), 'ydata',el(:),    'UData',vv(1,:)' , 'VData',vv(2,:)');
+            set(app.Data.hs.quivertAllvflat, 'xdata', az(:),'ydata',el(:),   'UData',allv(1,:)' ,'VData',allv(2,:)');
+
+
+
+            set(app.Data.hs.quivertvwflat, 'xdata',paz,'ydata',pel);
+            set(app.Data.hs.quivertvvflat, 'xdata',paz,'ydata',pel);
+            set(app.Data.hs.quivertvflat, 'xdata',paz,'ydata',pel);
+            set(app.Data.hs.quivertvwflat, 'UData',tvw(1),'VData',tvw(2));
+            set(app.Data.hs.quivertvvflat, 'UData',tvv(1),'VData',tvv(2));
+            set(app.Data.hs.quivertvflat, 'UData',tv(1),'VData',tv(2));
 
 
 
@@ -217,7 +304,6 @@ classdef Geometry3D
 
 
 
-                axis equal;
                 mesh(x*0,y,z,'FaceAlpha', 0.9,'facecolor',[1 1 1]);
 
                 set(gca,'xtick',[],'ytick',[],'ztick',[])
@@ -236,30 +322,6 @@ classdef Geometry3D
                 mesh(psx*0.05+px, psy*0.05+py,psz*0.05+pz, 'EdgeColor','none','FaceColor','k')
                 text(px*1.2,py*1.2,pz*1.2, '(\theta,\psi)','fontsize',14, 'FontWeight','normal','HorizontalAlignment','left','VerticalAlignment','bottom')
 
-
-                subplot(2,2,3,'nextplot','add');
-
-
-                z = z*R;
-                x = x*R;
-                y = y*R;
-
-                % draw sphere
-                axis equal;
-                mesh(x*0,y./x,z./x,'FaceAlpha', 0.9,'facecolor',[1 1 1]);
-
-                set(gca,'xtick',[],'ytick',[],'ztick',[])
-                view(90,0)
-                %                 set(gca,'visible','off')
-                title(altTitles{i})
-                ylabel('Azimuth lines')
-                zlabel('Elevantion lines')
-
-                set(gca,'xlim',[-3 3],'ylim',[-3 3], 'zlim',[-3 3])
-
-                [psx,psy,psz] = sphere(10);
-                mesh(psx*0.1+0, psy*0.1+py./px,psz*0.1+pz./px, 'EdgeColor','none','FaceColor','k')
-                text(0,py./px*1.2,pz./px*1.2, '(\theta,\psi)','fontsize',14, 'FontWeight','normal','HorizontalAlignment','left','VerticalAlignment','bottom')
             end
         end
 
@@ -1756,6 +1818,7 @@ classdef Geometry3D
             deldx = -z.*x ./ DD;
             deldy = -z.*y ./ DD;
             deldz =  DD;
+            
         end
 
         function [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = FickRotationalJacobian(az, el)
@@ -1781,14 +1844,13 @@ classdef Geometry3D
         end
         
         function [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel]  = FickLinearInverseJacobian(az, el)
-            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(az, el);
 
-            dxdaz = dazdx;
-            dydaz = dazdy;
-            dzdaz = dazdz;
-            dxdel = deldx;
-            dydel = deldy;
-            dzdel = deldz;
+            dxdaz = -sin( az ) .* cos( el );
+            dydaz = cos( az ) .* cos( el );
+            dzdaz = 0;
+            dxdel = -cos( az ) .* sin( el );
+            dydel = -sin( az ) .* sin( el );
+            dzdel = cos( el );
         end
 
         function [dazdx, dazdy, dazdz, deldx, deldy, deldz] = HelmholtzLinearJacobian(az, el)
@@ -1879,24 +1941,25 @@ classdef Geometry3D
         end
 
         function [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = HarmsLinearInverseJacobian(az, el)
-
-
-            % Precompute common terms
-            sec_az_squared = sec(az).^2;
-            sec_el_squared = sec(el).^2;
+            % Define the trigonometric functions
             tan_az = tan(az);
+            sec_az = sec(az);
             tan_el = tan(el);
-            denominator = (1 + tan_az.^2 + tan_el.^2).^(3/2); % convert to deg from radians
+            sec_el = sec(el);
+
+            % Common denominator
+            denominator = (1 + tan_az.^2 + tan_el.^2).^(3/2);
 
             % Calculate each element of the Jacobian matrix
-            dxdaz = -tan_az .* sec_az_squared ./ denominator;
-            dxdel = -tan_el .* sec_el_squared ./ denominator;
+            dxdaz = -tan_az .* sec_az.^2 ./ denominator;
+            dxdel = -tan_el .* sec_el.^2 ./ denominator;
 
-            dydaz = sec_az_squared ./ denominator;
-            dydel = -tan_az .* tan_el .* sec_el_squared ./ denominator;
+            dydaz = (sec_az.^2 - tan_az.^2 .* sec_az.^2) ./ denominator;
+            dydel = -tan_az .* sec_az.^2 .* tan_el ./ denominator;
 
-            dzdaz = -tan_az .* tan_el .* sec_az_squared ./ denominator;
-            dzdel = sec_el_squared ./ denominator;
+            dzdaz = -tan_az .* sec_az.^2 .* tan_el ./ denominator;
+            dzdel = (sec_el.^2 - tan_el.^2 .* sec_el.^2) ./ denominator;
+
         end
 
         function [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = HarmsRotationalJacobian(az, el)
