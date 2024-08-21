@@ -1807,6 +1807,431 @@ classdef Geometry3D
 
     %% Spherical coordinate methods
     methods(Static)
+        function PlotTangentSphereJacobians()
+            %%
+            %
+            R = 1; % radius of the eye
+            step = 1;
+            range = 90;
+            [az, el] = meshgrid(-2*range:step:2*range,-range:step:range); % azimuths and elevations to include
+
+            [xs,ys,zs] = Geometry3D.FickToSphere(deg2rad(az),deg2rad(el));
+            a = ParticleSampleSphere( 'N' ,200);
+            x = a(a(:,1)>0,1);
+            y = a(a(:,1)>0,2);
+            z = a(a(:,1)>0,3);
+
+            [dudx, dudy, dudz, dvdx, dvdy, dvdz] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
+            [duwxdt, duwydt, duwzdt, dvwxdt, dvwydt, dvwzdt] = Geometry3D.TangentSphereRotationalJacobian(x,y,z);
+
+            figure('color','w')
+            subplot(2,5,[1 2 6 7],'nextplot','add')
+            axis
+            % draw sphere
+            mesh(xs,ys,zs,'FaceAlpha', 0.5,'facecolor',0.8*[1 1 1],'EdgeColor','none');
+            xlabel(gca,'x')
+            ylabel(gca,'y')
+            zlabel(gca,'z')
+            % line of sight
+            line([1 R*1.5 ],[0 0 ],[0 0 ],'color','r','linewidth',2)
+
+            view(125,15);
+            axis equal;
+
+
+            hl = [];
+            hl(1) = quiver3(x,y,z, dudx, dudy, dudz,'linewidth',2,'DisplayName', '\partial xyz / \partial u');
+            hl(2) = quiver3(x,y,z, dvdx, dvdy, dvdz,'linewidth',2,'DisplayName', '\partial xyz / \partial v');
+            % quiver3(x,y,z, x, y, z,'linewidth',1)
+
+            legend(hl,'Location', 'northeast','box','off','fontsize',14);
+
+
+
+
+            % figure('color','w')
+            subplot(2,5,3,'nextplot','add')
+            axis equal;
+            set(gca,'xlim',[-1 1], 'ylim',[-1 1])
+            quiver(y.*acosd(x)/90,z.*acosd(x)/90, dudx, dvdx,'linewidth',2)
+            xlabel( '\partial u / \partial x','fontsize',14);
+            ylabel( '\partial v / \partial x','fontsize',14);
+            set(gca,'xtick',[],'ytick',[])
+
+            subplot(2,5,4,'nextplot','add')
+            axis equal;
+            set(gca,'xlim',[-1 1], 'ylim',[-1 1])
+            quiver(y.*acosd(x)/90,z.*acosd(x)/90, dudy, dvdy,'linewidth',2)
+            xlabel( '\partial u / \partial y','fontsize',14);
+            ylabel( '\partial v / \partial y','fontsize',14);
+            set(gca,'xtick',[],'ytick',[])
+
+            subplot(2,5,5,'nextplot','add')
+            axis equal;
+            set(gca,'xlim',[-1 1], 'ylim',[-1 1])
+            quiver(y.*acosd(x)/90,z.*acosd(x)/90, dudz, dvdz,'linewidth',2)
+            xlabel( '\partial u / \partial z','fontsize',14);
+            ylabel( '\partial v / \partial z','fontsize',14);
+            set(gca,'xtick',[],'ytick',[])
+
+
+            subplot(2,5,8,'nextplot','add')
+            axis equal;
+            set(gca,'xlim',[-1 1], 'ylim',[-1 1])
+            quiver(y.*acosd(x)/90,z.*acosd(x)/90, duwxdt, dvwxdt,'linewidth',2)
+            xlabel( '\partial u / \omega_x dt','fontsize',14);
+            ylabel( '\partial v / \omega_x dt','fontsize',14);
+            set(gca,'xtick',[],'ytick',[])
+
+            subplot(2,5,9,'nextplot','add')
+            axis equal;
+            set(gca,'xlim',[-1 1], 'ylim',[-1 1])
+            quiver(y.*acosd(x)/90,z.*acosd(x)/90, duwydt, dvwydt,'linewidth',2)
+            xlabel( '\partial u / \omega_y dt','fontsize',14);
+            ylabel( '\partial v / \omega_y dt','fontsize',14);
+            set(gca,'xtick',[],'ytick',[])
+
+            subplot(2,5,10,'nextplot','add')
+            axis equal;
+            set(gca,'xlim',[-1 1], 'ylim',[-1 1])
+            quiver(y.*acosd(x)/90,z.*acosd(x)/90, duwzdt, dvwzdt,'linewidth',2)
+            xlabel( '\partial u / \omega _z dt','fontsize',14);
+            ylabel( '\partial v / \omega_z dt','fontsize',14);
+            set(gca,'xtick',[],'ytick',[])
+
+
+            %%
+
+
+            %%
+            %
+            R = 1; % radius of the eye
+            step = 10;
+            range = 90;
+            [az, el] = meshgrid(-2*range:step:2*range,-range:step:range); % azimuths and elevations to include
+
+            [xs,ys,zs] = Geometry3D.FickToSphere(deg2rad(az),deg2rad(el));
+            [x,y,z] = Geometry3D.FickToSphere(deg2rad([0 50]),deg2rad([0 40]));
+
+
+            [dudx, dudy, dudz, dvdx, dvdy, dvdz] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
+
+            figure('color','w')
+            subplot(1,1,1,'nextplot','add')
+            axis
+            % draw sphere
+            mesh(xs,ys,zs,'FaceAlpha', 1,'facecolor',0.8*[1 1 1]);
+            xlabel(gca,'x')
+            ylabel(gca,'y')
+            zlabel(gca,'z')
+            % line of sight
+            line([0 R*1.5 ],[0 0 ],[0 0 ],'color','r','linewidth',2)
+            line([0 x(2)*1.5 ],[0 y(2)*1.5 ],[0 z(2)*1.5 ],'color','r','linewidth',2)
+
+            view(125,15);
+            axis equal;
+
+
+            hl = [];
+            hl(1) = quiver3(x,y,z, dudx, dudy, dudz,'linewidth',2,'DisplayName', 'u');
+            hl(2) = quiver3(x,y,z, dvdx, dvdy, dvdz,'linewidth',2,'DisplayName', 'v');
+            % quiver3(x,y,z, x, y, z,'linewidth',1)
+
+            legend(hl,'Location', 'northeast','box','off','fontsize',14);
+        end
+
+        function PlotAnalyticalJacobiansForSphericalCoordinateSystems
+            %%
+            % close all
+            R = 0.025; % radius of the eye
+            step = 10;
+            range = 80;
+            [az, el] = meshgrid(-range:step:range,-range:step:range); % azimuths and elevations to include
+
+            coordinateSystems = { 'Fick','Helmholtz', 'Harms','Hess'};
+
+
+            for iFlow = 1:2
+                
+                switch(iFlow)
+                    case 1
+                        WHICHFLOW = 'linear';
+                    case 2
+                        WHICHFLOW = 'rotational';
+                end
+
+                figure('color','w')
+
+                for i=1:length(coordinateSystems)
+                    sys = coordinateSystems{i};
+                    subplot(4,length(coordinateSystems),i,'nextplot','add');
+
+                    % calculate spherical coordinates depending on the coordinate system
+                    switch(sys)
+                        case 'Fick'
+                            [x,y,z] = Geometry3D.FickToSphere(deg2rad(az),deg2rad(el));
+                            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(deg2rad(az), deg2rad(el));
+                            [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = Geometry3D.FickRotationalJacobian(deg2rad(az), deg2rad(el));
+                        case 'Helmholtz'
+                            [x,y,z] = Geometry3D.HelmholtzToSphere(deg2rad(az),deg2rad(el));
+                            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(deg2rad(az), deg2rad(el));
+                            [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = Geometry3D.HelmholtzRotationalJacobian(deg2rad(az), deg2rad(el));
+
+                        case 'Harms'
+                            [x,y,z] = Geometry3D.HarmsToSphere(deg2rad(az),deg2rad(el));
+                            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsLinearJacobian(deg2rad(az), deg2rad(el));
+                            [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = Geometry3D.HarmsRotationalJacobian(deg2rad(az), deg2rad(el));
+                        case 'Hess'
+                            [x,y,z] = Geometry3D.HessToSphere(deg2rad(az),deg2rad(el));
+                            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HessLinearJacobian(deg2rad(az), deg2rad(el));
+                            [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = Geometry3D.HessRotationalJacobian(deg2rad(az), deg2rad(el));
+                    end
+
+                    dazlin = {dazdx, dazdy, dazdz};
+                    dellin = {deldx, deldy, deldz};
+                    dazrot = {dazwxdt, dazwydt, dazwzdt};
+                    delrot = {delwxdt, delwydt, delwzdt};
+
+                    colorsflow = {'r' 'b' 'k'};
+                    dims = {'x' 'y' 'z'};
+
+                    for vi=1:3
+
+                        if ( strcmp( WHICHFLOW , 'linear' ) )
+                            daz = dazlin{vi};
+                            del = dellin{vi};
+                        else
+                            daz = dazrot{vi};
+                            del = delrot{vi};
+                        end
+
+                        subplot(4,length(coordinateSystems),i+length(coordinateSystems)*vi);
+                        quiver(az, el, rad2deg(daz), rad2deg(del), colorsflow{vi});
+
+                        switch(WHICHFLOW)
+                            case 'linear'
+                                title(['Flow due to ' WHICHFLOW  ' motion along ',dims{vi}])
+                            case 'rotational'
+                                title(['Flow due to ' WHICHFLOW  ' motion around ',dims{vi}])
+                        end
+                        if ( i > 1)
+                            xlabel('Azimuth (deg)')
+                            ylabel('Elevation (deg)')
+                        else
+                            xlabel('Angle (deg)')
+                            ylabel('Eccentricity (deg)')
+                        end
+                        grid on
+
+                        axis equal;
+                        set(gca,'xlim',[-80 80],'ylim',[-80 80])
+                    end
+
+            end
+
+            end
+
+
+
+            % 
+            % subplot(2,3,2);
+            % quiver(az, el, dazdy, deldy, 'color', colors(1,:));
+            % axis equal; set(gca,'xlim',[-90 90], 'ylim',[-90 90]); xlabel('azimuzh (deg)'), ylabel('Elevation (deg)'), title('Linear velocity along y = \partial [\theta \psi] / \partial y')
+            % subplot(2,3,3);
+            % quiver(az, el, dazdz, deldz, 'color', colors(5,:));
+            % axis equal; set(gca,'xlim',[-90 90], 'ylim',[-90 90]); xlabel('azimuzh (deg)'), ylabel('Elevation (deg)'), title('Linear velocity along z = \partial [\theta \psi] / \partial z')
+            % 
+            % subplot(2,3,4);
+            % quiver(az, el, dazwxdt, delwxdt, 'color', colors(2,:));
+            % axis equal; set(gca,'xlim',[-90 90], 'ylim',[-90 90]); xlabel('azimuzh (deg)'), ylabel('Elevation (deg)'), title('Angular velocity around x = \partial [\theta \psi] / \omega_xdt')
+            % subplot(2,3,5);
+            % quiver(az, el, dazwydt, delwydt, 'color', colors(1,:));
+            % axis equal; set(gca,'xlim',[-90 90], 'ylim',[-90 90]); xlabel('azimuzh (deg)'), ylabel('Elevation (deg)'), title('Angular velocity around y = \partial [\theta \psi] / \omega_ydt')
+            % subplot(2,3,6);
+            % quiver(az, el, dazwzdt, delwzdt, 'color', colors(5,:));
+            % axis equal; set(gca,'xlim',[-90 90], 'ylim',[-90 90]); xlabel('azimuzh (deg)'), ylabel('Elevation (deg)'), title('Angular velocity around z = \partial [\theta \psi] / \omega_zdt')
+
+
+            % figure('color','w')
+            % subplot(1,2,1,'nextplot','add');
+            % colors = get(gca,'colororder');
+            % 
+            % axis equal; set(gca,'xlim',[-90 90], 'ylim',[-90 90]); xlabel('azimuzh (deg)'), ylabel('Elevation (deg)'), title('Linear Jacobian')
+            % quiver(az, el, dazdx, deldx, 'color', colors(2,:),'LineWidth',1.5, 'DisplayName', '\partial [\theta \psi] / \partial x');
+            % quiver(az, el, dazdy, deldy, 'color', colors(1,:),'LineWidth',1.5, 'DisplayName', '\partial [\theta \psi] / \partial y');
+            % quiver(az, el, dazdz, deldz, 'color', colors(5,:),'LineWidth',1.5, 'DisplayName', '\partial [\theta \psi] / \partial z');
+            % 
+            % legend('show', 'Location', 'northeast','box','off','fontsize',18);
+            % 
+            % subplot(1,2,2,'nextplot','add');
+            % axis equal; set(gca,'xlim',[-90 90], 'ylim',[-90 90]); xlabel('azimuzh (deg)'), ylabel('Elevation (deg)'), title('Rotational Jacobian')
+            % quiver(az, el, dazwxdt, delwxdt,'color', colors(2,:),'LineWidth',1.5, 'DisplayName', '\partial [\theta \psi] / \omega_xdt');
+            % quiver(az, el, dazwydt, delwydt,'color', colors(1,:),'LineWidth',1.5, 'DisplayName', '\partial [\theta \psi] / \omega_ydt');
+            % quiver(az, el, dazwzdt, delwzdt,'color', colors(5,:),'LineWidth',1.5, 'DisplayName', '\partial [\theta \psi] / \omega_zdt');
+            % 
+            % legend('show', 'Location', 'northeast','box','off','fontsize',18);
+        end
+
+        function PlotNumericalJacobiansForSphericalCoordinateSystems
+            %% Visualization of different spherical coordinate systems and motion flows projected onto them
+            %
+            % x y z is a right handed reference frame
+            %
+            % The eye points towards x and up is z
+            %
+            %
+
+            % clear all, close all
+
+            R = 1; % radius of the eye
+            step = 10;
+            range = 80;
+            [az, el] = meshgrid(-range:step:range,-range:step:range); % azimuths and elevations to include
+            coordinateSystems = { 'Fick','Helmholtz', 'Harms','Hess'};
+
+
+            for iFlow = 1:2
+                switch(iFlow)
+                    case 1
+                        WHICHFLOW = 'linear';
+                    case 2
+                        WHICHFLOW = 'rotational';
+                end
+
+
+                f = figure('color','white');
+                f.Position = [f.Position(1) f.Position(2) 4*f.Position(3) f.Position(4)];
+
+                for i=1:length(coordinateSystems)
+                    sys = coordinateSystems{i};
+                    subplot(4,length(coordinateSystems),i,'nextplot','add');
+
+                    % calculate spherical coordinates depending on the coordinate system
+                    switch(sys)
+                        case 'Fick'
+                            [x,y,z] = Geometry3D.FickToSphere(deg2rad(az),deg2rad(el));
+                        case 'Helmholtz'
+                            [x,y,z] = Geometry3D.HelmholtzToSphere(deg2rad(az),deg2rad(el));
+                        case 'Harms'
+                            [x,y,z] = Geometry3D.HarmsToSphere(deg2rad(az),deg2rad(el));
+                        case 'Hess'
+                            [x,y,z] = Geometry3D.HessToSphere(deg2rad(az),deg2rad(el));
+                    end
+
+                    % scale by radius so the translations are in the right units (m)
+                    z = z*R;
+                    x = x*R;
+                    y = y*R;
+
+                    % draw sphere
+                    view(125,15)
+                    axis equal;
+                    mesh(x,y,z,'FaceAlpha', 0.9,'facecolor',[1 1 1]);
+                    xlabel(gca,'x')
+                    ylabel(gca,'y')
+                    zlabel(gca,'z')
+                    % line of sight
+                    line([0 R*1.5 ],[0 0 ],[0 0 ],'color','r','linewidth',2)
+                    title(sys)
+
+
+
+                    % calculate jacobians for linear or rotational velocity
+                    % That is, how much a tiny translation or rotation affect the position
+                    % of a point in the sphere.
+                    %
+                    % For rotation is easy because the point remains in the sphere.
+                    %
+                    % For translation is a bit trickier because the point moves outside of
+                    % the sphere and the vector of motion has to be projected into a
+                    % tangent plane.
+                    %
+                    % the strategy is to move all the points in the sphere and then
+                    % calculate the vector from the original point to the new point and
+                    % project that vector onto the tangent plane by normalizing the second
+                    % point. So it is a vector between two points in the sphere so we can
+                    % calcuate it the vector on the actual coordinates of the azimuth and
+                    % elevation system. For very small displacements the tangent plane and
+                    % the local surface of the sphere should be approximately the same.
+
+                    dv = 0.00001; % differential position change in m
+                    dw = deg2rad(0.1); % differential angular rotation in deg
+
+                    az2 = az;
+                    el2 = el;
+
+                    colorsflow = {'r' 'b' 'k'};
+                    dims = {'x' 'y' 'z'};
+
+                    dxyz = {[dv,0,0],[0,dv,0],[0,0,dv]}; % assumes distance to the target equal to the radius. It should be scaled by the ratio between the depth and R
+                    dRM = {Geometry3D.RotX(dw), Geometry3D.RotY(dw), Geometry3D.RotZ(dw)};
+
+                    for vi=1:3
+
+                        if ( strcmp( WHICHFLOW , 'linear' ) )
+                            % add a tiny displacement in the corresponding component to all the
+                            % points in the sphere.
+                            x2 = x - dxyz{vi}(1);
+                            y2 = y - dxyz{vi}(2);
+                            z2 = z - dxyz{vi}(3);
+                        else
+                            % add a tiny rotation in the corresponding component to all the
+                            % points in the sphere.
+                            pointsrot = [x(:) y(:) z(:)]*dRM{vi};
+                            x2 = reshape(pointsrot(:,1),size(x));
+                            y2 = reshape(pointsrot(:,2),size(y));
+                            z2 = reshape(pointsrot(:,3),size(z));
+                        end
+
+                        % project the tiny displacement onto the sphere
+                        % (this is the step I am least sure of)
+                        % But I think it should be correct because it is the projection
+                        % onto a tangent plane.
+                        % I do so by simply normalizing the vector so we find the point on
+                        % the sphere that is closes tot he displaced point.
+                        nrm = sqrt(x2.^2 + y2.^2 + z2.^2);
+                        x2 = x2 ./ nrm;
+                        y2 = y2 ./ nrm;
+                        z2 = z2 ./ nrm;
+
+                        switch(sys)
+                            case 'Fick'
+                                [az2, el2 ] = Geometry3D.SphereToFick(x2,y2,z2);
+                            case 'Helmholtz'
+                                [az2, el2 ] = Geometry3D.SphereToHelmholtz(x2,y2,z2);
+                            case 'Harms'
+                                [az2, el2 ] = Geometry3D.SphereToHarms(x2,y2,z2);
+                            case 'Hess'
+                                [az2, el2 ] = Geometry3D.SphereToHess(x2,y2,z2);
+                        end
+
+
+                        subplot(4,length(coordinateSystems),i+length(coordinateSystems)*vi);
+                        quiver(az, el, rad2deg(az2)-az, rad2deg(el2)-el, colorsflow{vi});
+
+                        switch(WHICHFLOW)
+                            case 'linear'
+                                title(['Flow due to ' WHICHFLOW  ' motion along ',dims{vi}])
+                            case 'rotational'
+                                title(['Flow due to ' WHICHFLOW  ' motion around ',dims{vi}])
+                        end
+                        if ( i > 1)
+                            xlabel('Azimuth (deg)')
+                            ylabel('Elevation (deg)')
+                        else
+                            xlabel('Angle (deg)')
+                            ylabel('Eccentricity (deg)')
+                        end
+                        grid on
+
+                        axis equal;
+                        set(gca,'xlim',[-80 80],'ylim',[-80 80])
+                    end
+                end
+            end
+        end
+
+
         % Functions to converte between spherical coordinates and coordinate
         % sysstems for 2D rotations
 
@@ -1826,7 +2251,7 @@ classdef Geometry3D
             D = sqrt( x.^2 + y.^2 + z.^2 );
 
             az = atan2( y, x );   % longitude
-            el = asin( z / D );   % latitude
+            el = asin( z ./ D );   % latitude
         end
 
         function [x, y, z] = HelmholtzToSphere(az,el)
@@ -1839,7 +2264,7 @@ classdef Geometry3D
         function [az,el] = SphereToHelmholtz(x,y,z)
             D = sqrt( x.^2 + y.^2 + z.^2 );
 
-            az = asin( y / D );  % latitude
+            az = asin( y ./ D );  % latitude
             el = atan2( z, x );  % longitude
         end
 
@@ -2052,12 +2477,47 @@ classdef Geometry3D
             delwzdt = y.*deldx - x.*deldy + 0.*deldz;
         end
 
+        function [dazdx, dazdy, dazdz, deldx, deldy, deldz] = HessLinearJacobian(az, el)
+            [x, y, z] = Geometry3D.HessToSphere(az, el);
+            % this are just the derivatives of the SphereToHarms function
+            dazdx =  -x.*y./(sqrt(1-y.^2)) ;
+            dazdy =  (x.^2 + z.^2 ) ./(sqrt(1-y.^2)) ;
+            dazdz = -y.*z./(sqrt(1-y.^2)) ;
+
+            deldx =  -x.*z./(sqrt(1-y.^2)) ;
+            deldy = -y.*z./(sqrt(1-y.^2)) ;
+            deldz =  (x.^2 + y.^2 ) ./(sqrt(1-y.^2)) ;
+        end
+
+
+        function [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = HessRotationalJacobian(az, el)
+            [x, y, z] = Geometry3D.HessToSphere(az, el);
+
+            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HessLinearJacobian(az, el);
+
+            % this uses the property that the linear velocity of a point on the
+            % sphere rotating by an angular velocity is the cross product of the
+            % coordinates of the point and the angular velocity.
+            %
+            % so then we can multiply the linear jacobian by the cross product
+            % matrix equivalent of the point coordinates
+
+            dazwxdt = 0*dazdx + z.*dazdy - y.*dazdz;
+            dazwydt = -z.*dazdx - 0.*dazdy + x.*dazdz;
+            dazwzdt = y.*dazdx - x.*dazdy + 0*dazdz;
+
+            delwxdt = 0*deldx + z.*deldy - y.*deldz;
+            delwydt = -z.*deldx + 0*deldy + x.*deldz;
+            delwzdt = y.*deldx - x.*deldy + 0.*deldz;
+        end
+
+
 
         function [x, y, z] = HessToSphere(az, el)
             azdeg = rad2deg(az);
 
-            z = sind(el);
-            y = sind(az);
+            z = sin(el);
+            y = sin(az);
             x = sqrt(1-z.^2-y.^2);
             % Need to flip negative azimuts
             x(azdeg >= 90 | azdeg <= -90) = -x(azdeg >= 90 | azdeg <= -90);
@@ -2074,11 +2534,11 @@ classdef Geometry3D
             % x = real(x);
         end
 
-        function [az,el] = SphereToHess(~,y,z)
+        function [az,el] = SphereToHess(x,y,z)
             D = sqrt( x.^2 + y.^2 + z.^2 );
 
-            el = asin( z / D ); % latitude
-            az = asin( y / D ); % latitude
+            el = asin( z ./ D ); % latitude
+            az = asin( y ./ D ); % latitude
         end
 
         function [x, y, z] = ListingsToSphere(angle, eccentricity)
@@ -2092,6 +2552,29 @@ classdef Geometry3D
             angle = atan2(z,y);
         end
 
+        function [dudx, dudy, dudz, dvdx, dvdy, dvdz] = TangentSphereLinearJacobian(x,y,z)
+
+            dudx = -y;
+            dudy = 1 -  ( y.^2 ) ./ (1 + x);
+            dudz = -( y .* z ) ./ (1 + x) ;
+
+            dvdx = -z ;
+            dvdy = -( y .* z ) ./ (1 + x) ;
+            dvdz = 1 -  ( z.^2 ) ./ (1 + x) ;
+
+        end
+
+        function [duwxdt, duwydt, duwzdt, dvwxdt, dvwydt, dvwzdt] = TangentSphereRotationalJacobian(x,y,z)
+
+            duwxdt = z;
+            duwydt = ( y .* z ) ./ (1 + x);
+            duwzdt =  -1 +  ( z.^2 ) ./ (1 + x);
+
+            dvwxdt = -y;
+            dvwydt = 1 -  ( y.^2 ) ./ (1 + x);
+            dvwzdt = -( y .* z ) ./ (1 + x) ;
+
+        end
     end
 end
 
