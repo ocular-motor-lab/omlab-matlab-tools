@@ -32,7 +32,7 @@ classdef Geometry3D
         function demoCoordinateSystemsAndPlane()
 
             app = InteractiveUI('Coordinate systems',@(app) (Geometry3D.demoCoordinateSystemsAndPlaneUpdate(app)), 0.1); 
-            app.AddDropDown('Coordinate System',   1,  ["Fick", "Helmholtz", "Harms","Hess"])
+            app.AddDropDown('Coordinate System',   1,  ["Fick", "Helmholtz", "Harms","Hess", "Sphere"])
             % app.AddSlider('Eye Radius',           0.02,  [0.01    1])
             %app.AddDropDown('Stimulus',      1,  ["Ground plane" "Point cloud"])
             app.AddSlider('Azimuth',           -40,  [-90 90])
@@ -223,6 +223,56 @@ classdef Geometry3D
                 case 'Hess'
                     [x,y,z] = Geometry3D.HessToSphere(az,el);
                     [px,py,pz] = Geometry3D.HessToSphere(paz,pel);
+                case 'Sphere'
+                    [x,y,z] = Geometry3D.FickToSphere(az,el);
+                    [px,py,pz] = Geometry3D.FickToSphere(paz,pel);
+                    
+                    dazdx = -y;
+                    dazdy = 1 -  ( x.^2 ) ./ (1 + x); 
+                    dazdz = ( y .* z ) ./ (1 + x) ;
+
+                    deldx = -z ;
+                    deldy = ( y .* z ) ./ (1 + x) ;
+                    deldz = 1 -  ( y.^2 ) ./ (1 + x) ;
+
+
+                    rdazwx = 0*dazdx + z.*dazdy - y.*dazdz;
+                    rdazwy = -z.*dazdx - 0.*dazdy + x.*dazdz;
+                    rdazwz = y.*dazdx - x.*dazdy + 0*dazdz;
+
+                    rdelwx = 0*deldx + z.*deldy - y.*deldz ;
+                    rdelwy = -z.*deldx + 0*deldy + x.*deldz;
+                    rdelwz = y.*deldx - x.*deldy + 0.*deldz ;
+
+                    Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, length(az(:))),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, length(az(:))));
+                    Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, length(az(:))),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, length(az(:))));
+
+
+                    dazdx = -py;
+                    dazdy = 1 -  ( px.^2 ) ./ (1 + px); 
+                    dazdz = -( py .* pz ) ./ (1 + px) ;
+
+                    deldx = -pz ;
+                    deldy = -( py .* pz ) ./ (1 + px) ;
+                    deldz = 1 -  ( py.^2 ) ./ (1 + px) ;
+
+
+
+                    dxdaz = dazdx;
+                    dydaz = dazdy;
+                    dzdaz = dazdz;
+                    dxdel = deldx;
+                    dydel = deldy;
+                    dzdel = deldz;
+
+                    rdazwx = 0*dazdx + pz.*dazdy - py.*dazdz;
+                    rdazwy = -pz.*dazdx - 0.*dazdy + px.*dazdz;
+                    rdazwz = py.*dazdx - px.*dazdy + 0*dazdz;
+
+                    rdelwx = 0*deldx + pz.*deldy - py.*deldz ;
+                    rdelwy = -pz.*deldx + 0*deldy + px.*deldz;
+                    rdelwz = py.*deldx - px.*deldy + 0.*deldz ;
+
             end
 
             % scale by radius so the translations are in the right units (m)
