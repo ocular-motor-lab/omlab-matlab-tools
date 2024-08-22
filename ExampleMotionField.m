@@ -41,6 +41,7 @@ end
 figure
 axes('nextplot' , 'add')
 colors = get(gca,'colororder');
+hs = [];
 hs.quivertJwflat = quiver(0,0, 0*2 ,0*2,'color',colors(3,:),'linewidth',1,'LineStyle',':');
 hs.quivertJvflat = quiver(0,0, 0*2 ,0*2,'color',colors(4,:),'linewidth',1,'LineStyle',':');
 hs.quivertAllvflat  = quiver(0,0, 0*2 ,0*2,'color','k','linewidth',1);
