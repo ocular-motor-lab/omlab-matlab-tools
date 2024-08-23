@@ -88,7 +88,7 @@ classdef Geometry3D
 
             % get the sample visual directions in spherical coordinates
             % depending on the coordinate system 
-            N = 2^round(log2(N)); % make sure N is a square number
+            N = round(sqrt(N)).^2; % make sure N is a square number
             range = 80;
             step = range*2/(sqrt(N)-1);
             [az, el] = meshgrid(deg2rad(-range:step:range),deg2rad(-range:step:range)); % azimuths and elevations to include
@@ -119,8 +119,8 @@ classdef Geometry3D
             
             % collect the jacobians into 3D matrices 2x3xN 
             % (2x3 jacobian at each visual direciton)
-            Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, length(az(:))),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, length(az(:))));
-            Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, length(az(:))),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, length(az(:))));
+            Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, numel(az(:))),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, numel(az(:))));
+            Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, numel(az(:))),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, numel(az(:))));
 
             % Calculate distances for visual directions
             switch(stim)

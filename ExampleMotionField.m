@@ -5,7 +5,7 @@ w = [0 0 0]';
 v = [1 0.5 0]';
 eyeel = 0; %deg
 h =  1;
-N = 250;
+N = 500;
 
 stim = "Ground plane"; % "Ground plane" or "Sphere at 1m"
 
