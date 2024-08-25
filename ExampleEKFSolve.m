@@ -1,15 +1,15 @@
 %%
-% clear all, close all
+clear all, close all
 
 
 stim = "Ground plane"; % "Ground plane" or "Sphere at 1m"
 w = [0 0 0]'; %rad/s
-v = [2 0 0]'; %m/s
-eyeElevation = -30; %deg
+v = [1 0.5 0]'; %m/s
+eyeElevation = -90; %deg
 h =  1.5; % m
-N = 500;
+N = 200;
 
-noiseLevelStd = 0; 
+noiseLevelStd = 0.5; 
 
 [motionField, visualDirections, motionFieldLinear, motionFieldRotational, Jv, Jw] = Geometry3D.CalculateMotionField(N, w, v, h, eyeElevation, stim);
 
@@ -25,14 +25,6 @@ z = [visualDirections(:,3);visualDirections(:,3)];
 motionField = [motionField(:,1);motionField(:,2)];
 Jvv = [ squeeze(Jv(1,:,:))';squeeze(Jv(2,:,:))'];
 Jww = [ squeeze(Jw(1,:,:))';squeeze(Jw(2,:,:))'];
-J = [Jww,zeros(size(Jww));zeros(size(Jvv)),Jvv];
-% some elements may be nan, not sure why ...
-badSamples = isnan(motionField);
-motionField(badSamples) = [];
-x(badSamples) = [];
-y(badSamples) = [];
-z(badSamples) = [];
-J(badSamples) = []; % REVIEW THIS
 
 
 % true values of the estimates
@@ -44,7 +36,8 @@ serror = [];
 Derror = [];
 
 % initial estimates
-stateEst = [0 0 0 0 0 0]';
+wEst = [0 0 0]';
+vEst = [0 0 0]';
 eyeelEst = 0;
 hest = h; % known
 % Dest = zeros(height(visualDirections)*2,1);
@@ -52,34 +45,61 @@ DepthEst = max( -1/hest * (x*sind(-20) + z*cosd(-20)) , 0);
 % DepthEst = rand(size(x));
 DepthEst = DepthEst(1:end/2);
 
+xState = [wEst; vEst; DepthEst];
+
+F = zeros(height(xState));
+Q = eye(height(xState))*0.01; % state noise
+R = eye(height(motionField))*0.1; % measurement noise
+P = eye(height(xState))*1; % State covariance estimate
+
 % gradient descend
-for i=1:500
+for i=1:100
 
-    D = diag([DepthEst;DepthEst]);
-
-    % sensory prediction error
-    motionFieldPredictionError = (Jww*stateEst(1:3) + D*Jvv*stateEst(4:6) ) - motionField;
-
-    % gradeints of loss of over the estimates
-    % loss is mean squared motion field prediction error
+    wEst = xState(1:3);
+    vEst = xState(4:6);
+    DepthEst = xState(7:end);
 
     % assume we know that the pairs of motion estimates are matched to the
     % same visual direction and therefore the same depth. So we have half
     % the D estimates as motion predictions
-    gradD = -2*motionFieldPredictionError.*Jvv*stateEst(4:6);
-    gradD = (gradD(1:end/2) + gradD(end/2+1:end))/2;
-    gradw = -2*Jww'*motionFieldPredictionError;
-    gradv = -2*Jvv'*(motionFieldPredictionError.*[DepthEst;DepthEst]);
+    D = diag([DepthEst;DepthEst]); 
 
-    % learning rates
-    lr = 0.002;
 
-    DepthEst = DepthEst + 10*lr*gradD;
-    stateEst = stateEst + lr*[gradw;gradv];
+    % state update just assumes the same state.
+    % TODO: add dependency of position on velocities
+    xState = xState;
+
+    P = F*P*F' + Q;
+
+    % sensory prediction error or innovation
+    hEstimate = Jww*wEst + D*Jvv*vEst;
+    yInnovation = motionField - hEstimate;
+
+
+    % Jacobian
+    hw = Jww;
+    hv = D*Jvv;
+    hDd = Jvv*vEst;
+    hD = [diag(0.5*(hDd(1:end/2) + hDd(end/2+1:end))); diag(0.5*(hDd(1:end/2) + hDd(end/2+1:end)))];
+
+
+    H = [hw hv hD];
+
+    % covariance of the innovation
+    S = H*P*H' + R;
+
+    % kalman gain (Gradient)
+    K = P*H'/S;
+
+    % State update
+    xState = xState + K*yInnovation;
+
+    % update of covariance estimate
+    P = (eye(height(P)) - K*H)*P;
 
     
-    serror(:,i) = truestate - stateEst;
-    Derror(:,i) = trueD - DepthEst;
+    serror(:,i) = truestate - xState(1:6);
+    Derror(:,i) = trueD - xState(7:end);
 end
 
 
@@ -115,7 +135,7 @@ motionFieldLinear = rad2deg(motionFieldLinear);
 motionField = rad2deg(motionField);
 
 quiver( azdeg(1:end/2),  eldeg(1:end/2), motionField(1:end/2), motionField(end/2+1:end),'linewidth',1.5 ) ;
-    motionFieldPred = (Jww*stateEst(1:3) + D*Jvv*stateEst(4:6)) ;
+    motionFieldPred = (Jww*xState(1:3) + D*Jvv*xState(4:6)) ;
 quiver( azdeg(1:end/2),  eldeg(1:end/2), motionFieldPred(1:end/2), motionFieldPred(end/2+1:end),'color','r');
 legend({'True' 'Prediction'})
 
