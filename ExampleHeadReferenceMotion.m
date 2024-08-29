@@ -61,7 +61,7 @@ tiledlayout(1,3);
 nexttile, set(gca,'nextplot','add');
 AddAxes();
 quiver(motionAz,motionEl, motionField1(:,1), -motionField1(:,2),'color','k','linewidth',2)
-title({'Head reference' sprintf('heading %0.1f m/s az. %0.1f deg)',headingSpeed, headingAzimuth)})
+title({'Head reference' sprintf('(heading %0.1f m/s az. %0.1f deg)',headingSpeed, headingAzimuth)})
 
 h1 = plot(vazHead,velHead,'go','linewidth',2);
 h2 = plot(eyeAz,eyeEl,'ro','linewidth',2);
