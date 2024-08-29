@@ -240,7 +240,8 @@ classdef Geometry3D
             stim = app.Values.Stimulus;
 
             coordSys = app.Values.CoordinateSystem;
-            [motionField, visualDirections, motionFieldLinear, motionFieldRotational, Jv, Jw] = Geometry3D.CalculateMotionField(N, w, v, h, eyeel, stim, coordSys);
+            visualDirections = Geometry3D.SampleVisualDirections(N,coordSys);
+            [motionField, motionFieldLinear, motionFieldRotational] = Geometry3D.CalculateMotionField(visualDirections, w, v, h, eyeel, stim, coordSys);
             x = visualDirections(:,1);
             y = visualDirections(:,2);
             z = visualDirections(:,3);
