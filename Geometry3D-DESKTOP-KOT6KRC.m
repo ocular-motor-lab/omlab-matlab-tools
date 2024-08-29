@@ -34,18 +34,18 @@ classdef Geometry3D
             app = InteractiveUI('Coordinate systems',@(app) (Geometry3D.demoCoordinateSystemsAndPlaneUpdate(app)), 0.1); 
             app.AddDropDown('Coordinate System',   1,  [ "TangentSphere", "Fick", "Helmholtz", "Harms","Hess"])
             % app.AddSlider('Eye Radius',           0.02,  [0.01    1])
-            app.AddSlider('Azimuth',           -20,  [-90 90])
+            app.AddSlider('Azimuth',           -40,  [-90 90])
             app.AddSlider('Elevation',           20,  [-90 90])
             % app.AddSlider('Torsion Version',      0,  [-20  20])
             % app.AddSlider('Torsion Vergence',     0,  [-20  20])
             %app.AddSlider('Ground plane slant',          0,  [-90  90])
             % app.AddSlider('Ground plane tilt',           0,  [0    90])
-            app.AddSlider('Angular velocity X (deg/s)',   60,  [-100 100] )
-            app.AddSlider('Angular velocity Y (deg/s)',   -20,  [-100 100])
-            app.AddSlider('Angular velocity Z (deg/s)',   60,  [-100 100])
-            app.AddSlider('Linear velocity X (m/s)',    -.5,  [-5 5])
-            app.AddSlider('Linear velocity Y (m/s)',    0.8,  [-5 5])
-            app.AddSlider('Linear velocity Z (m/s)',    0.7,  [-5 5])
+            app.AddSlider('Angular velocity X (deg/s)',   1*60,  [-100 100] )
+            app.AddSlider('Angular velocity Y (deg/s)',   -0.5*60,  [-100 100])
+            app.AddSlider('Angular velocity Z (deg/s)',   1.3*60,  [-100 100])
+            app.AddSlider('Linear velocity X (m/s)',    .5,  [-5 5])
+            app.AddSlider('Linear velocity Y (m/s)',    1,  [-5 5])
+            app.AddSlider('Linear velocity Z (m/s)',    -1,  [-5 5])
             app.AddDropDown('Stimulus',      2,  ["Ground plane" "Sphere at 1m"])
             app.AddSlider('Height (m)',    1,  [0 10])
             app.AddSlider('Eye elevation (deg)', 0, [-90 90])
@@ -81,24 +81,38 @@ classdef Geometry3D
             end
         end
 
-        function visualDirections = SampleVisualDirections(N, coordSys)
-            % Samples points in the front of a sphere according to the coordinate system
-            %
-            % N: number of visual directions
-            % coordSysm: coordinate system of the sample
-            %           - 'Fick'
-            %           - 'Helmholtz'
-            %           - 'Harms'
-            %           - 'Hess'
-            %           - 'TangentSphere'
-            
+        function [motionField, visualDirections, motionFieldLinear, motionFieldRotational] = CalculateMotionFieldHeadReference(N, v, height, eyeAzimuthHelmholtz, eyeElevationHelmholtz, gain, stim, coordSys)
 
+            % rotation matrix of the eye in head reference
+            Reye = Geometry3D.Helm2RotMat(eyeAzimuthHelmholtz,  eyeElevationHelmholtz, 0);
+            veye = Reye'*v;
+            
+            % Depth along the direction of gaze
+            [x,y,z] = Geometry3D.HelmholtzToSphere(eyeAzimuthHelmholtz, eyeElevationHelmholtz);
+            D = max( -1/height * (x*sind(eyeElevation) + z*cosd(eyeElevation)) , 0);
+
+            % collect the jacobians into 3D matrices 2x3xN 
+            % (2x3 jacobian at each visual direciton)
+            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
+            [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.TangentSphereRotationalJacobian(x,y,z);
+            Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, numel(az(:))),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, numel(az(:))));
+            Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, numel(az(:))),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, numel(az(:))));
+
+            % the eye velocity cancels the linear velocity times a gain
+            % factor
+            w = -gain*Jw'*D*Jv*v; 
+
+            % get the retinal motion field
+            [motionField, visualDirections, motionFieldLinear, motionFieldRotational] = CalculateMotionField(N, w, veye, height, eyeElevationHelmholtz, stim, coordSys);
+        end
+
+        function [motionField, visualDirections, motionFieldLinear, motionFieldRotational, Jv, Jw] = CalculateMotionField(N, w, v, height, eyeElevation, stim, coordSys)
             if ( ~exist('coordSys','var'))
                 coordSys = 'TangentSphere';
             end
 
             % get the sample visual directions in spherical coordinates
-            % depending on the coordinate system
+            % depending on the coordinate system 
             N = round(sqrt(N)).^2; % make sure N is a square number
             range = 80;
             step = range*2/(sqrt(N)-1);
@@ -107,118 +121,48 @@ classdef Geometry3D
             switch(coordSys)
                 case 'Fick'
                     [x,y,z] = Geometry3D.FickToSphere(az,el);
-                case 'Helmholtz'
-                    [x,y,z] = Geometry3D.HelmholtzToSphere(az,el);
-                case 'Harms'
-                    [x,y,z] = Geometry3D.HarmsToSphere(az,el);
-                case 'Hess'
-                    [x,y,z] = Geometry3D.HessToSphere(az,el);
-                case 'TangentSphere'
-                    [x, y, z] = Geometry3D.SpiralSphere(N);
-            end
-            visualDirections = [x(:) y(:) z(:)];
-        end
-
-        function [motionField, visualDirections, motionFieldLinear, motionFieldRotational] = CalculateMotionFieldHeadReference(N, v, height, eyeAzimuthHelmholtz, eyeElevationHelmholtz, gain, stim, coordSys)
-
-            % rotation matrix of the eye in head reference
-            Reye = Geometry3D.Helm2RotMat(eyeAzimuthHelmholtz,  eyeElevationHelmholtz, 0);
-            veye = Reye'*v;
-            
-            % Depth along the direction of gaze
-            [x,~,z] = Geometry3D.HelmholtzToSphere(eyeAzimuthHelmholtz, eyeElevationHelmholtz);
-            d = Geometry3D.CalculateDepthField(eyeAzimuthHelmholtz, eyeElevationHelmholtz);
-            D = max( -1/height * (x*sind(eyeElevation) + z*cosd(eyeElevation)) , 0);
-
-            % the eye velocity cancels the linear velocity at the fovea
-            % times a gain factor
-            [Jv, Jw] = CalculateMotionJacobianFields([0,0,0]);
-            w = -gain*Jw'*D*Jv*v; 
-
-            % get the retinal motion field
-            [motionField, visualDirections, motionFieldLinear, motionFieldRotational] = CalculateMotionField(N, w, veye, height, eyeElevationHelmholtz, stim, coordSys);
-        end
-
-        function depthsDiopter = CalculateDepthField(visualDirections, eyeOrientationRotMat, eyePositionXYZ, stim)
-            % Calculate distances (in diopters) for visual directions
-
-            % Rotate visual directions so they are in world reference
-            visualDirections = (eyeOrientationRotMat*visualDirections')';
-
-            height = eyePositionXYZ(3);
-            
-            switch(stim)
-                case "Ground plane"
-                    depthsDiopter = max( -1/height * visualDirections(:,3) , 0) ;
-                case "Sphere at 1m"
-                    depthsDiopter = ones(N,1);
-            end
-        end
-
-        function [Jw, Jv] = CalculateMotionJacobianFields(visualDirections, coordSys)
-            if ( ~exist('coordSys','var'))
-                coordSys = 'TangentSphere';
-            end
-
-            N = height(visualDirections);
-
-            switch(coordSys)
-                case 'Fick'
-                    [az, el] = Geometry3D.SphereToFick(visualDirections(:,1),visualDirections(:,2),visualDirections(:,3));
                     [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(az, el);
                     [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.FickRotationalJacobian(az, el);
                 case 'Helmholtz'
-                    [az, el] = Geometry3D.SphereToHelmholtz(visualDirections(:,1),visualDirections(:,2),visualDirections(:,3));
+                    [x,y,z] = Geometry3D.HelmholtzToSphere(az,el);
                     [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(az, el);
                     [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HelmholtzRotationalJacobian(az, el);
                 case 'Harms'
-                    [az, el] = Geometry3D.SphereToHarms(visualDirections(:,1),visualDirections(:,2),visualDirections(:,3));
+                    [x,y,z] = Geometry3D.HarmsToSphere(az,el);
                     [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsLinearJacobian(az, el);
                     [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HarmsRotationalJacobian(az, el);
                 case 'Hess'
-                    [az, el] = Geometry3D.SphereToHess(visualDirections(:,1),visualDirections(:,2),visualDirections(:,3));
+                    [x,y,z] = Geometry3D.HessToSphere(az,el);
                     [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HessLinearJacobian(az, el);
                     [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HessRotationalJacobian(az, el);
                 case 'TangentSphere'
-                    x = visualDirections(:,1);
-                    y = visualDirections(:,2);
-                    z = visualDirections(:,3);
+                    [x, y, z] = Geometry3D.SpiralSphere(N);
+                    % xx = ParticleSampleSphere('N',N);
+                    % x = xx(:,1);
+                    % y = xx(:,2);
+                    % z = xx(:,3);
                     [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
                     [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.TangentSphereRotationalJacobian(x,y,z);
             end
-
-            % collect the jacobians into 3D matrices 2x3xN
+            visualDirections = [x(:) y(:) z(:)];
+            
+            % collect the jacobians into 3D matrices 2x3xN 
             % (2x3 jacobian at each visual direciton)
-            Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, N),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, N));
-            Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, N),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, N));
-        end
+            Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, numel(az(:))),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, numel(az(:))));
+            Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, numel(az(:))),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, numel(az(:))));
 
-        function [motionField, motionFieldLinear, motionFieldRotational, Jv, Jw] = CalculateMotionField(visualDirections, w, v, eyePositionXYZ, eyeOrientationRotMat, stim, coordSys)
-            if ( ~exist('coordSys','var'))
-                coordSys = 'TangentSphere';
+            % Calculate distances for visual directions
+            switch(stim)
+                case "Ground plane"
+                    D = diag( max( -1/height * (x*sind(eyeElevation) + z*cosd(eyeElevation)) , 0)  );
+                case "Sphere at 1m"
+                    D = diag(ones(N,1));
             end
-
-            if ( ~exist('stim','var'))
-                stim = 'Ground plane';
-            end
-
-            if ( ~exist('eyeOrientationRotMat','var'))
-                eyeOrientationRotMat = eye(3);
-            end
-
-            [Jw, Jv] = Geometry3D.CalculateMotionJacobianFields(visualDirections, coordSys);
-
-            d = Geometry3D.CalculateDepthField(visualDirections, eyeOrientationRotMat, eyePositionXYZ, stim);
-            D = diag(d);
-
-            % for rotational assume that there is nothing when distance is
-            % infinite, TODO: make this depend on stimulus configuration
-            stimPresent = double(diag(d>0));
 
             % Calculate the motion field at the visual directions
-            motionFieldRotational = stimPresent*squeeze(pagemtimes(Jw, w))';
+            motionFieldRotational = squeeze(pagemtimes(Jw, w))';
             motionFieldLinear = D*squeeze(pagemtimes(Jv, v))';
-            motionField = -motionFieldRotational - motionFieldLinear;
+            motionField = motionFieldRotational + motionFieldLinear;
         end
 
         function hs = DisplayMotionField(motionField, visualDirections, hs)
@@ -236,11 +180,10 @@ classdef Geometry3D
             eyeel = app.Values.EyeElevation_deg_;
             h =  app.Values.Height_m_;
             N = 250;
-            N = round(sqrt(N)).^2;
             stim = app.Values.Stimulus;
 
             coordSys = app.Values.CoordinateSystem;
-            [motionField, visualDirections, motionFieldLinear, motionFieldRotational, Jv, Jw] = Geometry3D.CalculateMotionField(N, w, v, h, eyeel, stim, coordSys);
+            [motionField, motionFieldLinear, motionFieldRotational, visualDirections] = Geometry3D.CalculateMotionField(N, w, v, h, eyeel, stim, coordSys);
             x = visualDirections(:,1);
             y = visualDirections(:,2);
             z = visualDirections(:,3);
@@ -287,9 +230,9 @@ classdef Geometry3D
 
                 % draw point
                 app.Data.hs.meshpoint = mesh(zeros(2,2), zeros(2,2),zeros(2,2), 'EdgeColor','none','FaceColor','k');
-                app.Data.hs.textpoint = text(0*1.2,0*1.2,0*1.2, 'p','fontsize',14, 'FontWeight','normal','HorizontalAlignment','right','VerticalAlignment','top');
+                app.Data.hs.textpoint = text(0*1.2,0*1.2,0*1.2, '(\theta,\psi)','fontsize',14, 'FontWeight','normal','HorizontalAlignment','right','VerticalAlignment','top');
 
-                % draw tangent plane in 3D
+                % draw tangent
                 app.Data.hs.meshtangent = mesh(zeros(2,2), zeros(2,2),zeros(2,2), 'EdgeColor',[0.7 0.7 0.7],'FaceAlpha', 0.3,'facecolor',[0.8 0.8 0.8]);
                 app.Data.hs.quiverdaz = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color',[0.6 0.6 0.6],'linewidth',2);
                 app.Data.hs.quiverdel = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color',[0.6 0.6 0.6],'linewidth',2);
@@ -298,27 +241,37 @@ classdef Geometry3D
                 app.Data.hs.quivertv  = quiver3(0,0,0, 0*2, 0*2 ,0*2,'color','k','linewidth',2 );
 
 
-                % draw flat plane
+                % draw flat
                 app.Data.hs.ax2 = subplot(1,2,2,'nextplot','add');
                 axis equal;
-                % xlabel('Azimuth ')
-                % ylabel('Elevantion ')
 
-                set(gca,'xlim',[-90 90],'ylim',[-80 80])
-                set(gca,'xticklabels',[])
-                set(gca,'yticklabels',[])
+%                 app.Data.hs.meshflat = mesh(zeros(2,2), zeros(2,2), zeros(2,2) ,'FaceAlpha', 0.9,'facecolor',[1 1 1]);
+
+                % set(gca,'xtick',[],'ytick',[])
+%                 view(90,0)
+                %                 set(gca,'visible','off')
+%                 title(altTitles{i})
+                xlabel('Azimuth ')
+                ylabel('Elevantion ')
+
+                set(gca,'xlim',[-80 80],'ylim',[-80 80])
           
 
-                app.Data.hs.textpointflat = text(0*1.2,0*1.2, 'p','fontsize',14, 'FontWeight','normal','HorizontalAlignment','right','VerticalAlignment','top');
+%                 app.Data.hs.meshpointflat = mesh(zeros(2,2), zeros(2,2),zeros(2,2), 'EdgeColor','none','FaceColor','k');
+                app.Data.hs.textpointflat = text(0*1.2,0*1.2, '(\theta,\psi)','fontsize',14, 'FontWeight','normal','HorizontalAlignment','right','VerticalAlignment','top');
+
                 app.Data.hs.quiverdazflat = quiver(0,0, 0*2 ,0*2,'color',[0.6 0.6 0.6],'linewidth',2);
                 app.Data.hs.quiverdelflat = quiver(0,0, 0*2 ,0*2,'color',[0.6 0.6 0.6],'linewidth',2 );
+                app.Data.hs.quivertvwflat = quiver(0,0, 0*2 ,0*2,'color',colors(3,:),'linewidth',2  ,'LineStyle',':');
+                app.Data.hs.quivertvvflat = quiver(0,0, 0*2,0*2,'color',colors(4,:),'linewidth',2  ,'LineStyle',':');
+                app.Data.hs.quivertvflat  = quiver(0,0, 0*2,0*2,'color','k','linewidth',2);
 
 
                 app.Data.hs.quivertJwflat = quiver(0,0, 0*2 ,0*2,'color',colors(3,:),'linewidth',1,'LineStyle',':');
                 app.Data.hs.quivertJvflat = quiver(0,0, 0*2 ,0*2,'color',colors(4,:),'linewidth',1,'LineStyle',':');
                 app.Data.hs.quivertAllvflat  = quiver(0,0, 0*2 ,0*2,'color','k','linewidth',1);
 
-                legend([app.Data.hs.quivertJvflat app.Data.hs.quivertJwflat app.Data.hs.quivertAllvflat app.Data.hs.quiverdazflat],{'Linear motion' 'Rotational motion' 'Total motion' 'Tanget basis'})
+                legend([app.Data.hs.quivertJvflat app.Data.hs.quivertJwflat app.Data.hs.quivertAllvflat],{'Linear motion' 'Rotational motion' 'Total motion'})
 
             end
 
@@ -331,7 +284,7 @@ classdef Geometry3D
             % the motion field on the sphere
 
             range = 80;
-            step = range*2/(sqrt(N)-1);
+            step = 5;
             [az, el] = meshgrid(deg2rad(-range:step:range),deg2rad(-range:step:range)); % azimuths and elevations to include
             switch(coordSys)
                 case 'Fick'
@@ -440,8 +393,8 @@ classdef Geometry3D
 
             % update flat motion field point
 
-            pointmotionFieldRotational = [rdazwx, rdazwy, rdazwz; rdelwx, rdelwy, rdelwz] * w;
-            pointmotionFieldLinear = [dazdx, dazdy, dazdz; deldx, deldy, deldz] * v;
+            pointmotionFieldRotational = [rdazwx, rdazwy, rdazwz; rdelwx, rdelwy, rdelwz] * w';
+            pointmotionFieldLinear = [dazdx, dazdy, dazdz; deldx, deldy, deldz] * v';
             pointmotionField = pointmotionFieldRotational + pointmotionFieldLinear;
 
 
@@ -455,9 +408,17 @@ classdef Geometry3D
             set(app.Data.hs.textpointflat, 'Position', [pazdeg, peldeg]);
             set(app.Data.hs.quiverdazflat, 'xdata', pazdeg, 'ydata', peldeg);
             set(app.Data.hs.quiverdelflat, 'xdata', pazdeg, 'ydata', peldeg);
-            set(app.Data.hs.quiverdazflat, 'UData', rad2deg(1), 'VData', rad2deg(0));
-            set(app.Data.hs.quiverdelflat, 'UData', rad2deg(0), 'VData', rad2deg(1));
+            set(app.Data.hs.quiverdazflat, 'UData', rad2deg(dydaz), 'VData', rad2deg(dzdaz));
+            set(app.Data.hs.quiverdelflat, 'UData', rad2deg(dydel), 'VData', rad2deg(dzdel));
 
+
+            set(app.Data.hs.quivertvwflat, 'xdata', pazdeg, 'ydata', peldeg);
+            set(app.Data.hs.quivertvvflat, 'xdata', pazdeg, 'ydata', peldeg);
+            set(app.Data.hs.quivertvflat, 'xdata', pazdeg, 'ydata', peldeg);
+            set(app.Data.hs.quivertvwflat, 'UData', pointmotionFieldRotational(1), 'VData', pointmotionFieldRotational(2));
+            set(app.Data.hs.quivertvvflat, 'UData', pointmotionFieldLinear(1), 'VData', pointmotionFieldLinear(2));
+            set(app.Data.hs.quivertvflat, 'UData', pointmotionField(1), 'VData', pointmotionField(2));
+  
             
             drawnow limitrate
         end
@@ -2639,13 +2600,14 @@ classdef Geometry3D
 
         function [duwxdt, duwydt, duwzdt, dvwxdt, dvwydt, dvwzdt] = TangentSphereRotationalJacobian(x,y,z)
 
-            duwxdt = -y;
-            duwydt = -1 +  ( y.^2 ) ./ (1 + x);
-            duwzdt = ( y .* z ) ./ (1 + x) ;
+            duwxdt = z;
+            duwydt = ( y .* z ) ./ (1 + x);
+            duwzdt =  -1 +  ( z.^2 ) ./ (1 + x);
 
-            dvwxdt = z;
-            dvwydt = ( y .* z ) ./ (1 + x);
-            dvwzdt =  -1 +  ( z.^2 ) ./ (1 + x);
+            dvwxdt = -y;
+            dvwydt = 1 -  ( y.^2 ) ./ (1 + x);
+            dvwzdt = -( y .* z ) ./ (1 + x) ;
+
         end
 
         function [x, y, z] = SpiralSphere(Ni)

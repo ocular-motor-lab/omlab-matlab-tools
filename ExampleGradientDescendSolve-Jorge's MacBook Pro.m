@@ -1,11 +1,11 @@
 %%
-% clear all, close all
+clear all, close all
 
 
 stim = "Ground plane"; % "Ground plane" or "Sphere at 1m"
-w = [0 0 0]'; %rad/s
+w = [0 1 1]'; %rad/s
 v = [2 0 0]'; %m/s
-eyeElevation = -20; %deg
+eyeElevation = -90; %deg
 h =  1.5; % m
 N = 500;
 

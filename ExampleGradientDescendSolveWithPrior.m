@@ -5,7 +5,7 @@
 stim = "Ground plane"; % "Ground plane" or "Sphere at 1m"
 w = [0 0 0]'; %rad/s
 v = [2 0 0]'; %m/s
-eyeElevation = -20; %deg
+eyeElevation = -0; %deg
 h =  1.5; % m
 N = 500;
 
@@ -38,6 +38,8 @@ J(badSamples) = []; % REVIEW THIS
 % true values of the estimates
 truestate =[w;v];
 trueD = max( -1/h * (x(1:end/2)*sind(eyeElevation) + z(1:end/2)*cosd(eyeElevation)) , 0);
+depthPrior = max( -1/h * (x*sind(-20) + z*cosd(-20)) , 0);
+depthPrior = depthPrior(1:end/2);
 
 % variables to collect the evolution of the errors
 serror = [];
@@ -47,15 +49,12 @@ Derror = [];
 stateEst = [0 0 0 0 0 0]';
 eyeelEst = 0;
 hest = h; % known
-% Dest = zeros(height(visualDirections)*2,1);
-DepthEst = max( -1/hest * (x*sind(-20) + z*cosd(-20)) , 0);
-% DepthEst = rand(size(x));
-DepthEst = DepthEst(1:end/2);
+DepthEst = zeros(size(depthPrior));
 
 % gradient descend
 for i=1:500
 
-    D = diag([DepthEst;DepthEst]);
+    D = diag([DepthEst;DepthEst]+[depthPrior;depthPrior]);
 
     % sensory prediction error
     motionFieldPredictionError = (Jww*stateEst(1:3) + D*Jvv*stateEst(4:6) ) - motionField;
@@ -69,17 +68,17 @@ for i=1:500
     gradD = -2*motionFieldPredictionError.*Jvv*stateEst(4:6);
     gradD = (gradD(1:end/2) + gradD(end/2+1:end))/2;
     gradw = -2*Jww'*motionFieldPredictionError;
-    gradv = -2*Jvv'*(motionFieldPredictionError.*[DepthEst;DepthEst]);
+    gradv = -2*Jvv'*(motionFieldPredictionError.*([DepthEst;DepthEst]+[depthPrior;depthPrior]));
 
     % learning rates
     lr = 0.002;
 
-    DepthEst = DepthEst + 10*lr*gradD;
+    DepthEst = DepthEst + 100*lr*gradD;
     stateEst = stateEst + lr*[gradw;gradv];
 
     
     serror(:,i) = truestate - stateEst;
-    Derror(:,i) = trueD - DepthEst;
+    Derror(:,i) = trueD - (DepthEst+depthPrior);
 end
 
 
