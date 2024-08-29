@@ -11,7 +11,7 @@ eyeAzimuth          = 30; % deg positive right
 eyeElevation        = -40; % deg positive up
 
 % eye movement gain
-gain = 0.4;
+gain = 1;
 
 % get the rotation matrix of the eye (doing a listings rotation so there is no false torsion)
 direction = atan2(deg2rad(eyeElevation), -deg2rad(eyeAzimuth));

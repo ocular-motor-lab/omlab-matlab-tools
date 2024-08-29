@@ -218,7 +218,7 @@ classdef Geometry3D
             % Calculate the motion field at the visual directions
             motionFieldRotational = stimPresent*squeeze(pagemtimes(Jw, w))';
             motionFieldLinear = D*squeeze(pagemtimes(Jv, v))';
-            motionField = -motionFieldRotational - motionFieldLinear;
+            motionField = motionFieldRotational + motionFieldLinear;
         end
 
         function hs = DisplayMotionField(motionField, visualDirections, hs)
@@ -2640,13 +2640,13 @@ classdef Geometry3D
 
         function [duwxdt, duwydt, duwzdt, dvwxdt, dvwydt, dvwzdt] = TangentSphereRotationalJacobian(x,y,z)
 
-            duwxdt = -y;
-            duwydt = -1 +  ( y.^2 ) ./ (1 + x);
-            duwzdt = ( y .* z ) ./ (1 + x) ;
+            duwxdt = y;
+            duwydt = 1 -  ( y.^2 ) ./ (1 + x);
+            duwzdt = -( y .* z ) ./ (1 + x) ;
 
-            dvwxdt = z;
-            dvwydt = ( y .* z ) ./ (1 + x);
-            dvwzdt =  -1 +  ( z.^2 ) ./ (1 + x);
+            dvwxdt = -z;
+            dvwydt = -( y .* z ) ./ (1 + x);
+            dvwzdt =  1 -  ( z.^2 ) ./ (1 + x);
         end
 
         function [x, y, z] = SpiralSphere(Ni)
