@@ -1,7 +1,7 @@
 %%
 clear all, close all
 % heading velocity in head reference 
-headingSpeed    = 1; % m/s
+headingSpeed    = 10; % m/s
 headingAzimuth  = 10; % deg postiive up
 v = headingSpeed*[cosd(headingAzimuth) -sind(headingAzimuth) 0]'; 
 
@@ -41,6 +41,10 @@ motionField1 = Geometry3D.CalculateMotionField(visualDirections, [0 0 0]', v, [0
 motionField2 = Geometry3D.CalculateMotionField(visualDirections, [0 0 0]', veye, [0,0, eyePositionHeight], Reye);
 motionField3 = Geometry3D.CalculateMotionField(visualDirections, w, veye, [0,0, eyePositionHeight], Reye);
 
+motionField1 = rad2deg(motionField1);
+motionField2 = rad2deg(motionField2);
+motionField3 = rad2deg(motionField3);
+
 
 % plot the fields
 
@@ -57,10 +61,12 @@ eyeEl = sin(atan2(Reye(3,1),-Reye(2,1))).*acosd(Reye(1,1));
 motionAz = cos(atan2(visualDirections(:,3),-visualDirections(:,2))).*acosd(visualDirections(:,1));
 motionEl = sin(atan2(visualDirections(:,3),-visualDirections(:,2))).*acosd(visualDirections(:,1));
 
+autoscale = 'on';
+
 tiledlayout(1,3);
 nexttile, set(gca,'nextplot','add');
 AddAxes();
-quiver(motionAz,motionEl, motionField1(:,1), -motionField1(:,2),'color','k','linewidth',2)
+hq1 = quiver(motionAz,motionEl, motionField1(:,1), -motionField1(:,2),'color','k','linewidth',2, 'autoscale',autoscale);
 title({'Head reference' sprintf('(heading %0.1f m/s az. %0.1f deg)',headingSpeed, headingAzimuth)})
 
 h1 = plot(vazHead,velHead,'go','linewidth',2);
@@ -69,7 +75,7 @@ legend([h1,h2],{'heading' 'gaze'},'box','off','fontsize',14)
 
 nexttile, set(gca,'nextplot','add');
 AddAxes();
-quiver(motionAz,motionEl, motionField2(:,1), -motionField2(:,2),'color','k','linewidth',2)
+quiver(motionAz,motionEl, motionField2(:,1), -motionField2(:,2),'color','k','linewidth',2, 'autoscale',autoscale)
 title({'Eye reference' '(eye not moving)'})
 h1 = plot(vazEye,velEye,'go','linewidth',2);
 h2 = plot(0,0,'ro','linewidth',2);
@@ -77,7 +83,7 @@ legend([h1,h2],{'heading' 'gaze'},'box','off','fontsize',14)
 
 nexttile, set(gca,'nextplot','add');
 AddAxes();
-quiver(motionAz,motionEl, motionField3(:,1), -motionField3(:,2),'color','k','linewidth',2)
+quiver(motionAz,motionEl, motionField3(:,1), -motionField3(:,2),'color','k','linewidth',2, 'autoscale',autoscale)
 title({'Eye reference' sprintf('(eye moving with gain %0.1f)',gain)})
 h1 = plot(vazEye,velEye,'go','linewidth',2);
 h2 = plot(0,0,'ro','linewidth',2);
