@@ -216,7 +216,7 @@ legend({'Simulation' 'Theoretical'},'box','off')
 
  % 1 - Simulations of simple random walks with relaxation time cosntant
 
-%%
+%% varying taus
 % clear all, close all
 
 figure
@@ -240,7 +240,7 @@ PlotRW(t, x, D, tau1, tau2,Fs)
 
 
 tau1 = 0.5; % Zuber
-tau2 = 20; % not sure
+tau2 = inf; % not sure
 [x, t] = GenerateRandomWalk1D(Fs, dur, D, tau1, tau2, Reps);
 PlotRW(t, x, D, tau1, tau2,Fs)
 
@@ -248,9 +248,31 @@ PlotRW(t, x, D, tau1, tau2,Fs)
 tau1 = 0.05; % Zuber
 tau2 = 0.5; % not sure
 [x, t] = GenerateRandomWalk1D(Fs, dur, D, tau1, tau2, Reps);
+x = x + randn(size(x));
 PlotRW(t, x, D, tau1, tau2,Fs)
 
 legend({'Simulation','2Dt','Short timescale aprox','Long timescale steady state'})
+
+
+
+
+
+%% adding noise
+% clear all, close all
+
+figure
+tiledlayout(2,2,'padding', "tight", "TileSpacing", "tight");
+
+tau1 = 0.05; % Zuber
+tau2 = 1; % not sure
+[x, t] = GenerateRandomWalk1D(Fs, dur, D, tau1, tau2, Reps);
+PlotRW(t, x, D, tau1, tau2,Fs)
+
+x = x + randn(size(x))*2;
+PlotRW(t, x, D, tau1, tau2,Fs)
+
+legend({'Simulation','2Dt','Short timescale aprox','Long timescale steady state'})
+
 
 function PlotRW(t, x, D, tau1, tau2,Fs)
 
@@ -274,13 +296,14 @@ ylabel('Position (arcmin)')
 title(sprintf('Brownian motion (Fs = %0.1f Hz, {\\tau_1} = %0.0fms, {\\tau_2} = %0.1f s)',1/Ts,tau1*1000, tau2))
 
 
+%     2*D * (t + tau1*( exp(-t/tau1) - 1 ) ),...
 nexttile
 plot(t,VarX,'o');
 hold
 % plot(t,VarXmeasured,'o');
 plot(t,2*D*t,'r--','linewidth',1)
 plot(t,...
-    2*D * (t + tau1*( exp(-t/tau1) - 1 ) ),...
+    2*D*tau1*(  t/tau1 - 3/2  +2*exp(-t/tau1)  -1/2*exp(-2*t/tau1)  ), ...
     'r','linewidth',2)
 if ( SteadyStateVarx< D*3)
     plot(t,SteadyStateVarx*ones(size(t)),'g','linewidth',2)
@@ -355,11 +378,22 @@ VarV = 2*D/Ts;
 SigmaV = sqrt(VarV);
 
 t = (0:Ts:t)';
-v = SigmaV*randn(height(t),Reps);
+v = SigmaV*randn(numel(t),Reps);
 
 b = Ts^2;
 a = [(tau1 + Ts + Ts^2/tau2) -(2*tau1+Ts) +tau1];
 x = filter(b,a,v);
+
+% x = zeros(numel(t),Reps);
+% for i=1:length(t)
+%     if ( i>3 )
+%         x(i,:) = 1/a(1)*(b(1)*v(i,:) -a(2)*x(i-1,:) -a(3)*x(i-2,:) );
+%     elseif ( i>2 )
+%         x(i,:) = 1/a(1)*(b(1)*v(i,:) -a(2)*x(i-1,:) );
+%     else
+%         x(i,:) = 1/a(1)*(b(1)*v(i,:) );
+%     end
+% end
 
 end
 
