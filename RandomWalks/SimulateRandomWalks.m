@@ -257,19 +257,23 @@ legend({'Simulation','2Dt','Short timescale aprox','Long timescale steady state'
 
 
 
-%% adding noise
+%% adding noise and bias
 % clear all, close all
 
 figure
-tiledlayout(2,2,'padding', "tight", "TileSpacing", "tight");
+tiledlayout(3,2,'padding', "tight", "TileSpacing", "tight");
 
 tau1 = 0.05; % Zuber
 tau2 = 1; % not sure
 [x, t] = GenerateRandomWalk1D(Fs, dur, D, tau1, tau2, Reps);
 PlotRW(t, x, D, tau1, tau2,Fs)
 
-x = x + randn(size(x))*2;
-PlotRW(t, x, D, tau1, tau2,Fs)
+x1 = x + randn(size(x))*2;
+PlotRW(t, x1, D, tau1, tau2,Fs)
+
+bias = 0.01;
+x2 = x + cumsum(bias*ones(size(x)));
+PlotRW(t, x2, D, tau1, tau2,Fs)
 
 legend({'Simulation','2Dt','Short timescale aprox','Long timescale steady state'})
 
@@ -277,10 +281,7 @@ legend({'Simulation','2Dt','Short timescale aprox','Long timescale steady state'
 function PlotRW(t, x, D, tau1, tau2,Fs)
 
 
-VarX = std(x,[],2).^2;
-
-
-VarXmeasured = std(x,[],2).^2;
+VarX = mean(x.^2,2);
 vmeasured = diff(x)./diff(t);
 Ts = 1/Fs;
 SigmaV = sqrt(2*D/Ts);
@@ -384,6 +385,7 @@ b = Ts^2;
 a = [(tau1 + Ts + Ts^2/tau2) -(2*tau1+Ts) +tau1];
 x = filter(b,a,v);
 
+% equivalent to filter(b,a,v)
 % x = zeros(numel(t),Reps);
 % for i=1:length(t)
 %     if ( i>3 )
