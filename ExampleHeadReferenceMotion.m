@@ -73,6 +73,31 @@ h1 = plot(vazHead,velHead,'go','linewidth',2);
 h2 = plot(eyeAz,eyeEl,'ro','linewidth',2);
 legend([h1,h2],{'heading' 'gaze'},'box','off','fontsize',14)
 
+
+% add tv
+t =0:1:360;
+tvdeg = 60;
+tvaspectratio = 16/9;
+tvdegx = tvdeg/2;
+tvdegy = tvdegx/tvaspectratio;
+tvdiag = sqrt(tvdegx^2 + tvdegy.^2);
+
+tvx = min(max(cosd(t)*tvdiag, -tvdegx),tvdegx);
+tvy = min(max(sind(t)*tvdiag, -tvdegy),tvdegy);
+tvz = ones(size(tvx)) * tvdegx/tand(tvdegx);
+r = sqrt(tvx.^2 +tvy.^2 +tvz.^2);
+tvx = tvx./r;
+tvy = tvy./r;
+tvz = tvz./r;
+
+tvAz = cos(atan2(tvy,-tvx)).*acosd(tvz);
+tvEl = sin(atan2(tvy,-tvx)).*acosd(tvz);
+
+% figure
+plot(tvAz, tvEl);
+% a=1;
+
+
 nexttile, set(gca,'nextplot','add');
 AddAxes();
 quiver(motionAz,motionEl, motionField2(:,1), -motionField2(:,2),'color','k','linewidth',2, 'autoscale',autoscale)
@@ -106,24 +131,4 @@ set(gca,'ylim',[-90 90])
 set(gca,'xtick',[],'ytick',[],'xcolor',0.5*[1 1 1],'ycolor',0.5*[1 1 1]);
 set(gca,'YAxisLocation','origin','XAxisLocation','origin')
 
-tvdeg = 60;
-tvaspectratio = 16/9;
-tvdegx = tvdeg/2;
-tvdegy = tvdegx/tvaspectratio;
-tvdiag = sqrt(tvdegx^2 + tvdegy.^2);
-
-tvx = min(max(cosd(t)*tvdiag, -tvdegx),tvdegx);
-tvy = min(max(sind(t)*tvdiag, -tvdegy),tvdegy);
-tvz = ones(size(tvx)) * tvdegx/tand(tvdegx);
-r = sqrt(tvx.^2 +tvy.^2 +tvz.^2);
-tvx = tvx./r;
-tvy = tvy./r;
-tvz = tvz./r;
-
-tvAz = cos(atan2(tvy,-tvx)).*acosd(tvz);
-tvEl = sin(atan2(tvy,-tvx)).*acosd(tvz);
-
-% figure
-plot(tvAz, tvEl);
-% a=1;
 end
