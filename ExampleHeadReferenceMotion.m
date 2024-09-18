@@ -7,11 +7,15 @@ v = headingSpeed*[cosd(headingAzimuth) -sind(headingAzimuth) 0]';
 
 % eye position
 eyePositionHeight   = 1.5; % m positive up
-eyeAzimuth          = 30; % deg positive right
-eyeElevation        = -40; % deg positive up
+eyeAzimuth          = 6.1; % deg positive right
+eyeElevation        = -7.12; % deg positive up
 
 % eye movement gain
 gain = 1;
+% gain = 0.5;
+
+plotLimit = 40;
+numberOfPoints = 5000;
 
 % get the rotation matrix of the eye (doing a listings rotation so there is no false torsion)
 direction = atan2(deg2rad(eyeElevation), -deg2rad(eyeAzimuth));
@@ -31,7 +35,7 @@ w = -gain*Jw'*linearV'; % todo: think about torsion. This formula and the way Jw
 
 
 % calculate motion fields
-N = 500;
+N = numberOfPoints;
 visualDirections = Geometry3D.SampleVisualDirections(N);
 
 % 1 - head reference motion field (no eye rotation)
@@ -45,10 +49,15 @@ motionField1 = rad2deg(motionField1);
 motionField2 = rad2deg(motionField2);
 motionField3 = rad2deg(motionField3);
 
+motionField1 = motionField1 ./ vecnorm(motionField1, 2, 2);
+motionField2 = motionField2 ./ vecnorm(motionField2, 2, 2);
+motionField3 = motionField3 ./ vecnorm(motionField3, 2, 2);
 
 % plot the fields
 
 figure('Color','w')
+v = v ./ vecnorm(v);
+veye = veye ./ vecnorm(veye);
 
 vazHead = cos(atan2(v(3),-v(2))).*acosd(v(1));
 velHead = 0;
@@ -73,6 +82,7 @@ h1 = plot(vazHead,velHead,'go','linewidth',2);
 h2 = plot(eyeAz,eyeEl,'ro','linewidth',2);
 legend([h1,h2],{'heading' 'gaze'},'box','off','fontsize',14)
 
+set(gca,'xlim',[-plotLimit plotLimit], 'ylim',[-plotLimit plotLimit])
 
 % add tv
 t =0:1:360;
@@ -105,6 +115,7 @@ title({'Eye reference' '(eye not moving)'})
 h1 = plot(vazEye,velEye,'go','linewidth',2);
 h2 = plot(0,0,'ro','linewidth',2);
 legend([h1,h2],{'heading' 'gaze'},'box','off','fontsize',14)
+set(gca,'xlim',[-plotLimit plotLimit], 'ylim',[-plotLimit plotLimit])
 
 nexttile, set(gca,'nextplot','add');
 AddAxes();
@@ -113,6 +124,8 @@ title({'Eye reference' sprintf('(eye moving with gain %0.1f)',gain)})
 h1 = plot(vazEye,velEye,'go','linewidth',2);
 h2 = plot(0,0,'ro','linewidth',2);
 legend([h1,h2],{'heading' 'gaze'},'box','off','fontsize',14)
+set(gca,'xlim',[-plotLimit plotLimit], 'ylim',[-plotLimit plotLimit])
+
 
 function AddAxes()
 %line([-90 90],[0 0],'linestyle','-.','color',0.5*[1 1 1])
