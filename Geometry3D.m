@@ -193,7 +193,7 @@ classdef Geometry3D
             Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, N),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, N));
         end
 
-        function [motionField, motionFieldLinear, motionFieldRotational, Jv, Jw] = CalculateMotionField(visualDirections, w, v, eyePositionXYZ, eyeOrientationRotMat, stim, coordSys)
+        function [motionField, motionFieldLinear, motionFieldRotational, Jv, Jw, D] = CalculateMotionField(visualDirections, w, v, eyePositionXYZ, eyeOrientationRotMat, stim, coordSys)
             if ( ~exist('coordSys','var'))
                 coordSys = 'TangentSphere';
             end
