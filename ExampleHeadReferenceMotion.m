@@ -1,7 +1,7 @@
 %%
 clear all, close all
 
-%% Set parameters
+%% Set parameters 
 
 % heading velocity in head reference 
 headingSpeed    = 10; % m/s
