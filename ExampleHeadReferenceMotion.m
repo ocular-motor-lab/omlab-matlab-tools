@@ -10,8 +10,8 @@ headingVelocity = headingSpeed*[cosd(headingAzimuth) -sind(headingAzimuth) 0]';
 
 % eye position
 eyePositionHeight   = 1.5; % m positive up
-eyeAzimuth          = 6.1; % deg positive right
-eyeElevation        = -7.12; % deg positive up
+eyeAzimuth          = 16.1; % deg positive right
+eyeElevation        = -17.12; % deg positive up
 
 % eye movement gain
 gain = 1;
@@ -80,8 +80,81 @@ DepthFieldStacked = [DepthField zeros(size(DepthField));zeros(size(DepthField)) 
 % solve via regression
 estimatedLinearVelocity = (DepthFieldStacked*JacLinearStacked) \ estimatedLinearMotionFieldStacked;
 
-estimatedHeadingVelocity = eyePositionRotMat*estimatedLinearVelocity
-trueHeadingVelocity = headingVelocity
+estimatedHeadingVelocity = eyePositionRotMat*estimatedLinearVelocity;
+trueHeadingVelocity = headingVelocity;
+
+resultsOnlyLinearEstimation = table(estimatedHeadingVelocity, trueHeadingVelocity,  'VariableNames', {'estimatedHeadingVelocity', 'trueHeadingVelocity'})
+
+
+%% Solve to estimate heading and angular velocity 
+% stack the horizontal and vertical measurements and jacobians to do the
+% regression motion = [I D]*[Jang 0; 0; Jline][w v]
+JacLinearStacked = [ squeeze(JacLinear(1,:,:))';squeeze(JacLinear(2,:,:))'];
+JacAngularStacked = [ squeeze(JacAngular(1,:,:))';squeeze(JacAngular(2,:,:))'];
+Jac = [JacAngularStacked zeros(size(JacAngularStacked)); zeros(size(JacAngularStacked)) JacLinearStacked];
+motionFieldTotalEyeRefefenceStacked = [motionFieldTotalEyeRefefence(:,1);motionFieldTotalEyeRefefence(:,2)];
+
+% We need a factor that depends on depth (in diopters) for the linear field
+% but a factor that is just zero or one depending on the presence or
+% absence of stimuli for the angular field. In this case only the floor 
+DepthFieldStacked1 = [DepthField zeros(size(DepthField));zeros(size(DepthField)) DepthField];
+DepthFieldStacked = [diag(diag(DepthFieldStacked1)>0) DepthFieldStacked1];
+
+% solve via regression
+estimatedAngularLinearVelocity = (DepthFieldStacked*Jac) \ motionFieldTotalEyeRefefenceStacked;
+
+estimatedHeadingVelocity = eyePositionRotMat*estimatedAngularLinearVelocity(4:6);
+estimatedEyeVelocity = estimatedAngularLinearVelocity(1:3);
+trueHeadingVelocity = headingVelocity;
+trueEyeVelocity = eyeAngularVelocity;
+
+resultsFullEstimation = table(estimatedHeadingVelocity, trueHeadingVelocity, estimatedEyeVelocity, trueEyeVelocity, 'VariableNames', {'estimatedHeadingVelocity', 'trueHeadingVelocity', 'estimatedEyeVelocity', 'trueEyeVelocity'})
+
+
+%% Solve to estimate heading using efference copy as a prior and having uniform noise across the field
+
+efferencePriorSigma = .1;
+headingPriorSigma = 1;
+efferencePriorBiasPercentGain = 0;
+measurementNoiseSigma = 0.1;
+
+% stack the horizontal and vertical measurements and jacobians to do the
+% regression motion = [I D]*[Jang 0; 0; Jline][w v]
+JacLinearStacked = [ squeeze(JacLinear(1,:,:))';squeeze(JacLinear(2,:,:))'];
+JacAngularStacked = [ squeeze(JacAngular(1,:,:))';squeeze(JacAngular(2,:,:))'];
+Jac = [JacAngularStacked zeros(size(JacAngularStacked)); zeros(size(JacAngularStacked)) JacLinearStacked];
+motionFieldTotalEyeRefefenceStacked = [motionFieldTotalEyeRefefence(:,1);motionFieldTotalEyeRefefence(:,2)];
+
+% We need a factor that depends on depth (in diopters) for the linear field
+% but a factor that is just zero or one depending on the presence or
+% absence of stimuli for the angular field. In this case only the floor 
+DepthFieldStacked1 = [DepthField zeros(size(DepthField));zeros(size(DepthField)) DepthField];
+DepthFieldStacked = [diag(diag(DepthFieldStacked1)>0) DepthFieldStacked1];
+
+
+% the prior for heading is zero, the prior for angular velocity comes from
+% the efference copy
+MuPrior = [eyeAngularVelocity*efferencePriorBiasPercentGain; 0; 0; 0];
+SigmaPrior = diag([ efferencePriorSigma*ones(1,3) headingPriorSigma*ones(1,3)]);
+SigmaLikelihood = diag(measurementNoiseSigma*ones(1,height(motionFieldTotalEyeRefefenceStacked)));
+
+
+% solve via WLS Ridge regression
+
+X = DepthFieldStacked*Jac; % design matrix
+y = motionFieldTotalEyeRefefenceStacked + randn(size(motionFieldTotalEyeRefefenceStacked))*measurementNoiseSigma; % add noise to measurements
+p = length(MuPrior);
+
+estimatedAngularLinearVelocity = (X'/SigmaLikelihood*X + eye(p)/SigmaPrior) \ (X'/SigmaLikelihood*y + SigmaPrior\MuPrior);
+estimatedAngularLinearVelocityCoVar= (X'/SigmaLikelihood*X + eye(p)/SigmaPrior) \ X'/SigmaLikelihood*X  /(X'/SigmaLikelihood*X + eye(p)/SigmaPrior);
+
+estimatedHeadingVelocity = eyePositionRotMat*estimatedAngularLinearVelocity(4:6);
+estimatedEyeVelocity = estimatedAngularLinearVelocity(1:3);
+trueHeadingVelocity = headingVelocity;
+trueEyeVelocity = eyeAngularVelocity;
+
+resultsFullEstimationWithNoiseAndPriorEfference = table(estimatedHeadingVelocity, trueHeadingVelocity, estimatedEyeVelocity, trueEyeVelocity, 'VariableNames', {'estimatedHeadingVelocity', 'trueHeadingVelocity', 'estimatedEyeVelocity', 'trueEyeVelocity'})
+
 
 
 %% Plot the motion fields
@@ -131,7 +204,7 @@ set(gca,'xlim',[-plotLimit plotLimit], 'ylim',[-plotLimit plotLimit])
 
 nexttile
 hq3 = plotMotionField(visualDirections, motionFieldTotalEyeRefefence);
-title({'Eye reference' sprintf('(eye moving with gain %0.1f)',estimatedEyeVelocityGain)})
+title({'Eye reference' sprintf('(eye moving with gain %0.1f)',gain)})
 h1 = plot(vazEye,velEye,'go','linewidth',2);
 h2 = plot(0,0,'ro','linewidth',2);
 legend([h1,h2],{'heading' 'gaze'},'box','off','fontsize',14)
