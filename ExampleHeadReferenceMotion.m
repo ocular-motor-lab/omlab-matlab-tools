@@ -115,7 +115,7 @@ resultsFullEstimation = table(estimatedHeadingVelocity, trueHeadingVelocity, est
 
 efferencePriorSigma = .1;
 headingPriorSigma = 1;
-efferencePriorBiasPercentGain = 0;
+efferencePriorBiasPercentGain = 1;
 measurementNoiseSigma = 0.1;
 
 % stack the horizontal and vertical measurements and jacobians to do the
