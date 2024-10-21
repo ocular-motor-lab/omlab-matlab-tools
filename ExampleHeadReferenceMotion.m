@@ -146,10 +146,9 @@ SigmaLikelihood = diag(measurementNoiseSigma*ones(1,height(motionFieldTotalEyeRe
 
 X = DepthFieldStacked*Jac; % design matrix
 y = motionFieldTotalEyeRefefenceStacked + randn(size(motionFieldTotalEyeRefefenceStacked))*measurementNoiseSigma; % add noise to measurements
-p = length(MuPrior);
 
-estimatedAngularLinearVelocity = (X'/SigmaLikelihood*X + eye(p)/SigmaPrior) \ (X'/SigmaLikelihood*y + SigmaPrior\MuPrior);
-estimatedAngularLinearVelocityCoVar= (X'/SigmaLikelihood*X + eye(p)/SigmaPrior) \ X'/SigmaLikelihood*X  /(X'/SigmaLikelihood*X + eye(p)/SigmaPrior);
+estimatedAngularLinearVelocity = (X'/SigmaLikelihood*X + eye(length(MuPrior))/SigmaPrior) \ (X'/SigmaLikelihood*y + SigmaPrior\MuPrior);
+estimatedAngularLinearVelocityCoVar= (X'/SigmaLikelihood*X + eye(length(MuPrior))/SigmaPrior) \ X'/SigmaLikelihood*X  /(X'/SigmaLikelihood*X + eye(length(MuPrior))/SigmaPrior);
 
 estimatedHeadingVelocity = eyePositionRotMat*estimatedAngularLinearVelocity(4:6);
 estimatedEyeVelocity = estimatedAngularLinearVelocity(1:3);
