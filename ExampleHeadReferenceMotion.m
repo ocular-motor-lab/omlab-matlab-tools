@@ -57,7 +57,7 @@ motionFieldLinearHeadReference = Geometry3D.CalculateMotionField(visualDirection
 motionFieldLinearEyeReference = Geometry3D.CalculateMotionField(visualDirections, [0 0 0]', eyeLinearVelocity, eyeLocation, eyePositionRotMat);
 motionFieldTotalEyeRefefence = Geometry3D.CalculateMotionField(visualDirections, eyeAngularVelocity, eyeLinearVelocity, eyeLocation, eyePositionRotMat);
 
-%% Solve to estimate heading
+%% Solve to estimate heading only given some efference copy of eye angular velocity
 
 % get an estimate of eye velocity (this could be coming from a mix of
 % efference copy but also motion estimation). For now let's test what
@@ -86,7 +86,7 @@ trueHeadingVelocity = headingVelocity;
 resultsOnlyLinearEstimation = table(estimatedHeadingVelocity, trueHeadingVelocity,  'VariableNames', {'estimatedHeadingVelocity', 'trueHeadingVelocity'})
 
 
-%% Solve to estimate heading and angular velocity 
+%% Solve to estimate heading and angular velocity, both from motion field, no efference copy
 % stack the horizontal and vertical measurements and jacobians to do the
 % regression motion = [I D]*[Jang 0; 0; Jline][w v]
 JacLinearStacked = [ squeeze(JacLinear(1,:,:))';squeeze(JacLinear(2,:,:))'];
@@ -134,6 +134,8 @@ DepthFieldStacked = [diag(diag(DepthFieldStacked1)>0) DepthFieldStacked1];
 
 % the prior for heading is zero, the prior for angular velocity comes from
 % the efference copy
+% Q: should we rotate the prior from eye reference to head reference? Right
+% now it's in eye reference
 MuPrior = [eyeAngularVelocity*efferencePriorBiasPercentGain; 0; 0; 0];
 SigmaPrior = diag([ efferencePriorSigma*ones(1,3) headingPriorSigma*ones(1,3)]);
 SigmaLikelihood = diag(measurementNoiseSigma*ones(1,height(motionFieldTotalEyeRefefenceStacked)));
