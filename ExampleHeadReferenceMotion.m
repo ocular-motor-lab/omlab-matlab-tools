@@ -136,6 +136,8 @@ DepthFieldStacked = [diag(diag(DepthFieldStacked1)>0) DepthFieldStacked1];
 % the efference copy
 % Q: should we rotate the prior from eye reference to head reference? Right
 % now it's in eye reference
+% Q: how worse would it get if we use a prior for depth instead of the true
+% depth?
 MuPrior = [eyeAngularVelocity*efferencePriorBiasPercentGain; 0; 0; 0];
 SigmaPrior = diag([ efferencePriorSigma*ones(1,3) headingPriorSigma*ones(1,3)]);
 SigmaLikelihood = diag(measurementNoiseSigma*ones(1,height(motionFieldTotalEyeRefefenceStacked)));
