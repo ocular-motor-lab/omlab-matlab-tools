@@ -102,7 +102,7 @@ xlabel('Time (s)')
 ylabel('x(t)')
 title('Wiener process')
 
-%% Figure 3 - Spectrum
+%% Figure 3 - Spectrum (not perfect)
 close all
 f = 0:0.001:100;
 w = 2*pi*f;

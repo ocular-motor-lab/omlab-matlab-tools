@@ -18,7 +18,7 @@ gain = 1;
 % gain = 0.5;
 
 plotLimit = 40;
-numberOfPoints = 5000;
+numberOfPoints = 2000;
 
 
 %% Calculate eye position and eye velocity
@@ -113,10 +113,10 @@ resultsFullEstimation = table(estimatedHeadingVelocity, trueHeadingVelocity, est
 
 %% Solve to estimate heading using efference copy as a prior and having uniform noise across the field
 
-efferencePriorSigma = .1;
-headingPriorSigma = 1;
-efferencePriorBiasPercentGain = 1;
-measurementNoiseSigma = 0.1;
+efferencePriorSigma = 10;
+headingPriorSigma = 10;
+efferencePriorBiasPercentGain = 0;
+measurementNoiseSigma = 0.0001;
 
 % stack the horizontal and vertical measurements and jacobians to do the
 % regression motion = [I D]*[Jang 0; 0; Jline][w v]
@@ -134,7 +134,7 @@ DepthFieldStacked = [diag(diag(DepthFieldStacked1)>0) DepthFieldStacked1];
 
 % the prior for heading is zero, the prior for angular velocity comes from
 % the efference copy
-MuPrior = [eyeAngularVelocity*efferencePriorBiasPercentGain; 0; 0; 0];
+MuPrior = [eyeAngularVelocity; 0; 0; 0];
 SigmaPrior = diag([ efferencePriorSigma*ones(1,3) headingPriorSigma*ones(1,3)]);
 SigmaLikelihood = diag(measurementNoiseSigma*ones(1,height(motionFieldTotalEyeRefefenceStacked)));
 % Q: should we rotate the prior from eye reference to head reference? Right
@@ -155,7 +155,66 @@ estimatedEyeVelocity = estimatedAngularLinearVelocity(1:3);
 trueHeadingVelocity = headingVelocity;
 trueEyeVelocity = eyeAngularVelocity;
 
-resultsFullEstimationWithNoiseAndPriorEfference = table(estimatedHeadingVelocity, trueHeadingVelocity, estimatedEyeVelocity, trueEyeVelocity, 'VariableNames', {'estimatedHeadingVelocity', 'trueHeadingVelocity', 'estimatedEyeVelocity', 'trueEyeVelocity'})
+resultsFullEstimationWithNoiseAndPriorEfference = table(estimatedHeadingVelocity, trueHeadingVelocity, (trueHeadingVelocity-estimatedHeadingVelocity)./trueHeadingVelocity*100, ...
+    estimatedEyeVelocity, trueEyeVelocity, (trueEyeVelocity-estimatedEyeVelocity)./trueEyeVelocity*100, ...
+    'VariableNames', {'estimatedHeadingVelocity', 'trueHeadingVelocity', 'heading error %', 'estimatedEyeVelocity', 'trueEyeVelocity','angular error %'})
+
+
+%% 
+if (0)
+
+    xState = MuPrior;
+
+    Q = 0.1*diag([1 1 1 1 1 1 1*ones(1,height(DepthEst))]);% eye(height(xState))*.1; % state noise
+    R = SigmaLikelihood;
+    % P = diag([1 1 1 1 1 1 10*ones(1,height(DepthEst))]); % State covariance estimate
+
+    % gradient descend
+    for i=1:Niter
+
+        xStateError(:,i) = trueState - xState;
+
+
+        wEst = xState(1:3);
+        vEst = xState(4:6);
+        DepthEst = xState(7:end);
+
+        % assume we know that the pairs of motion estimates are matched to the
+        % same visual direction and therefore the same depth. So we have half
+        % the D estimates as motion predictions
+        D = diag([DepthEst;DepthEst]);
+
+
+        % state update just assumes the same state.
+        % TODO: add dependency of position on velocities
+        xState = xState;
+
+        P = F*P*F' + Q;
+
+        % sensory prediction error or innovation
+        hEstimate = X*xState;
+        yInnovation = y - hEstimate;
+
+
+        H = X;
+
+        % covariance of the innovation
+        S = H*P*H' + R;
+
+        % S = S + 1*eye(size(S));
+
+        % kalman gain (Gradient)
+        K = P*H'/S;
+
+        % State update
+        xState = xState + K*yInnovation;
+
+        % update of covariance estimate
+        P = (eye(height(P)) - K*H)*P;
+
+
+    end
+end
 
 
 

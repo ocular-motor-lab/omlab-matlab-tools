@@ -11,10 +11,11 @@ range = 90;
 % y = a(a(:,1)>0,2);
 % z = a(a(:,1)>0,3);
 
-[a]=SpiralSampleSphere(400);
-x = a(a(:,1)>0,1);
-y = a(a(:,1)>0,2);
-z = a(a(:,1)>0,3);
+[a]=SpiralSampleSphere(1000);
+x = a(a(:,3)>-5,1);
+y = a(a(:,3)>-5,2);
+z = a(a(:,3)>-5,3);
+
 
 dazdx = -y;
 dazdy = 1 -  ( y.^2 ) ./ (1 + x);
@@ -62,7 +63,7 @@ axis equal;
 
 hl = [];
 hl(1) = quiver3(x,y,z, dazdx, dazdy, dazdz,'linewidth',2,'DisplayName', '\partial xyz / \partial u');
-hl(2) = quiver3(x,y,z, deldx, deldy, deldz,'linewidth',2,'DisplayName', '\partial xyz / \partial v');
+% hl(2) = quiver3(x,y,z, deldx, deldy, deldz,'linewidth',2,'DisplayName', '\partial xyz / \partial v');
 % quiver3(x,y,z, x, y, z,'linewidth',1)
 
 legend(hl,'Location', 'northeast','box','off','fontsize',14);
@@ -122,7 +123,40 @@ set(gca,'xtick',[],'ytick',[])
 
 
 %%
+%% compare with lookat
 
+lookatazdx = -y ./ sqrt(x.^2+y.^2);
+lookatazdy = x ./ sqrt(x.^2+y.^2);
+lookatazdz = zeros(size(x));
+
+lookateldx =  -x.*z ./ sqrt(x.^2+y.^2);
+lookateldy = -y.*z ./ sqrt(x.^2+y.^2);
+lookateldz= sqrt(x.^2+y.^2) ;
+
+
+figure('color','w')
+subplot(1,1,[1],'nextplot','add')
+axis
+% draw sphere
+mesh(xs,ys,zs,'FaceAlpha', 0.5,'facecolor',0.8*[1 1 1],'EdgeColor','none');
+xlabel(gca,'x')
+ylabel(gca,'y')
+zlabel(gca,'z')
+% line of sight
+line([1 R*1.5 ],[0 0 ],[0 0 ],'color','r','linewidth',2)
+
+view(125,15);
+axis equal;
+
+
+hl = [];
+hl(1) = quiver3(x,y,z, dazdx, dazdy, dazdz,'linewidth',2,'DisplayName', '\partial xyz / \partial u', 'AutoScaleFactor',0.5);
+hl(2) = quiver3(x,y,z, deldx, deldy, deldz,'linewidth',2,'DisplayName', '\partial xyz / \partial v', 'AutoScaleFactor',0.5);
+hl(3) = quiver3(x,y,z, lookatazdx, lookatazdy, lookatazdz,'linewidth',2,'DisplayName', '\partial xyz / \partial u', 'AutoScaleFactor',0.5);
+hl(4) = quiver3(x,y,z, lookateldx, lookateldy, lookateldz,'linewidth',2,'DisplayName', '\partial xyz / \partial v', 'AutoScaleFactor',0.5);
+% quiver3(x,y,z, x, y, z,'linewidth',1)
+
+legend(hl, {'Listing side', 'Listing up', 'Lookat side', 'Lookat up'},'fontsize',14)
 
 %%
 % 
@@ -175,3 +209,4 @@ hl(2) = quiver3(x,y,z, deldx, deldy, deldz,'linewidth',2,'DisplayName', 'v');
 % quiver3(x,y,z, x, y, z,'linewidth',1)
 
 legend(hl,'Location', 'northeast','box','off','fontsize',14);
+
