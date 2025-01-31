@@ -15,7 +15,7 @@ eyeElevation        = -17.12; % deg positive up
 
 % eye movement gain
 gain = 1;
-% gain = 0.5;
+%= gain = 0.5;
 
 plotLimit = 40;
 numberOfPoints = 2000;

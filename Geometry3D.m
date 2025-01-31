@@ -95,7 +95,7 @@ classdef Geometry3D
             %           - 'Random': Uniform according to Fick coordinates.
 
 
-            if ( ~exist('coordSys','var'))
+            if ( ~exist('type','var'))
                 type = 'Spiral';
             end
 

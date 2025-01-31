@@ -87,6 +87,44 @@ function shift = ListingRFShifter(eyeAzimuth, eyeElevation, rfAzimuth, rfElevati
         xlabel('Rf x position (deg)')
         ylabel('Rf y position (deg)')
 
+        Xeye = [-5:.1:5];
+        Yeye = [-5:0.1:5];
+        Xrf = [-15:5:15];
+        Yrf = [-12:4:12];
+        [XeyeGrid,YeyeGrid] = meshgrid(Xeye, Yeye);
+        [XrfGrid,YrfGrid] = meshgrid(Xrf, Yrf);
+
+        shifts = zeros(length(Xeye), length(Yeye), length(Xrf), length(Yrf), 2);
+
+        for i1=1:length(Xeye)
+            for i2=1:length(Yeye)
+                for i3=1:length(Xrf)
+                    for i4=1:length(Yrf)
+                        shifts(i1,i2,i3,i4,:) = ListingRFShifter(Xeye(i1), Yeye(i2), Xrf(i3), Yrf(i4), 0, 0 );
+                    end
+                end
+            end
+        end
+
+        shiftsdeg = atand(shifts);
+
+        figure
+        tiledlayout(length(Xrf), length(Yrf)*2)
+        for i1=1:length(Xrf)
+            for i2=1:length(Yrf)
+                nexttile
+                sx = squeeze(shiftsdeg(:,:, i1,i2,1));
+                sy = squeeze(shiftsdeg(:,:,i1,i2,2));
+                imagesc(Xeye,Yeye,60*sx,10*[-1 1])
+                title(sprintf('RF pos (%0.1f,%0.1f) - X',Xeye(i1), Yeye(i2)))
+                nexttile
+                imagesc(Xeye,Yeye,60*sy,10*[-1 1])
+                title(sprintf('- Y'))
+            end
+        end
+        colorbar
+        xlabel('Eye x position (deg)')
+        ylabel('Eye y position (deg)')
     end
 
 end
