@@ -3,11 +3,6 @@ classdef Geometry3D
     %   Detailed explanation goes here
     %
     %   Coordinate system
-    %       For 3D world
-    %       Z is positive forward
-    %       X is positive to the right
-    %       system)
-    %       Y is positive up
     %
     %       For eye reference frame
     %       Z is positive up
@@ -81,7 +76,7 @@ classdef Geometry3D
             end
         end
 
-        function visualDirections = SampleVisualDirections(N, type)
+        function [visualDirections az el] = SampleVisualDirections(N, type, range)
             % Samples points in the front of a sphere according to the
             % coordinate system according to spiral
             %
@@ -93,16 +88,19 @@ classdef Geometry3D
             %           - 'Hess': Uniform according to Hess coordinates (lat, lat).
             %           - 'Spiral': Uniform according to Fick coordinates.
             %           - 'Random': Uniform according to Fick coordinates.
+            % range: range of angles to sample from (+- range) in deg
 
 
             if ( ~exist('type','var'))
                 type = 'Spiral';
             end
+            if ( ~exist('range','var'))
+                range = 90;
+            end
 
             % get the sample visual directions in spherical coordinates
             % depending on the coordinate system
             N = round(sqrt(N)).^2; % make sure N is a square number
-            range = 80;
             step = range*2/(sqrt(N)-1);
             [az, el] = meshgrid(deg2rad(-range:step:range),deg2rad(-range:step:range)); % azimuths and elevations to include
 
@@ -117,8 +115,14 @@ classdef Geometry3D
                     [x,y,z] = Geometry3D.HessToSphere(az,el);
                 case 'Spiral'
                     [x, y, z] = Geometry3D.SpiralSphere(N);
+                    outofrange = acosd(x) > range;
+                    x(outofrange) = [];y(outofrange) = [];z(outofrange) = [];
+                    az = []; el = [];
                 case 'Random'
                     [x, y, z] = Geometry3D.RandomSampleSphere(N);
+                    outofrange = acosd(x) > range;
+                    x(outofrange) = [];y(outofrange) = [];z(outofrange) = [];
+                    az = []; el = [];
             end
             visualDirections = [x(:) y(:) z(:)];
         end
@@ -631,13 +635,14 @@ classdef Geometry3D
             app.AddSlider('IPD mm',             60, [10 100])
             app.AddSlider('Stimulus Scale',     1,  [0.1 10])
             app.AddSlider('Stimulus Distance',  40, [10 200])
+            app.AddSlider('Stimulus slant',     0,  [-90 90])
+            app.AddSlider('Stimulus Tilt',      0,  [0 90])
             app.AddSlider('Fixation Distance',  30, [10 200])
-            app.AddSlider('Fixation X',         0,  [-100 100])
-            app.AddSlider('Fixation Y',         0,  [-100 100])
+            app.AddSlider('Fixation H',         0,  [-100 100])
+            app.AddSlider('Fixation V',         0,  [-100 100])
             app.AddSlider('Torsion Version',    0,  [-20 20])
-            app.AddSlider('Torsion Vergence',   0,  [-20 20])
-            app.AddSlider('Plane slant',        0,  [-90 90])
-            app.AddSlider('Plane Tilt',         0,  [0 90])
+            app.AddSlider('Torsion Vergence',   0,  [-5 5])
+            app.AddSlider('Retinal Shear',      0,  [-5 5])
             app.AddDropDown('View3D',           1,  ["Oblique" "TOP" "SIDE"])
             app.AddSlider('Screen slant',       0,  [-30 30])
             app.AddDropDown('Simulate torsion', 1,  ["Yes" "No"])
@@ -650,9 +655,7 @@ classdef Geometry3D
             app.Data.Screen.Slant = 0;
 
             app.Data.FixationSpot = struct();
-            app.Data.FixationSpot.X = 0;
-            app.Data.FixationSpot.Y = 0;
-            app.Data.FixationSpot.Z = 0;
+            app.Data.FixationSpot = [0 0 0]';
 
             app.Open();
 
@@ -788,7 +791,37 @@ classdef Geometry3D
             app.Open();
         end
 
-        function eyes = MakeEyes(ipdCm, fixationSpot, torsionVersion, torsionVergence)
+        function eyes = MakeEyes(ipdCm, fixationSpot, torsionVersion, torsionVergence, retinalShear)
+            if (~exist('retinalShear','var'))
+                retinalShear = 0;
+            end
+
+            % TODO: add troppia
+            % TODO add L2
+
+            % centers of the eyes
+            eyes.R.Center = [0 -ipdCm/2 0]';
+            eyes.L.Center = [0 ipdCm/2 0]';
+
+            % Primary position (orthogonal to listing's plane)
+            eyes.R.PrimaryPos = [1 0 0]';
+            eyes.L.PrimaryPos = [1 0 0]';
+
+            % Torsion off of listing's plane
+            torsionRight = Geometry3D.RotX(deg2rad(torsionVersion - torsionVergence));
+            torsionLeft = Geometry3D.RotX(deg2rad(torsionVersion + torsionVergence));
+
+            % Listing law rotations
+            eyes.R.RotMat = Geometry3D.LookAtListings(fixationSpot-eyes.R.Center, eyes.R.PrimaryPos)*torsionRight;
+            eyes.L.RotMat = Geometry3D.LookAtListings(fixationSpot-eyes.L.Center, eyes.R.PrimaryPos)*torsionLeft;
+
+            % Retinal shear
+            eyes.L.Shear = -retinalShear;
+            eyes.R.Shear = retinalShear;
+
+        end
+
+        function eyes = MakeEyes2(ipdCm, fixationSpot, torsionVersion, torsionVergence)
 
             % TODO: add deviations. Not sure how yet. Probably need six
             % numbers to add all posible deviations. It would probably also
@@ -854,39 +887,25 @@ classdef Geometry3D
 
         function [eyepoints] = Points3DToEyes(points, eyes )
 
-
             ep = table();
-
-            % The eye coordinate system is right handed
-            % with x pointing out
-            % y pointing to left
-            % z pointing up
-            %
-            % it is a bit messy to have a different coordinate system than
-            % for the 3D scene, but I can't think of the rotations any
-            % other way
-            %
 
             % Get the new xs in cm for the two eyes (transform the dots from head reference
             % to eye reference [nothing about eye angle here!])
-            ep.RY0 = -(points.X - eyes.R.X);
-            ep.RZ0 = -points.Y;
-            ep.RX0 = points.Z;
-            ep.LY0 = -(points.X - eyes.L.X);
-            ep.LZ0 = -points.Y;
-            ep.LX0 = points.Z;
-
             % Rotate the points to be in eye reference frame
-            ep{:,{'RX' 'RY' 'RZ'  }} =  ep{:,{'RX0' 'RY0' 'RZ0'  }}*eyes.R.RM;
-            ep{:,{'LX' 'LY' 'LZ'  }} =  ep{:,{'LX0' 'LY0' 'LZ0'  }}*eyes.L.RM;
+            rPoints = (points{:,:}-eyes.R.Center')*eyes.R.RotMat;
+            ep{:,{'RX' 'RY' 'RZ'  }} =  normalize(rPoints, 2, 'norm');
+            lPoints = (points{:,:}-eyes.L.Center')*eyes.L.RotMat;
+            ep{:,{'LX' 'LY' 'LZ'  }} =  normalize(lPoints, 2, 'norm');
 
             % helmholtz coordinates make more sense for disparity
             % because the vertical rotation first does not change the
             % plane of regard
-            ep.RV = atan2d(ep.RZ, ep.RX);
-            ep.RH = atan2d(-ep.RY, ep.RX./abs(cosd(ep.RV)));
-            ep.LV = atan2d(ep.LZ, ep.LX);
-            ep.LH = atan2d(-ep.LY, ep.LX./abs(cosd(ep.LV)));
+            [az, el] = Geometry3D.SphereToHelmholtz(ep.RX, ep.RY, ep.RZ);
+            ep.RH = rad2deg(az);
+            ep.RV = rad2deg(el);
+            [az, el] = Geometry3D.SphereToHelmholtz(ep.LX, ep.LY, ep.LZ);
+            ep.LH = rad2deg(az);
+            ep.LV = rad2deg(el);
 
             % remove points past 90 deg in each direction
             badidx = abs(ep.RV)>=90 | abs(ep.RH)>=90 ;
@@ -896,28 +915,159 @@ classdef Geometry3D
             ep.LV(badidx) = nan;
             ep.LH(badidx) = nan;
 
-            % Get disparity!! % TODO, mayber this should be 3D disparity
+            % Get disparity
             ep.HDisparity = ep.LH - ep.RH;
             ep.VDisparity = ep.LV - ep.RV;
 
             eyepoints = ep;
         end
 
+        function [H, D, p] = ComputeExtendedHoropter(eyes)
+
+            % build the IDP vector pointing from the from the left to the
+            % right eye
+            ipdvector =  eyes.R.Center - eyes.L.Center;
+
+            % First sample visual directions according to a helmholtz
+            % coordinate system 2D grid
+            [p, az, el] = Geometry3D.SampleVisualDirections(5000, 'Helmholtz', 60);
+
+            % shear the points according to the retinal shear
+            azl = az+el*deg2rad(eyes.L.Shear);
+            [x,y,z] = Geometry3D.HelmholtzToSphere(azl,el);
+            pl = [x(:) y(:) z(:)];
+            azr = az+el*deg2rad(eyes.R.Shear);
+            [x,y,z] = Geometry3D.HelmholtzToSphere(azr,el);
+            pr = [x(:) y(:) z(:)];
+
+            % rotate the visual directions according to the eye position of
+            % each eye
+            pl = (eyes.L.RotMat*pl')';
+            pr = (eyes.R.RotMat*pr')';
+
+            H = zeros(size(p));
+            D = zeros(size(p));
+            for i=1:height(pl)
+
+                % solve the equations to find the coefficients of the
+                % regression. ab tells you how for along the visual
+                % direction of the left and the right eye the closest
+                % corresponding point is. 
+                ab = pinv([pl(i,:)' -pr(i,:)'])*ipdvector;
+
+                % calculate the 3D disparity of the points. That is the error
+                % of the regression. 
+                D(i,:) = [pl(i,:)' -pr(i,:)']*ab - ipdvector;
+
+                % find the position of the point in space by 
+                hl = ab(1)*pl(i,:) + ipdvector'/2;
+                hr = ab(2)*pr(i,:) - ipdvector'/2;
+                H(i,:) = ( hl + hr  )/2;
+
+
+                % TODO:right now doing a simple average. Need to do what
+                % says in the paper:
+                % To obtain a unique horopter point, the distance between these two points
+                % was then bisected such that the bisection ratio matched the ratio of the
+                % distance of the bisector from each eye's projection center. This assured
+                % that the angular distance of the horopter projection from the
+                % corresponding point was the same in each eye.
+
+            end
+
+            % figure
+            %  scatter3(H(:,1), H(:,2), H(:,3),[], dot(D',D')','o','filled');
+            %
+
+            H = reshape(H, size(az,1), size(az,2),3);
+            D = reshape( dot(D',D')', size(az,1), size(az,2));
+
+            % Need to remove points where the crossing point is backwards
+            % D(H(:,1)<1,:,:) = nan;
+            % H(H(:,1)<1,:,:) = nan;
+
+            % figure
+            % surf(H(:,:,1),H(:,:,2),H(:,:,3), D )
+            % colormap('turbo')
+
+        end
 
         function screenPoints  = PointsEyesToScreen(eyes, eyePoints, LeyeScreen, ReyeScreen)
 
-            % TODO: to simulate torsion we want to rotate the points only
-            % around the axis that goes trhough the fixation spot by how
-            % much the torsion is.
-            % This should work off of the points shifted (the ones with
-            % zero at the end). That way we don't need to undo the
-            % horizontal and vertical rotation that was done to rotate the
-            % points to full eye coordinates
+            % projects the points to the screens of a haploscope. assumet
+            % he screens are centered at zero zero but can be at different
+            % distances
 
-            screenPoints.LX = LeyeScreen.middleX + LeyeScreen.ScreenDistance*tand(eyes.L.H + eyePoints.LH)*LeyeScreen.pixPerCmWidth;
-            screenPoints.LY = LeyeScreen.middleY + LeyeScreen.ScreenDistance*tand(-eyes.L.V + eyePoints.LV)*LeyeScreen.pixPerCmHeight;
-            screenPoints.RX = ReyeScreen.middleX + ReyeScreen.ScreenDistance*tand(eyes.R.H + eyePoints.RH)*ReyeScreen.pixPerCmWidth;
-            screenPoints.RY = ReyeScreen.middleY + ReyeScreen.ScreenDistance*tand(-eyes.R.V + eyePoints.RV)*ReyeScreen.pixPerCmHeight;
+            % get the world points from the center of the eye
+            p =  eyePoints{:,{'LX' 'LY' 'LZ'  }}*eyes.L.RotMat';
+
+            % Extract coordinates for all points
+            p_x = p(:,1);
+            p_y = p(:,2);
+            p_z = p(:,3);
+
+            % Center coordinates
+            c_y = 0;
+            c_x = LeyeScreen.ScreenDistance;
+    
+            % Compute parameter t for each point (set t = NaN where denominator is nearly zero)
+            denom = cosd(LeyeScreen.ScreenSlant) * p_x + sind(LeyeScreen.ScreenSlant) * p_y;
+            T = cosd(LeyeScreen.ScreenSlant) * c_x + sind(LeyeScreen.ScreenSlant) * c_y;
+            t = T ./ denom;
+            nearZeroIndices = abs(denom) < 1e-10;
+            t(nearZeroIndices) = NaN;
+
+
+            % Compute the intersection points for each p
+            P = [t .* p_x, t .* p_y, t .* p_z];
+
+            % Compute intrinsic coordinates relative to the center C = (c_x, c_y, 0)
+            % u-axis is (-sin(theta), cos(theta), 0)
+            u = -sind(LeyeScreen.ScreenSlant) * (P(:,1) - c_x) + cosd(LeyeScreen.ScreenSlant) * (P(:,2) - c_y);
+
+            % v coordinate is simply the z-coordinate of the intersection
+            v = P(:,3);
+
+            % convert to pixels
+            screenPoints.LX = LeyeScreen.middleX + u*LeyeScreen.pixPerCmWidth;
+            screenPoints.LY = LeyeScreen.middleY + v*LeyeScreen.pixPerCmHeight;
+
+
+             % get the world points from the center of the eye
+            p =  eyePoints{:,{'RX' 'RY' 'RZ'  }}*eyes.R.RotMat';
+
+            % Extract coordinates for all points
+            p_x = p(:,1);
+            p_y = p(:,2);
+            p_z = p(:,3);
+
+            % Center coordinates
+            c_y = 0;
+            c_x = ReyeScreen.ScreenDistance;
+    
+            % Compute parameter t for each point (set t = NaN where denominator is nearly zero)
+            denom = cosd(ReyeScreen.ScreenSlant) * p_x + sind(ReyeScreen.ScreenSlant) * p_y;
+            T = cosd(ReyeScreen.ScreenSlant) * c_x + sind(ReyeScreen.ScreenSlant) * c_y;
+            t = T ./ denom;
+            nearZeroIndices = abs(denom) < 1e-10;
+            t(nearZeroIndices) = NaN;
+
+
+            % Compute the intersection points for each p
+            P = [t .* p_x, t .* p_y, t .* p_z];
+
+            % Compute intrinsic coordinates relative to the center C = (c_x, c_y, 0)
+            % u-axis is (-sin(theta), cos(theta), 0)
+            u = -sind(ReyeScreen.ScreenSlant) * (P(:,1) - c_x) + cosd(ReyeScreen.ScreenSlant) * (P(:,2) - c_y);
+
+            % v coordinate is simply the z-coordinate of the intersection
+            v = P(:,3);
+
+            % convert to pixels
+            screenPoints.RX = ReyeScreen.middleX+ u*ReyeScreen.pixPerCmWidth;
+            screenPoints.RY = ReyeScreen.middleY+ v*ReyeScreen.pixPerCmHeight;
+
+
         end
 
 
@@ -945,9 +1095,9 @@ classdef Geometry3D
 
     methods(Static, Access = private) % DEMO DISPARITY
 
-        function [f, heyes, hfix, hscreen, hpoints, hspoints, hLRpoints, hdisparity, hLscreen] = demoDisparityInitPlots(points, eyePoints, screenPoints, eyes, leftEyeScreen, rightScreen)
+        function [f, heyes, hfix, hscreen, hpoints, hspoints, hLRpoints, hdisparity, hLscreen, hhoropter, hhoropter2] = demoDisparityInitPlots(points, eyePoints, screenPoints, eyes, leftEyeScreen, rightScreen)
 
-            % View the dots, eyes, and fixation dot
+            % create the figure
             scr_siz = get(0,'ScreenSize');
             margin = floor(0.1*(scr_siz(4)));
             f = figure('color','w','position',floor([margin margin scr_siz(3)*2.8/4 scr_siz(4)*2/4 ]));
@@ -957,14 +1107,14 @@ classdef Geometry3D
             hspoints = line(0,0, 0,'linestyle','none','marker','o','Color',[0.8 0.8 0.8]);
             hfix = line(0,0, 0,'linestyle','none','marker','o','Color','r','LineWidth',2, 'markersize',20);
 
-            heyes.c(1) = plot3([eyes.L.X], [eyes.L.Y ], 0,'o','Color','b', 'markersize',10); % left eye fixation spot and right eye
-            heyes.c(2) = plot3([eyes.R.X], [eyes.R.Y], 0,'o','Color','r', 'markersize',10); % left eye fixation spot and right eye
+            heyes.c(1) = plot3([eyes.L.Center(1)], [eyes.L.Center(2) ], [eyes.L.Center(3) ],'o','Color','b', 'markersize',10); % left eye fixation spot and right eye
+            heyes.c(2) = plot3([eyes.R.Center(1)], [eyes.R.Center(2)], [eyes.L.Center(3) ],'o','Color','r', 'markersize',10); % left eye fixation spot and right eye
             heyes.l = line(0,0,0,'linestyle','-','Color','b'); % left eye fixation spot and right eye
             heyes.r = line(0,0,0,'linestyle','-','Color','r'); % left eye fixation spot and right eye
 
             grid
-            xlim([-100 100]), zlim([-100 100]), ylim([-5 200]);
-            xlabel('X (cm)'), zlabel('Y (cm)'), ylabel('Z (cm)');
+            ylim([-100 100]), zlim([-100 100]), xlim([-5 200]);
+            xlabel('X (cm)'), zlabel('Z (cm)'), ylabel('Y (cm)');
             view(-60,10)
             title('3D world');
             hscreen = [];
@@ -973,7 +1123,18 @@ classdef Geometry3D
             hLRpoints = [];
             t = eyePoints;
 
+            hhoropter = surf(zeros(2),zeros(2),zeros(2),zeros(2));colormap('turbo')
+            set(hhoropter,'EdgeColor','none')
+            set(hhoropter,'FaceAlpha',0.7)
+            
+            legend([heyes.l, heyes.r, hfix, hpoints], {'Left eye','Right eye','Fixation point','Stimulus'},'Location','northeast','box','off')
+
             polaraxes('OuterPosition',[0.44    0.3    0.28    0.7], 'nextplot','add')
+
+            hLRpoints.h = polarplot(zeros(size(t.LV)), zeros(size(t.LV)),'o');
+
+            hLRpoints.hhoro = polarscatter(0,0,10,0,'filled');colormap('turbo')
+
             hLRpoints.L = polarplot(zeros(size(t.LV)), zeros(size(t.LV)),'o');
             hLRpoints.R = polarplot(zeros(size(t.RV)), zeros(size(t.RV)),'o');
             hLRpoints.FP = polarplot(0,0,'ro','linewidth',3);
@@ -1037,6 +1198,10 @@ classdef Geometry3D
                 app.Data.stimulus = "NONE";
             end
 
+            if (~isfield(app.Data,"View3D"))
+                app.Data.View3D = "NONE";
+            end
+
             %%
             sizeStimCm = 40;
 
@@ -1048,57 +1213,41 @@ classdef Geometry3D
                     case 'RANDOMPLANE'
                         numDots = 200;
                         worldPoints = table();
-                        worldPoints.X = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
+                        worldPoints.X = zeros(numDots, 1);
                         worldPoints.Y = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
-                        worldPoints.Z = zeros(numDots, 1);
+                        worldPoints.Z = rand(numDots,1)*sizeStimCm - (sizeStimCm/2);
                     case 'GRIDPLANE'
-                        % TODO: need to update the update funciton so the Z is not overwritten by a
-                        % constant distance. Just shift things.
                         [X,Y] = meshgrid(-(sizeStimCm/2):2:(sizeStimCm/2),-(sizeStimCm/2):2:(sizeStimCm/2));
                         worldPoints = table();
-                        worldPoints.X = X(:);
+                        worldPoints.X = zeros(size(X(:)));
                         worldPoints.Y = Y(:);
-                        worldPoints.Z = zeros(size(worldPoints.X));
+                        worldPoints.Z = X(:);
 
                     case 'HLINE'
-                        % TODO: need to update the update funciton so the Z is not overwritten by a
-                        % constant distance. Just shift things.
                         [X,Y] = meshgrid(-(sizeStimCm/2):0.5:(sizeStimCm/2),(0)*ones(size(-(sizeStimCm/2):0.5:(sizeStimCm/2))));
                         worldPoints = table();
-                        worldPoints.X = X(:);
+                        worldPoints.X = zeros(size(X(:)));
                         worldPoints.Y = Y(:);
-                        worldPoints.Z = zeros(size(worldPoints.X));
+                        worldPoints.Z = X(:);
                     case 'VLINE'
-                        % TODO: need to update the update funciton so the Z is not overwritten by a
-                        % constant distance. Just shift things.
                         [X,Y] = meshgrid((0)*ones(size(-(sizeStimCm/2):0.5:(sizeStimCm/2))),-(sizeStimCm/2):0.5:(sizeStimCm/2));
                         worldPoints = table();
-                        worldPoints.X = X(:);
+                        worldPoints.X = zeros(size(X(:)));
                         worldPoints.Y = Y(:);
-                        worldPoints.Z = zeros(size(worldPoints.X));
-
-
-
+                        worldPoints.Z = X(:);
                     case 'CROSS'
-                        % TODO: need to update the update funciton so the Z is not overwritten by a
-                        % constant distance. Just shift things.
                         [X,Y] = meshgrid(-(sizeStimCm/2):0.5:(sizeStimCm/2),(0)*ones(size(-(sizeStimCm/2):0.5:(sizeStimCm/2))));
                         worldPoints = table();
-                        worldPoints.X = X(:);
-                        worldPoints.Y = Y(:);
-                        worldPoints.Z = zeros(size(worldPoints.X));
-                        % TODO: need to update the update funciton so the Z is not overwritten by a
-                        % constant distance. Just shift things.
+                        worldPoints.X = zeros(size(X(:)));
+                        worldPoints.Y = X(:);
+                        worldPoints.Z = Y(:);
                         [X,Y] = meshgrid((0)*ones(size(-(sizeStimCm/2):0.5:(sizeStimCm/2))),-(sizeStimCm/2):0.5:(sizeStimCm/2));
                         worldPoints2 = table();
-                        worldPoints2.X = X(:);
-                        worldPoints2.Y = Y(:);
-                        worldPoints2.Z = zeros(size(worldPoints2.X));
+                        worldPoints2.X = zeros(size(X(:)));
+                        worldPoints2.Y = X(:);
+                        worldPoints2.Z = Y(:);
 
                         worldPoints = cat(1,worldPoints, worldPoints2);
-
-                    case 'SPHERE'
-                    case 'VIETH-MULLER'
                 end
                 app.Data.worldPoints = worldPoints;
                 app.Data.stimulus = Values.Stimulus;
@@ -1106,35 +1255,32 @@ classdef Geometry3D
                 worldPoints = app.Data.worldPoints;
             end
 
+            % Rotate the world points to apply the slant (rotates around
+            % 0,0,0)
+            worldPoints.X = zeros(size(worldPoints.Z));
+            worldPoints.Y = worldPoints.Y*Values.StimulusScale;
+            worldPoints.Z = worldPoints.Z*Values.StimulusScale;
 
+            % Rotate by slant and tilt
+            R = Geometry3D.AxisAngle2Mat([0 cosd(Values.StimulusTilt) sind(Values.StimulusTilt)],deg2rad(Values.StimulusSlant));
+            worldPoints{:,:} = worldPoints{:,:}*R;
 
-            %% Update the points, eyes and screen acordint to the sliders
-            app.Data.FixationSpot.X = Values.FixationX;
-            app.Data.FixationSpot.Y = Values.FixationY;
-            app.Data.FixationSpot.Z = Values.FixationDistance;
+            % update the fixation spot. Note the flip of x and y.
+            app.Data.FixationSpot = [Values.FixationDistance -Values.FixationH Values.FixationV ]';
+
             app.Data.Screen.Slant = Values.ScreenSlant;
-
             leftEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
             rightEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.Distance, app.Data.Screen.Slant);
 
-            eyes = Geometry3D.MakeEyes(Values.IPDMm/10, app.Data.FixationSpot, Values.TorsionVersion, Values.TorsionVergence);
+            eyes = Geometry3D.MakeEyes(Values.IPDMm/10, app.Data.FixationSpot, Values.TorsionVersion, Values.TorsionVergence, Values.RetinalShear);
 
-            % Rotate the world points to apply the slant (rotates around
-            % 0,0,0)
-            worldPoints.X = worldPoints.X*Values.StimulusScale;
-            worldPoints.Y = worldPoints.Y*Values.StimulusScale;
-            worldPoints.Z = zeros(size(worldPoints.Z));
-
-            % Rotate by slant and tilt
-            R = Geometry3D.Quat2RotMat(Geometry3D.AxisAngle2Quat([cosd(Values.PlaneTilt) sind(Values.PlaneTilt) 0],deg2rad(Values.PlaneSlant)));
-            worldPoints{:,:} = (R*worldPoints{:,:}')';
 
             % Displace by distance
-            worldPoints.Z = worldPoints.Z + Values.StimulusDistance;
+            worldPoints.X = worldPoints.X + Values.StimulusDistance;
 
             % Add the fixation spot to the world points to conver to eye
             % and screen points.
-            worldPoints{end+1,:} = [app.Data.FixationSpot.X app.Data.FixationSpot.Y app.Data.FixationSpot.Z];
+            worldPoints{end+1,:} = app.Data.FixationSpot';
 
             %% Get the points in eye and screen coordinates
             eyePoints = Geometry3D.Points3DToEyes(worldPoints, eyes);
@@ -1144,7 +1290,7 @@ classdef Geometry3D
             if ( ~isfield(app.Data, "f") || ~isvalid(app.Data.f))
                 % If figure does not exist create it with all the plots and
                 % handles to them
-                [f, heyes, hfix, hscreen, hpoints, hspoints, hLRpoints, hdisparity, hscreen] = Geometry3D.demoDisparityInitPlots(worldPoints, eyePoints, screenPoints, eyes, leftEyeScreen, rightEyeScreen);
+                [f, heyes, hfix, hscreen, hpoints, hspoints, hLRpoints, hdisparity, hscreen, hhoropter] = Geometry3D.demoDisparityInitPlots(worldPoints, eyePoints, screenPoints, eyes, leftEyeScreen, rightEyeScreen);
                 app.Data.f = f;
                 app.Data.heyes = heyes;
                 app.Data.hfix = hfix;
@@ -1154,87 +1300,101 @@ classdef Geometry3D
                 app.Data.hLRpoints = hLRpoints;
                 app.Data.hdisparity = hdisparity;
                 app.Data.hscreen = hscreen;
+                app.Data.hhoropter = hhoropter;
             end
 
             % update 3D plot
-            lxfar = eyes.L.X - 10000*eyes.L.RM(2,1);
-            lyfar = eyes.L.Y - 10000*eyes.L.RM(3,1);
-            lzfar = eyes.L.Z + 10000*eyes.L.RM(1,1);
+            % visual directions
+            lxfar = eyes.L.Center(1) + 10000*eyes.L.RotMat(1,1);
+            lyfar = eyes.L.Center(2) + 10000*eyes.L.RotMat(2,1);
+            lzfar = eyes.L.Center(3) + 10000*eyes.L.RotMat(3,1);
+            rxfar = eyes.R.Center(1) + 10000*eyes.R.RotMat(1,1);
+            ryfar = eyes.R.Center(2) + 10000*eyes.R.RotMat(2,1);
+            rzfar = eyes.R.Center(3) + 10000*eyes.R.RotMat(3,1);
 
-            rxfar = eyes.R.X - 10000*eyes.R.RM(2,1);
-            ryfar = eyes.R.Y - 10000*eyes.R.RM(3,1);
-            rzfar = eyes.R.Z + 10000*eyes.R.RM(1,1);
+            % crosses around the eyes
+            lrx = eyes.L.Center(1) - 10*eyes.L.RotMat(1,2);
+            llx = eyes.L.Center(1) + 10*eyes.L.RotMat(1,2);
+            lry = eyes.L.Center(2) - 10*eyes.L.RotMat(2,2);
+            lly = eyes.L.Center(2) + 10*eyes.L.RotMat(2,2);
+            lrz = eyes.L.Center(3) - 10*eyes.L.RotMat(3,2);
+            llz = eyes.L.Center(3) + 10*eyes.L.RotMat(3,2);
 
-            lrx = eyes.L.X - 10*eyes.L.RM(2,2);
-            llx = eyes.L.X + 10*eyes.L.RM(2,2);
-            lry = eyes.L.Y - 10*eyes.L.RM(3,2);
-            lly = eyes.L.Y + 10*eyes.L.RM(3,2);
-            lrz = eyes.L.Z + 10*eyes.L.RM(1,2);
-            llz = eyes.L.Z - 10*eyes.L.RM(1,2);
+            rrx = eyes.R.Center(1) - 10*eyes.R.RotMat(1,2);
+            rlx = eyes.R.Center(1) + 10*eyes.R.RotMat(1,2);
+            rry = eyes.R.Center(2) - 10*eyes.R.RotMat(2,2);
+            rly = eyes.R.Center(2) + 10*eyes.R.RotMat(2,2);
+            rrz = eyes.R.Center(3) - 10*eyes.R.RotMat(3,2);
+            rlz = eyes.R.Center(3) + 10*eyes.R.RotMat(3,2);
 
-            rrx = eyes.R.X - 10*eyes.R.RM(2,2);
-            rlx = eyes.R.X + 10*eyes.R.RM(2,2);
-            rry = eyes.R.Y - 10*eyes.R.RM(3,2);
-            rly = eyes.R.Y + 10*eyes.R.RM(3,2);
-            rrz = eyes.R.Z + 10*eyes.R.RM(1,2);
-            rlz = eyes.R.Z - 10*eyes.R.RM(1,2);
+            rbx = eyes.R.Center(1) - 10*eyes.R.RotMat(1,3);
+            rtx = eyes.R.Center(1) + 10*eyes.R.RotMat(1,3);
+            rby = eyes.R.Center(2) - 10*eyes.R.RotMat(2,3);
+            rty = eyes.R.Center(2) + 10*eyes.R.RotMat(2,3);
+            rbz = eyes.R.Center(3) - 10*eyes.R.RotMat(3,3);
+            rtz = eyes.R.Center(3) + 10*eyes.R.RotMat(3,3);
 
-            rbx = eyes.R.X - 10*eyes.R.RM(2,3);
-            rtx = eyes.R.X + 10*eyes.R.RM(2,3);
-            rby = eyes.R.Y - 10*eyes.R.RM(3,3);
-            rty = eyes.R.Y + 10*eyes.R.RM(3,3);
-            rbz = eyes.R.Z + 10*eyes.R.RM(1,3);
-            rtz = eyes.R.Z - 10*eyes.R.RM(1,3);
+            lbx = eyes.L.Center(1) - 10*eyes.L.RotMat(1,3);
+            ltx = eyes.L.Center(1) + 10*eyes.L.RotMat(1,3);
+            lby = eyes.L.Center(2) - 10*eyes.L.RotMat(2,3);
+            lty = eyes.L.Center(2) + 10*eyes.L.RotMat(2,3);
+            lbz = eyes.L.Center(3) - 10*eyes.L.RotMat(3,3);
+            ltz = eyes.L.Center(3) + 10*eyes.L.RotMat(3,3);
 
-
-            lbx = eyes.L.X - 10*eyes.L.RM(2,3);
-            ltx = eyes.L.X + 10*eyes.L.RM(2,3);
-            lby = eyes.L.Y - 10*eyes.L.RM(3,3);
-            lty = eyes.L.Y + 10*eyes.L.RM(3,3);
-            lbz = eyes.L.Z + 10*eyes.L.RM(1,3);
-            ltz = eyes.L.Z - 10*eyes.L.RM(1,3);
-
-            set(app.Data.hfix, 'xdata', Values.FixationX);
-            set(app.Data.hfix, 'ydata', Values.FixationDistance);
-            set(app.Data.hfix, 'zdata', Values.FixationY);
+            set(app.Data.hfix, 'xdata', app.Data.FixationSpot(1));
+            set(app.Data.hfix, 'ydata', app.Data.FixationSpot(2));
+            set(app.Data.hfix, 'zdata', app.Data.FixationSpot(3));
             set(app.Data.heyes.l, ...
-                'xdata', [eyes.L.X lxfar ...
+                'xdata', [eyes.L.Center(1) lxfar ...
                 nan lbx ltx nan lrx llx], ...
-                'ydata', [eyes.L.Z lzfar  ...
-                nan lbz ltz nan lrz llz], ...
-                'zdata', [eyes.L.Y lyfar ...
-                nan lby lty nan lry lly]);
+                'ydata', [eyes.L.Center(2) lyfar  ...
+                nan lby lty nan lry lly], ...
+                'zdata', [eyes.L.Center(3) lzfar ...
+                nan lbz ltz nan lrz llz]);
             set(app.Data.heyes.r, ...
-                'xdata', [ eyes.R.X rxfar ...
+                'xdata', [ eyes.R.Center(1) rxfar ...
                 nan rbx rtx nan rrx rlx ], ...
-                'ydata', [ eyes.R.Z rzfar ...
-                nan rbz rtz nan rrz rlz ], ...
-                'zdata', [ eyes.R.Y ryfar ...
-                nan rby rty nan rry rly]);
-            set(app.Data.heyes.c(1), 'xdata', [eyes.L.X]);
-            set(app.Data.heyes.c(2), 'xdata', [eyes.R.X]);
+                'ydata', [ eyes.R.Center(2) ryfar ...
+                nan rby rty nan rry rly ], ...
+                'zdata', [ eyes.R.Center(3) rzfar ...
+                nan rbz rtz nan rrz rlz]);
+            set(app.Data.heyes.c(1), 'ydata', [eyes.L.Center(2)]);
+            set(app.Data.heyes.c(2), 'ydata', [eyes.R.Center(2)]);
 
-            set(app.Data.hpoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', worldPoints.Y);
-            set(app.Data.hspoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', app.Data.hspoints.Parent.XLim(1)*ones(size(worldPoints.Y)));
+            % points
+            set(app.Data.hpoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Y, 'zdata', worldPoints.Z);
+            % shadow of the points
+            set(app.Data.hspoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Y, 'zdata', app.Data.hspoints.Parent.ZLim(1)*ones(size(worldPoints.Z)));
+
+            % horopter
+
+            [h,d, p] = Geometry3D.ComputeExtendedHoropter(eyes);
+            set(app.Data.hhoropter, 'xdata', h(:,:,1), 'ydata', h(:,:,2), 'zdata', h(:,:,3), 'cdata', d.^0.3);
+
+            ph = rad2deg(Geometry3D.azimuthalEquidistantProjectionZY(p));
+
+            set(app.Data.hLRpoints.hhoro, 'xdata', atan2(ph(:,2),ph(:,3)), 'ydata', sqrt(ph(:,2).^2+ph(:,3).^2), 'cdata', d(:).^0.3);
 
             ax3d = app.Data.hfix.Parent;
-            switch(app.Values.View3D)
-                case 'Oblique'
-                    view(ax3d, -60,10)
-                case 'TOP'
-                    view(ax3d, -90,90)
-                case 'SIDE'
-                    view(ax3d, -90,0)
+
+            if (app.Data.View3D ~= string(app.Values.View3D) )
+                switch(app.Values.View3D)
+                    case 'Oblique'
+                        view(ax3d, -70 ,  30)
+                    case 'TOP'
+                        view(ax3d, 0, 90)
+                    case 'SIDE'
+                        view(ax3d, 0, 0)
+                end
+                app.Data.View3D = string(Values.View3D);
             end
 
             % update retina plot
-            ra = atan2( tand(eyePoints.RV) , tand(eyePoints.RH)./(abs(cosd(eyePoints.RV))));
-            re = atand(sqrt(tand(eyePoints.RV).^2 + (tand(eyePoints.RH)./(abs(cosd(eyePoints.RV)))).^2));
-
-            set(app.Data.hLRpoints.R, 'ThetaData', ra, 'RData', re);
-            ra = atan2( tand(eyePoints.LV) , tand(eyePoints.LH)./abs(cosd(eyePoints.LV)));
-            re = atand(sqrt(tand(eyePoints.LV).^2 + (tand(eyePoints.LH)./(abs(cosd(eyePoints.LV)))).^2));
-            set(app.Data.hLRpoints.L, 'ThetaData', ra, 'RData', re);
+            r = rad2deg(Geometry3D.azimuthalEquidistantProjectionZY(eyePoints{:,{'RX' 'RY' 'RZ'  }}));
+            l = rad2deg(Geometry3D.azimuthalEquidistantProjectionZY(eyePoints{:,{'LX' 'LY' 'LZ'  }}));
+        
+            set(app.Data.hLRpoints.R, 'ThetaData', atan2(r(:,2),r(:,3)), 'RData', sqrt(r(:,2).^2+r(:,3).^2));
+            set(app.Data.hLRpoints.L, 'ThetaData', atan2(l(:,2),l(:,3)), 'RData', sqrt(l(:,2).^2+l(:,3).^2));
 
             % update disparity plot
             set(app.Data.hdisparity, ...
@@ -1311,62 +1471,62 @@ classdef Geometry3D
             end
 
             % update 3D plot
-            lxfar = eyes.L.X - 10000*eyes.L.RM(2,1);
-            lyfar = eyes.L.Y - 10000*eyes.L.RM(3,1);
-            lzfar = eyes.L.Z + 10000*eyes.L.RM(1,1);
+            lxfar = eyes.L.Center(1) - 10000*eyes.L.RotMat(2,1);
+            lyfar = eyes.L.Center(2) - 10000*eyes.L.RotMat(3,1);
+            lzfar = eyes.L.Center(3) + 10000*eyes.L.RotMat(1,1);
 
-            rxfar = eyes.R.X - 10000*eyes.R.RM(2,1);
-            ryfar = eyes.R.Y - 10000*eyes.R.RM(3,1);
-            rzfar = eyes.R.Z + 10000*eyes.R.RM(1,1);
+            rxfar = eyes.R.Center(1) - 10000*eyes.R.RotMat(2,1);
+            ryfar = eyes.R.Center(2) - 10000*eyes.R.RotMat(3,1);
+            rzfar = eyes.R.Center(3) + 10000*eyes.R.RotMat(1,1);
 
-            lrx = eyes.L.X - 10*eyes.L.RM(2,2);
-            llx = eyes.L.X + 10*eyes.L.RM(2,2);
-            lry = eyes.L.Y - 10*eyes.L.RM(3,2);
-            lly = eyes.L.Y + 10*eyes.L.RM(3,2);
-            lrz = eyes.L.Z + 10*eyes.L.RM(1,2);
-            llz = eyes.L.Z - 10*eyes.L.RM(1,2);
+            lrx = eyes.L.Center(1) - 10*eyes.L.RotMat(2,2);
+            llx = eyes.L.Center(1) + 10*eyes.L.RotMat(2,2);
+            lry = eyes.L.Center(2) - 10*eyes.L.RotMat(3,2);
+            lly = eyes.L.Center(2) + 10*eyes.L.RotMat(3,2);
+            lrz = eyes.L.Center(3) + 10*eyes.L.RotMat(1,2);
+            llz = eyes.L.Center(3) - 10*eyes.L.RotMat(1,2);
 
-            rrx = eyes.R.X - 10*eyes.R.RM(2,2);
-            rlx = eyes.R.X + 10*eyes.R.RM(2,2);
-            rry = eyes.R.Y - 10*eyes.R.RM(3,2);
-            rly = eyes.R.Y + 10*eyes.R.RM(3,2);
-            rrz = eyes.R.Z + 10*eyes.R.RM(1,2);
-            rlz = eyes.R.Z - 10*eyes.R.RM(1,2);
+            rrx = eyes.R.Center(1) - 10*eyes.R.RotMat(2,2);
+            rlx = eyes.R.Center(1) + 10*eyes.R.RotMat(2,2);
+            rry = eyes.R.Center(2) - 10*eyes.R.RotMat(3,2);
+            rly = eyes.R.Center(2) + 10*eyes.R.RotMat(3,2);
+            rrz = eyes.R.Center(3) + 10*eyes.R.RotMat(1,2);
+            rlz = eyes.R.Center(3) - 10*eyes.R.RotMat(1,2);
 
-            rbx = eyes.R.X - 10*eyes.R.RM(2,3);
-            rtx = eyes.R.X + 10*eyes.R.RM(2,3);
-            rby = eyes.R.Y - 10*eyes.R.RM(3,3);
-            rty = eyes.R.Y + 10*eyes.R.RM(3,3);
-            rbz = eyes.R.Z + 10*eyes.R.RM(1,3);
-            rtz = eyes.R.Z - 10*eyes.R.RM(1,3);
+            rbx = eyes.R.Center(1) - 10*eyes.R.RotMat(2,3);
+            rtx = eyes.R.Center(1) + 10*eyes.R.RotMat(2,3);
+            rby = eyes.R.Center(2) - 10*eyes.R.RotMat(3,3);
+            rty = eyes.R.Center(2) + 10*eyes.R.RotMat(3,3);
+            rbz = eyes.R.Center(3) + 10*eyes.R.RotMat(1,3);
+            rtz = eyes.R.Center(3) - 10*eyes.R.RotMat(1,3);
 
 
-            lbx = eyes.L.X - 10*eyes.L.RM(2,3);
-            ltx = eyes.L.X + 10*eyes.L.RM(2,3);
-            lby = eyes.L.Y - 10*eyes.L.RM(3,3);
-            lty = eyes.L.Y + 10*eyes.L.RM(3,3);
-            lbz = eyes.L.Z + 10*eyes.L.RM(1,3);
-            ltz = eyes.L.Z - 10*eyes.L.RM(1,3);
+            lbx = eyes.L.Center(1) - 10*eyes.L.RotMat(2,3);
+            ltx = eyes.L.Center(1) + 10*eyes.L.RotMat(2,3);
+            lby = eyes.L.Center(2) - 10*eyes.L.RotMat(3,3);
+            lty = eyes.L.Center(2) + 10*eyes.L.RotMat(3,3);
+            lbz = eyes.L.Center(3) + 10*eyes.L.RotMat(1,3);
+            ltz = eyes.L.Center(3) - 10*eyes.L.RotMat(1,3);
 
             set(app.Data.hfix, 'xdata', Values.FixationX);
             set(app.Data.hfix, 'ydata', Values.FixationDistance);
             set(app.Data.hfix, 'zdata', Values.FixationY);
             set(app.Data.heyes.l, ...
-                'xdata', [eyes.L.X lxfar ...
+                'xdata', [eyes.L.Center(1) lxfar ...
                 nan lbx ltx nan lrx llx], ...
-                'ydata', [eyes.L.Z lzfar  ...
+                'ydata', [eyes.L.Center(3) lzfar  ...
                 nan lbz ltz nan lrz llz], ...
-                'zdata', [eyes.L.Y lyfar ...
+                'zdata', [eyes.L.Center(2) lyfar ...
                 nan lby lty nan lry lly]);
             set(app.Data.heyes.r, ...
-                'xdata', [ eyes.R.X rxfar ...
+                'xdata', [ eyes.R.Center(1) rxfar ...
                 nan rbx rtx nan rrx rlx ], ...
-                'ydata', [ eyes.R.Z rzfar ...
+                'ydata', [ eyes.R.Center(3) rzfar ...
                 nan rbz rtz nan rrz rlz ], ...
-                'zdata', [ eyes.R.Y ryfar ...
+                'zdata', [ eyes.R.Center(2) ryfar ...
                 nan rby rty nan rry rly]);
-            set(app.Data.heyes.c(1), 'xdata', [eyes.L.X]);
-            set(app.Data.heyes.c(2), 'xdata', [eyes.R.X]);
+            set(app.Data.heyes.c(1), 'xdata', [eyes.L.Center(1)]);
+            set(app.Data.heyes.c(2), 'xdata', [eyes.R.Center(1)]);
 
             set(app.Data.hpoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', worldPoints.Y);
             set(app.Data.hspoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', app.Data.hspoints.Parent.XLim(1)*ones(size(worldPoints.Y)));
@@ -1428,8 +1588,8 @@ classdef Geometry3D
             hspoints = line(0,0, 0,'linestyle','none','marker','o','Color',[0.8 0.8 0.8]);
             hfix = line(0,0, 0,'linestyle','none','marker','o','Color','r','LineWidth',2, 'markersize',20);
 
-            heyes.c(1) = plot3([eyes.L.X], [eyes.L.Y ], 0,'o','Color','b', 'markersize',10); % left eye fixation spot and right eye
-            heyes.c(2) = plot3([eyes.R.X], [eyes.R.Y], 0,'o','Color','r', 'markersize',10); % left eye fixation spot and right eye
+            heyes.c(1) = plot3([eyes.L.X], [eyes.L.Center(2) ], 0,'o','Color','b', 'markersize',10); % left eye fixation spot and right eye
+            heyes.c(2) = plot3([eyes.R.Center(1)], [eyes.R.Center(2)], 0,'o','Color','r', 'markersize',10); % left eye fixation spot and right eye
             heyes.l = line(0,0,0,'linestyle','-','Color','b'); % left eye fixation spot and right eye
             heyes.r = line(0,0,0,'linestyle','-','Color','r'); % left eye fixation spot and right eye
 
@@ -1447,7 +1607,7 @@ classdef Geometry3D
             title('3D world');
             hscreen = [];
             % hscreen(1) = plot3([-1 -1 1 1 -1]*leftEyeScreen.widthCm/2+eyes.L.X, [1 1 1 1 1]*leftEyeScreen.ScreenDistance, [-1 1 1 -1 -1]*leftEyeScreen.heightCm/2);
-            % hscreen(2) = plot3([-1 -1 1 1 -1]*rightScreen.widthCm/2+eyes.R.X, [1 1 1 1 1]*rightScreen.ScreenDistance, [-1 1 1 -1 -1]*rightScreen.heightCm/2);
+            % hscreen(2) = plot3([-1 -1 1 1 -1]*rightScreen.widthCm/2+eyes.R.Center(1), [1 1 1 1 1]*rightScreen.ScreenDistance, [-1 1 1 -1 -1]*rightScreen.heightCm/2);
             hLRpoints = [];
             t = eyePoints;
 
@@ -1486,6 +1646,9 @@ classdef Geometry3D
 
             if (~isfield(app.Data,"stimulus"))
                 app.Data.stimulus = "NONE";
+            end
+            if (~isfield(app.Data,"View3D"))
+                app.Data.View3D = "NONE";
             end
 
             %%
@@ -1570,42 +1733,41 @@ classdef Geometry3D
             end
 
             % update 3D plot
-            lxfar = eyes.L.X - 10000*eyes.L.RM(2,1);
-            lyfar = eyes.L.Y - 10000*eyes.L.RM(3,1);
-            lzfar = eyes.L.Z + 10000*eyes.L.RM(1,1);
+            lxfar = eyes.L.X - 10000*eyes.L.RotMat(2,1);
+            lyfar = eyes.L.Center(2) - 10000*eyes.L.RotMat(3,1);
+            lzfar = eyes.L.Center(3) + 10000*eyes.L.RotMat(1,1);
 
-            rxfar = eyes.R.X - 10000*eyes.R.RM(2,1);
-            ryfar = eyes.R.Y - 10000*eyes.R.RM(3,1);
-            rzfar = eyes.R.Z + 10000*eyes.R.RM(1,1);
+            rxfar = eyes.R.Center(1) - 10000*eyes.R.RotMat(2,1);
+            ryfar = eyes.R.Center(2) - 10000*eyes.R.RotMat(3,1);
+            rzfar = eyes.R.Center(3) + 10000*eyes.R.RotMat(1,1);
 
-            lrx = eyes.L.X - 10*eyes.L.RM(2,2);
-            llx = eyes.L.X + 10*eyes.L.RM(2,2);
-            lry = eyes.L.Y - 10*eyes.L.RM(3,2);
-            lly = eyes.L.Y + 10*eyes.L.RM(3,2);
-            lrz = eyes.L.Z + 10*eyes.L.RM(1,2);
-            llz = eyes.L.Z - 10*eyes.L.RM(1,2);
+            lrx = eyes.L.X - 10*eyes.L.RotMat(2,2);
+            llx = eyes.L.X + 10*eyes.L.RotMat(2,2);
+            lry = eyes.L.Center(2) - 10*eyes.L.RotMat(3,2);
+            lly = eyes.L.Center(2) + 10*eyes.L.RotMat(3,2);
+            lrz = eyes.L.Center(3) + 10*eyes.L.RotMat(1,2);
+            llz = eyes.L.Center(3) - 10*eyes.L.RotMat(1,2);
 
-            rrx = eyes.R.X - 10*eyes.R.RM(2,2);
-            rlx = eyes.R.X + 10*eyes.R.RM(2,2);
-            rry = eyes.R.Y - 10*eyes.R.RM(3,2);
-            rly = eyes.R.Y + 10*eyes.R.RM(3,2);
-            rrz = eyes.R.Z + 10*eyes.R.RM(1,2);
-            rlz = eyes.R.Z - 10*eyes.R.RM(1,2);
+            rrx = eyes.R.Center(1) - 10*eyes.R.RotMat(2,2);
+            rlx = eyes.R.Center(1) + 10*eyes.R.RotMat(2,2);
+            rry = eyes.R.Center(2) - 10*eyes.R.RotMat(3,2);
+            rly = eyes.R.Center(2) + 10*eyes.R.RotMat(3,2);
+            rrz = eyes.R.Center(3) + 10*eyes.R.RotMat(1,2);
+            rlz = eyes.R.Center(3) - 10*eyes.R.RotMat(1,2);
 
-            rbx = eyes.R.X - 10*eyes.R.RM(2,3);
-            rtx = eyes.R.X + 10*eyes.R.RM(2,3);
-            rby = eyes.R.Y - 10*eyes.R.RM(3,3);
-            rty = eyes.R.Y + 10*eyes.R.RM(3,3);
-            rbz = eyes.R.Z + 10*eyes.R.RM(1,3);
-            rtz = eyes.R.Z - 10*eyes.R.RM(1,3);
+            rbx = eyes.R.Center(1) - 10*eyes.R.RotMat(2,3);
+            rtx = eyes.R.Center(1) + 10*eyes.R.RotMat(2,3);
+            rby = eyes.R.Center(2) - 10*eyes.R.RotMat(3,3);
+            rty = eyes.R.Center(2) + 10*eyes.R.RotMat(3,3);
+            rbz = eyes.R.Center(3) + 10*eyes.R.RotMat(1,3);
+            rtz = eyes.R.Center(3) - 10*eyes.R.RotMat(1,3);
 
-
-            lbx = eyes.L.X - 10*eyes.L.RM(2,3);
-            ltx = eyes.L.X + 10*eyes.L.RM(2,3);
-            lby = eyes.L.Y - 10*eyes.L.RM(3,3);
-            lty = eyes.L.Y + 10*eyes.L.RM(3,3);
-            lbz = eyes.L.Z + 10*eyes.L.RM(1,3);
-            ltz = eyes.L.Z - 10*eyes.L.RM(1,3);
+            lbx = eyes.L.X - 10*eyes.L.RotMat(2,3);
+            ltx = eyes.L.X + 10*eyes.L.RotMat(2,3);
+            lby = eyes.L.Center(2) - 10*eyes.L.RotMat(3,3);
+            lty = eyes.L.Center(2) + 10*eyes.L.RotMat(3,3);
+            lbz = eyes.L.Center(3) + 10*eyes.L.RotMat(1,3);
+            ltz = eyes.L.Center(3) - 10*eyes.L.RotMat(1,3);
 
             set(app.Data.hfix, 'xdata', Values.FixationX);
             set(app.Data.hfix, 'ydata', Values.FixationDistance);
@@ -1613,19 +1775,19 @@ classdef Geometry3D
             set(app.Data.heyes.l, ...
                 'xdata', [eyes.L.X lxfar ...
                 nan lbx ltx nan lrx llx], ...
-                'ydata', [eyes.L.Z lzfar  ...
+                'ydata', [eyes.L.Center(3) lzfar  ...
                 nan lbz ltz nan lrz llz], ...
-                'zdata', [eyes.L.Y lyfar ...
+                'zdata', [eyes.L.Center(2) lyfar ...
                 nan lby lty nan lry lly]);
             set(app.Data.heyes.r, ...
-                'xdata', [ eyes.R.X rxfar ...
+                'xdata', [ eyes.R.Center(1) rxfar ...
                 nan rbx rtx nan rrx rlx ], ...
-                'ydata', [ eyes.R.Z rzfar ...
+                'ydata', [ eyes.R.Center(3) rzfar ...
                 nan rbz rtz nan rrz rlz ], ...
-                'zdata', [ eyes.R.Y ryfar ...
+                'zdata', [ eyes.R.Center(2) ryfar ...
                 nan rby rty nan rry rly]);
             set(app.Data.heyes.c(1), 'xdata', [eyes.L.X]);
-            set(app.Data.heyes.c(2), 'xdata', [eyes.R.X]);
+            set(app.Data.heyes.c(2), 'xdata', [eyes.R.Center(1)]);
 
             set(app.Data.hpoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', worldPoints.Y);
             set(app.Data.hspoints, 'xdata', worldPoints.X, 'ydata',worldPoints.Z, 'zdata', app.Data.hspoints.Parent.XLim(1)*ones(size(worldPoints.Y)));
@@ -2006,8 +2168,8 @@ classdef Geometry3D
             q = [cos(angle/2) sin(angle/2)*axis/norm(axis)];
         end
 
-        function R = listingsLawRotation(n, v)
-            % R = listingsLawRotation(n, v) CHATGPT
+        function R = LookAtListings(v, n)
+            % R = listingsLawRotation(v, n) CHATGPT
             %
             % Computes the rotation matrix R that rotates the eye from
             % the primary position (1,0,0) to the direction v,
@@ -2072,10 +2234,10 @@ classdef Geometry3D
             theta = acos(cosVal);
 
             % 7. Build the rotation matrix via Rodrigues' formula
-            R = axisAngleToMatrix(r, theta);
+            R = Geometry3D.AxisAngle2Mat(r, theta);
         end
 
-        function R = RodriguesFormula(axis, angle)
+        function R = AxisAngle2Mat(axis, angle)
             % Helper function to build a rotation matrix
             % from a unit rotation axis and a rotation angle.
             x = axis(1);
@@ -2944,6 +3106,85 @@ classdef Geometry3D
             x=cos(lon).*s;
             y=sin(lon).*s;
 
+        end
+
+        function projPoints = stereographicProjectionZY(spherePoints)
+            % stereographicProjectionZY computes the stereographic projection of points
+            % on a sphere onto the zy-plane (x = 1) using the projection point (-1,0,0).
+            %
+            % Input:
+            %   spherePoints - an N-by-3 matrix where each row is a point [x, y, z]
+            %                  that lies on the sphere centered at the origin.
+            %
+            % Output:
+            %   projPoints   - an N-by-3 matrix of projected points [0, y', z'] where:
+            %                  y' = y/(1-x) and z' = z/(1-x)
+            %
+            % Note:
+            %   Points with x = 1 (or very close to 1) will produce a division by zero
+            %   and are set to NaN.
+
+            % Extract the coordinates
+            x = spherePoints(:, 1);
+            y = spherePoints(:, 2);
+            z = spherePoints(:, 3);
+
+            % Compute the denominator (1-x)
+            denom =  x+1;
+
+            % Check for points where denom is nearly zero
+            if any(abs(denom) < 1e-10)
+                warning('Some points have x ~ 1, mapping to infinity; their projection will be NaN.');
+            end
+
+            % Compute the projected y and z coordinates
+            y_proj = 2*y ./ denom;
+            z_proj = 2*z ./ denom;
+
+            % The projected x coordinate is 0 for the zy-plane
+            x_proj = zeros(size(x));
+
+            % Combine into the output matrix
+            projPoints = [x_proj, y_proj, z_proj];
+        end
+
+        function projPoints = azimuthalEquidistantProjectionZY(spherePoints)
+            % azimuthalEquidistantProjectionZY projects points on the unit sphere onto the
+            % tangent plane at the north pole (x = 1) using the azimuthal equidistant projection.
+            %
+            % Input:
+            %   spherePoints - an N-by-3 matrix where each row is a point [x, y, z] on the unit sphere.
+            %
+            % Output:
+            %   projPoints   - an N-by-3 matrix of projected points [X, Y, 1] on the plane z = 1.
+            %
+            % The projection is computed as follows:
+            %   r     = acos(x)         % Angular distance from the north pole
+            %   theta = atan2(y, z)       % Azimuth angle in the xy-plane
+            %   X     = r * cos(theta)
+            %   Y     = r * sin(theta)
+            %
+            % Note:
+            %   This projection maps the north pole (0,0,1) to (0,0,1) and is defined for all points
+            %   on the sphere.
+
+            % Extract coordinates from the input
+            x = spherePoints(:,1);
+            y = spherePoints(:,2);
+            z = spherePoints(:,3);
+
+            % Compute the angular distance from the north pole (in radians)
+            r = acos(x);
+
+            % Compute the azimuth angle
+            theta = atan2(y, z);
+
+            % Compute the projected coordinates in the tangent plane at the north pole
+            Y_proj = r .* cos(theta);
+            Z_proj = r .* sin(theta);
+
+            % The projected z-coordinate is 1 (on the plane z = 1)
+            projPoints = [ones(size(x)), Y_proj, Z_proj];
         end
     end
 end
