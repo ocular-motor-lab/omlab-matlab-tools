@@ -25,6 +25,7 @@ classdef InteractiveUI < matlab.apps.AppBase
         UIFigure        matlab.ui.Figure
         GridLayout      matlab.ui.container.GridLayout
         FigureMenu
+        HelpMenu
 
         % timer
         t
@@ -34,6 +35,7 @@ classdef InteractiveUI < matlab.apps.AppBase
         period = 0.1;
 
         Data
+        HelpText = ''
     end
     properties(Access = private)
         sliderCount = 0;
@@ -127,7 +129,11 @@ classdef InteractiveUI < matlab.apps.AppBase
     methods (Access = public)
 
         % Construct app
-        function app = InteractiveUI(name, newUpdateCallback, period)
+        function app = InteractiveUI(name, newUpdateCallback, period, helpText)
+
+            if (exist('helpText','var'))
+                app.HelpText = helpText;
+            end
 
             % Create UIFigure and components
             N = 2;
@@ -147,6 +153,10 @@ classdef InteractiveUI < matlab.apps.AppBase
             app.FigureMenu = uimenu(app.UIFigure, 'Text','Menu');
             mitem = uimenu(app.FigureMenu,'Text','Reset');
             mitem.MenuSelectedFcn = @(src,event) app.Reset();
+
+            app.HelpMenu = uimenu(app.UIFigure, 'Text','Help');
+            mitem = uimenu(app.HelpMenu,'Text','Show help');
+            mitem.MenuSelectedFcn = @(src,event) msgbox(app.HelpText);
 
             % Register the app with App Designer
             registerApp(app, app.UIFigure)

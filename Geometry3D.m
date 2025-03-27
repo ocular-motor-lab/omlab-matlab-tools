@@ -76,7 +76,7 @@ classdef Geometry3D
             end
         end
 
-        function [visualDirections az el] = SampleVisualDirections(N, type, range)
+        function [visualDirections, az, el] = SampleVisualDirections(N, type, range)
             % Samples points in the front of a sphere according to the
             % coordinate system according to spiral
             %
@@ -628,40 +628,6 @@ classdef Geometry3D
             end
         end
 
-        function demoDisparity()
-
-            app = InteractiveUI('Disparity Simulator',@(app) (Geometry3D.demoDisparityUpdate(app)), 0.2);
-            app.AddDropDown('Stimulus',                 1,  ["CROSS" "FIXATION" "RANDOMPLANE" "GRIDPLANE" "HLINE" "VLINE"])
-            app.AddSlider('IPD mm',                     60, [10 100])
-            app.AddSlider('Stimulus Size cm',           40, [10 200])
-            app.AddSlider('Stimulus Distance cm',       40, [10 200])
-            app.AddSlider('Stimulus slant deg',         0,  [-90 90])
-            app.AddSlider('Stimulus Tilt deg',          0,  [0 90])
-            app.AddSlider('Fixation Distance cm',       30, [10 200])
-            app.AddSlider('Fixation Azimuth deg',       0,  [-50 50])
-            app.AddSlider('Fixation Elevation deg',     0,  [-50 50])
-            app.AddSlider('Retinal Shear deg',          0,  [-5 5])
-            app.AddSlider('Listings Plane Pitch deg',   0,  [-20 20])
-            app.AddSlider('Listings L2 factor',     0,  [-2 2])
-            app.AddDropDown('View3D',                   1,  ["OBLIQUE" "TOP" "BACK" "SIDE"])
-            app.AddSlider('Screen slant deg',           0,  [-30 30])
-            app.AddSlider('Torsion Version deg',        0,  [-20 20])
-            app.AddSlider('Torsion Vergence deg',       0,  [-5 5])
-
-
-            app.Data.Screen = struct();
-            app.Data.Screen.SizeCm = [30*16/9 30];
-            app.Data.Screen.ResPix = [1920 1080];
-            app.Data.Screen.DistanceCm = 57;
-            app.Data.Screen.SlantDeg = 0;
-
-            app.Data.FixationSpot = struct();
-            app.Data.FixationSpot = [0 0 0]';
-
-            app.Open();
-
-        end
-
 
         function demoListingMonocular()
 
@@ -792,7 +758,7 @@ classdef Geometry3D
             app.Open();
         end
 
-        function eyes = MakeEyes(ipdCm, fixationSpot, torsionVersion, torsionVergence, listingsPlanePitch, L2Gain, retinalShear)
+        function eyes = MakeEyes(ipdCm, fixationSpot, torsionVersion, torsionVergence, listingsPlanePitch, L2Gain, retinalShear, HHdeviation)
             
             if (~exist('listingsPlanePitch','var'))
                 listingsPlanePitch = 0;
@@ -804,6 +770,10 @@ classdef Geometry3D
 
             if (~exist('retinalShear','var'))
                 retinalShear = 0;
+            end
+
+            if (~exist('HHdeviation','var'))
+                HHdeviation = 0;
             end
 
             % TODO: add troppias and fixation disparity
@@ -822,20 +792,26 @@ classdef Geometry3D
             eyes.R.PrimaryPos = Geometry3D.RotZ(-deg2rad(eyes.VergenceAngle) * L2Gain) * Geometry3D.RotY(deg2rad(listingsPlanePitch)) * [1 0 0]';
 
             % Listing law rotations
-            listingsLeftRotMat = Geometry3D.LookAtListings(fixationSpot - eyes.L.Center, eyes.L.PrimaryPos);
-            listingsRightRotMat = Geometry3D.LookAtListings(fixationSpot - eyes.R.Center, eyes.R.PrimaryPos);
+            [listingsLeftRotMat, listingsLeftRotVec] = Geometry3D.LookAtListings(fixationSpot - eyes.L.Center, eyes.L.PrimaryPos);
+            [listingsRightRotMat, listingsRightRotVec]  = Geometry3D.LookAtListings(fixationSpot - eyes.R.Center, eyes.R.PrimaryPos);
 
             % Torsion off of listing's plane
-            torsionLeft = Geometry3D.RotX(deg2rad(torsionVersion + torsionVergence));
-            torsionRight = Geometry3D.RotX(deg2rad(torsionVersion - torsionVergence));
+            torsionLeft = Geometry3D.RotX(deg2rad(torsionVersion - torsionVergence/2));
+            torsionRight = Geometry3D.RotX(deg2rad(torsionVersion + torsionVergence/2));
 
             % Put everything together
             eyes.L.RotMat = listingsLeftRotMat * torsionLeft;
             eyes.R.RotMat = listingsRightRotMat * torsionRight;
+            eyes.L.ListingsRotVec = listingsLeftRotVec;
+            eyes.R.ListingsRotVec = listingsRightRotVec;
 
             % Retinal shear
-            eyes.L.Shear = -retinalShear;
-            eyes.R.Shear = retinalShear;
+            eyes.L.Shear = +retinalShear/2;
+            eyes.R.Shear = -retinalShear/2;
+
+            % Hering-Hilldebrand deviation
+            eyes.L.HHdeviation = HHdeviation;
+            eyes.R.HHdeviation = HHdeviation;
 
             % ------------
 
@@ -1005,13 +981,19 @@ classdef Geometry3D
             % coordinate system 2D grid
             [p, az, el] = Geometry3D.SampleVisualDirections(2000, 'Helmholtz', 90);
 
+            % hering-hilldebrand deviation
+            H = eyes.L.HHdeviation ;
+            azlhh = 1/2 * (atan(2/H)  -acos(H./sqrt(H^2+4).*cos(2*az)));
+            H = eyes.R.HHdeviation ;
+            azrhh = 1/2 * (atan(2/H)  -acos(H./sqrt(H^2+4).*cos(2*az)));
+
             % shear the points according to the retinal shear
-            azl = az + el*deg2rad(eyes.L.Shear);
+            azl = az + el*deg2rad(eyes.L.Shear) - azlhh;
 
             [x,y,z] = Geometry3D.HelmholtzToSphere(azl,el);
             pl = [x(:) y(:) z(:)];
             
-            azr = az + el*deg2rad(eyes.R.Shear);
+            azr = az + el*deg2rad(eyes.R.Shear) + azrhh;
             
             [x,y,z] = Geometry3D.HelmholtzToSphere(azr,el);
             pr = [x(:) y(:) z(:)];
@@ -1188,19 +1170,102 @@ classdef Geometry3D
         end
     end
 
-    methods(Static, Access = private) % DEMO DISPARITY
+    methods(Static) % DEMO DISPARITY
+
+        function demoDisparity()
+
+            helptext = {...
+                '--------------------------------------------------------'...
+                'Coordinate system and conventions:' ...
+                '--------------------------------------------------------'...
+                'Right hand cartesian coordinate system.' ...
+                'X points forward from the head.'...
+                'Y points left from the head.'...
+                'Z points up from the head'...
+                'Right hand rule for rotations.' ...
+                'For some angles we use Helmholtz coordinate system.' ...
+                'Azimuth is the horizontal rotation (positive to the right)' ...
+                'Elevation is the vertical rotation (positive up)' ...
+                '--------------------------------------------------------'...
+                'Options:' ...
+                '--------------------------------------------------------'...
+                'IPD mm : distance between the eye centers in mm.'...
+                ''...
+                'Stimulus Size cm: size of the stimulus in cm.'...
+                'Stimulus Distance cm: distance from the eyes to the stimulus.'...
+                'Stimulus slant deg: slant of the stimulus surface in deg. Angle between X axis and surface normal. '...
+                'Stimulus Tilt deg: tilt of the stimulus surface in deg. Angle between projection of surface normal into ZY plane and vertical axis.'...
+                ''...
+                'Fixation Distance cm: Distance from the eyes to the fixation spot.'...
+                'Fixation Azimuth deg: horizontal angle in Helmholtz coordinates from the eyes to the fixation spot.'...
+                'Fixation Elevation deg: vertical angle in Helmholtz coordinates from the eyes to the fixation spot.'...
+                ''...
+                'Listings Plane Pitch deg: binocular rotation of the listing''s plane along the y axis. Positive means pitch down.'...
+                'Listings L2 factor: how many degrees does listing''s plane rotate along the Z axis (yaw) for reach degree of vergence. Positive causes a temporal rotation of the primary position.' ...
+                'Torsion Version deg: cycloversion off of Listing''s plane. Positive means top pole to right shoulder.'...
+                'Torsion Vergence deg: cyclovergence off of Listing''s plane. Positive means top pole away the nose (extorsion). Each eye rotates half this ammount.'...
+                'Retinal Shear deg (not confirmed accuracy): elevation dependent horizontal retinal shear. Two times angle of the retinal vertical meridian relative to the geometrical meridian. Positive means top pole to the nose (extorsion). For each eye the tilt is half of this ammount'...
+                'Hering–Hillebrand deviation (not confirmed accuracy): deviation between the horizontal empirical and geometrical horopters.'...
+                ''...
+                'View3D: different view points for the 3D plots.'...
+                };
+
+            updateIntervalMs = 0.2;
+
+            app = InteractiveUI('Disparity Simulator',@(app) (Geometry3D.demoDisparityUpdate(app)), updateIntervalMs, helptext);
+            app.AddDropDown('Stimulus',                 1,  ["CROSS" "FIXATION" "RANDOMPLANE" "GRIDPLANE" "HLINE" "VLINE"])
+            app.AddSlider('IPD mm',                     60, [10 100])
+            app.AddSlider('Stimulus Size cm',           40, [10 200])
+            app.AddSlider('Stimulus Distance cm',       40, [10 200])
+            app.AddSlider('Stimulus slant deg',         0,  [-90 90])
+            app.AddSlider('Stimulus Tilt deg',          0,  [0 90])
+            app.AddSlider('Fixation Distance cm',       30, [10 200])
+            app.AddSlider('Fixation Azimuth deg',       0,  [-50 50])
+            app.AddSlider('Fixation Elevation deg',     0,  [-50 50])
+            app.AddSlider('Listings Plane Pitch deg',   0,  [-20 20])
+            app.AddSlider('Listings L2 factor',         0,  [-2 2])
+            app.AddSlider('Torsion Version deg',        0,  [-20 20])
+            app.AddSlider('Torsion Vergence deg',       0,  [-10 10])
+            app.AddSlider('Retinal Shear deg',          0,  [-5 5])
+            app.AddSlider('Hering–Hillebrand deviation',0,  [-0.5 0.5])
+            app.AddDropDown('View3D',                   1,  ["OBLIQUE" "TOP" "BACK" "SIDE"])
+            app.AddSlider('Screen slant deg',           0,  [-30 30])
+
+
+            app.Data.Screen = struct();
+            app.Data.Screen.SizeCm = [30*16/9 30];
+            app.Data.Screen.ResPix = [1920 1080];
+            app.Data.Screen.DistanceCm = 57;
+            app.Data.Screen.SlantDeg = 0;
+
+            app.Data.FixationSpot = struct();
+            app.Data.FixationSpot = [0 0 0]';
+
+            app.Open();
+
+        end
 
         function h = demoDisparityInitPlots()
 
+            % struct containing all the graphical objects
+            h = struct();
+
             % create the figure
-            scr_siz = get(0,'ScreenSize');
-            margin = floor(0.1*(scr_siz(4)));
-            h.figure = figure('color','w','position',floor([margin margin scr_siz(3)*2.8/4 scr_siz(4)*2/4 ]));
+            screen_size = get(0,'ScreenSize');
+            margin = floor(0.1*(screen_size(4)));
+            h.figure = figure('color','w','position',floor([margin margin screen_size(3)*2.8/4 screen_size(4)*2/4 ]));
+
+            plot3Dposition              = [0       0    0.5    1];
+            plotRetinaPosition          = [0.44    0.3    0.28    0.7];
+            plotDisparityPosition       = [0.71    0.3    0.3    0.7];
+            plotHaploscopeLeftPosition  = [0.65    0.01    0.15    0.35];
+            plotHaploscopeRightPosition = [0.80    0.01    0.15    0.35];
+            plotListingsPosition        = [0.5     0.01    0.15    0.35];
 
             %-----------------------------
             % 3D plot
             %-----------------------------
-            h.plot3D.ax = axes('OuterPosition',[ 0    0    0.5    1], 'nextplot','add');
+            h.plot3D.ax = axes('OuterPosition', plot3Dposition, 'nextplot','add');
             grid
             ylim([-100 100]), zlim([-100 100]), xlim([-5 200]);
             xlabel('X (cm)'), zlabel('Z (cm)'), ylabel('Y (cm)');
@@ -1221,8 +1286,8 @@ classdef Geometry3D
             % horopter surface
             h.plot3D.horopter = surf(zeros(2),zeros(2),zeros(2),zeros(2));
             originalCmap = colormap('turbo');
-            set(h.plot3D.horopter,'EdgeColor','none')
-            set(h.plot3D.horopter,'FaceAlpha',0.7)
+            set(h.plot3D.horopter,'EdgeColor','none');
+            set(h.plot3D.horopter,'FaceAlpha',0.7);
 
             nColors = size(originalCmap, 1);
             % Create a normalized index vector from 0 to 1
@@ -1245,7 +1310,7 @@ classdef Geometry3D
             % retina
             %-----------------------------
             
-            h.plotRetina.ax = axes('OuterPosition',[0.44    0.3    0.28    0.7], 'nextplot','add');
+            h.plotRetina.ax = axes('OuterPosition', plotRetinaPosition, 'nextplot','add');
             title({'Retinal image - visual directions' '(equi-eccentricity)'});
 
             axis equal; % Ensure equal scaling on both axes
@@ -1280,7 +1345,7 @@ classdef Geometry3D
             % disparity plot
             %-----------------------------
 
-            h.plotDisparity.ax = axes('OuterPosition',[ 0.71    0.3    0.3    0.7], 'nextplot','add');
+            h.plotDisparity.ax = axes('OuterPosition', plotDisparityPosition, 'nextplot','add');
             set(gca, 'PlotBoxAspectRatio',[1 1 1])
             grid
             set(gca,'xlim',[-40 40],'ylim',[-40 40])
@@ -1295,7 +1360,7 @@ classdef Geometry3D
 
             h.plotHaploscope = [];
 
-            h.plotHaploscope.axLeft = axes('OuterPosition',[0.65    0.01    0.15    0.35], 'nextplot','add');
+            h.plotHaploscope.axLeft = axes('OuterPosition', plotHaploscopeLeftPosition, 'nextplot','add');
             h.plotHaploscope.leftPoints     = plot(0, 0, 'bo');
             h.plotHaploscope.leftFixation   = plot(0, 0, 'ro', 'linewidth',2,'markersize',15);
             grid
@@ -1304,7 +1369,7 @@ classdef Geometry3D
             xlabel({'Haploscope render left eye screen' '53.3cm x 30 cm, 1920x80, 57 cm dist'});
             set(gca,'box','on')
 
-            h.plotHaploscope.axRight = axes('OuterPosition',[  0.80    0.01    0.15    0.35], 'nextplot','add');
+            h.plotHaploscope.axRight = axes('OuterPosition',plotHaploscopeRightPosition, 'nextplot','add');
             h.plotHaploscope.rightPoints  = plot(0, 0, 'ro');
             h.plotHaploscope.rightFixation  = plot(0, 0, 'ro', 'linewidth',2,'markersize',15);
             grid
@@ -1319,7 +1384,7 @@ classdef Geometry3D
             %-----------------------------
 
             % eyes
-            h.plotListings.ax = axes('OuterPosition',[0.5    0.01    0.15    0.35], 'nextplot','add');
+            h.plotListings.ax = axes('OuterPosition',plotListingsPosition, 'nextplot','add');
             view(h.plotListings.ax, -40 ,  40)
             axis equal
             grid
@@ -1348,9 +1413,13 @@ classdef Geometry3D
             % make the world
             worldPoints = Geometry3D.MakeWorldPoints(Values.Stimulus, Values.StimulusSizeCm, Values.StimulusDistanceCm, Values.StimulusTiltDeg, Values.StimulusSlantDeg);
 
+            % Make the eyes
+            eyes = Geometry3D.MakeEyes(Values.IPDMm/10, app.Data.FixationSpot, Values.TorsionVersionDeg, Values.TorsionVergenceDeg, Values.ListingsPlanePitchDeg, Values.ListingsL2Factor, Values.RetinalShearDeg, Values.Hering_HillebrandDeviation);
+            horopter = Geometry3D.ComputeExtendedHoropter(eyes);
+
             % update the fixation spot. Note the flip of x and add it to
             % the world points to convert to eye and screen points.
-            [fx, fy, fz] = Geometry3D.HelmholtzToSphere(deg2rad(-Values.FixationAzimuthDeg), deg2rad(Values.FixationElevationDeg));
+            [fx, fy, fz] = Geometry3D.HelmholtzToSphere( deg2rad(-Values.FixationAzimuthDeg), deg2rad(Values.FixationElevationDeg) );
             app.Data.FixationSpot = Values.FixationDistanceCm * [fx, fy, fz]';
             worldPoints{end+1,{'X' 'Y' 'Z'}} = app.Data.FixationSpot';
 
@@ -1358,9 +1427,6 @@ classdef Geometry3D
             leftEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.DistanceCm, Values.ScreenSlantDeg);
             rightEyeScreen = Geometry3D.MakeScreen(app.Data.Screen.SizeCm, app.Data.Screen.ResPix, app.Data.Screen.DistanceCm, Values.ScreenSlantDeg);
            
-            %% Make the eyes with the current values
-            eyes = Geometry3D.MakeEyes(Values.IPDMm/10, app.Data.FixationSpot, Values.TorsionVersionDeg, Values.TorsionVergenceDeg, Values.ListingsPlanePitchDeg, Values.ListingsL2Factor, Values.RetinalShearDeg);
-            horopter = Geometry3D.ComputeExtendedHoropter(eyes);
             
             %% Get the points in eye and screen coordinates
             eyePoints = Geometry3D.Points3DToEyes(worldPoints, eyes);
@@ -1416,9 +1482,9 @@ classdef Geometry3D
             
             % get azimuthal equidistant projections for horopter surface
             % and stimulus points
-            ph = rad2deg(Geometry3D.azimuthalEquidistantProjectionZY(horopter.VisualDirections));
-            l = rad2deg(Geometry3D.azimuthalEquidistantProjectionZY(eyePoints{:,{'LX' 'LY' 'LZ'  }}));
-            r = rad2deg(Geometry3D.azimuthalEquidistantProjectionZY(eyePoints{:,{'RX' 'RY' 'RZ'  }}));
+            ph = rad2deg(Geometry3D.AzimuthalEquidistantProjectionZY(horopter.VisualDirections));
+            l = rad2deg(Geometry3D.AzimuthalEquidistantProjectionZY(eyePoints{:,{'LX' 'LY' 'LZ'  }}));
+            r = rad2deg(Geometry3D.AzimuthalEquidistantProjectionZY(eyePoints{:,{'RX' 'RY' 'RZ'  }}));
 
             ph = reshape(ph,size(horopter.Points));
             set(h.plotRetina.horopter,          'xdata', -ph(:,:,2), 'ydata', ph(:,:,3), 'zdata', 0*ph(:,:,2), 'cdata', horopter.MinDisparity);
@@ -1446,6 +1512,9 @@ classdef Geometry3D
 
         end
 
+    end
+    
+    methods(Static) % Demo helpers
         function [worldPoints] = MakeWorldPoints(stimulusType, stimulusSizeCm, stimulusDistanceCm, stimulusTiltDeg, stimulusSlantDeg)
             persistent worldPointsNorm;
             persistent lastStimulusType;
@@ -1973,54 +2042,132 @@ classdef Geometry3D
         end
     end
 
-    methods(Static)
-        % rotations around head fixed axis
-        % S = [sx, sy, sz] is a right handed space fixed coordinate system
-        %    sx line of sight (pointing forward)
-        %    sy interarual axis (pointing left)
-        %    sz earth vertical (pointing up)
-        %
-        % B = [bx, by, bz] is a right handed eye fixed coordinate system
-        %
-        %
+    methods(Static) % Eye movement bascis
 
-        % HORIZONTAL ROTATION right handed
-        function M = RotZ(theta)
-            M = [   cos(theta)  -sin(theta)     0;
-                sin(theta)  cos(theta)      0;
-                0           0               1];
+        function [R, rotvec] = LookAtListings(v, n)
+            % [R, rotvec] = listingsLawRotation(v, n) 
+            %
+            % Computes the rotation matrix R that rotates the eye from
+            % the reference position [1 0 0] to the direction v,
+            % enforcing Listing's law according the primary position n.
+            %            % 
+            % Inputs:
+            %   n : 3x1 vector, the normal to Listing's plane (primary position), (need not be normalized).
+            %   v : 3x1 vector, the desired gaze direction (need not be normalized).
+            %
+            % Output:
+            %   R : 3x3 rotation matrix of the pose of the eye looking at v
+            %       this corresponds with a rotation from the identity
+            %       matrix, not from the primary position
+            %   rotvec: axis and angle of the rotation vector that
+            %       corresponds with the rotation from primary position
+            %       that is actually contained in Listing's plane
+            %
+            % The strategy is to compute the rotation from the primary
+            % position to v, and from the primary position to the reference
+            % position [1 0 0]. One corresponds with the actual rotation of
+            % the eye and the other with a rotation of the coordinate
+            % system.
+
+            % 1. Normalize the target direction and primary positions
+            v = normalize(v(:),'norm');  % ensure v is a column vector
+            n = normalize(n(:),'norm');  % ensure n is a column vector
+
+            % 2. Define the eye's reference position e1 = (1,0,0)
+            ref = [1; 0; 0];
+
+            % 3. Compute the rotation axis for the two rotations using the
+            %       cross product
+            nv_ax  = cross(n, v);  
+            nr_ax = cross(n, ref); 
+
+            % 4. Compute the rotation angle for the two rotations using the
+            %       dot product
+            nv_theta = acos(dot(n, v));
+            nr_theta = acos(dot(n, ref));
+
+            % 5. Normalize the axis (check for degeneracy)
+            nv_axnorm = norm(nv_ax);
+            nr_axnorm = norm(nr_ax);
+            
+            %TODO: find a better way that does not need this check.
+            nv_R = eye(3);
+            nr_R = eye(3);
+
+            if nv_axnorm > 1e-14
+                nv_ax = nv_ax / nv_axnorm;
+
+                % 7. Build the rotation matrix via Rodrigues' formula
+                nv_R = Geometry3D.AxisAngle2Mat(nv_ax, nv_theta);
+            end
+            if nr_axnorm > 1e-14
+                nr_ax = nr_ax / nr_axnorm;
+
+                % 7. Build the rotation matrix via Rodrigues' formula
+                nr_R = Geometry3D.AxisAngle2Mat(nr_ax, nr_theta);
+            end
+
+            % The final rotation is calculated as the rotation according to
+            % listing's law on a reference frame aligned with the primary
+            % position. And then rotated by the rotation of the primary
+            % position. 
+            R = nv_R*nr_R'; 
+            
+            rotvec = sin(nv_theta/2) * nv_ax;
         end
 
-        % VERTICAL ROTATION right handed
-        function M = RotY(phi)
-            M = [   cos(phi)  0               sin(phi);
-                0           1               0;
-                -sin(phi) 0               cos(phi)];
-        end
-
-        % TORSIONAL ROTATION right handed
-        function M = RotX(psi)
-            M = [   1           0               0;
-                0           cos(psi)      -sin(psi);
-                0           sin(psi)      cos(psi)];
-        end
     end
 
-    methods(Static)
+    methods(Static) % BASIC 3D coordinate conversion functions (all in radians)
 
-        % Fick to rotation matrix
-        function M = Fick2RotMat(HVT)
+        % Single axis rotation matrices
+
+        function R = RotZ(theta)
+            % RotZ: Returns the rotation matrix about the Z-axis. 3rd axis
+            % in a right handed coordinate system.
+            %   Input: theta - rotation angle in radians.
+            %   (Haslwanter 1995, eq. 2)
+
+            R = [ cos(theta)  -sin(theta)   0;
+                sin(theta)   cos(theta)   0;
+                0            0            1];
+        end
+
+        function R = RotY(phi)
+            % RotY: Returns the rotation matrix about the Y-axis. 2nd axis
+            % in a right handed coordinate system.
+            %   Input: phi - rotation angle in radians.
+            %   (Haslwanter 1995, eq. 3)
+
+            R = [ cos(phi)   0    sin(phi);
+                0          1    0;
+                -sin(phi)   0    cos(phi)];
+        end
+
+        function R = RotX(psi)
+            % RotX: Returns the rotation matrix about the X-axis. 1st axis
+            % in a right handed coordinate system.
+            %   Input: psi - rotation angle in radians.
+            %   (Haslwanter 1995, eq. 4)
+
+            R = [ 1     0          0;
+                0     cos(psi)  -sin(psi);
+                0     sin(psi)   cos(psi)];
+        end
+
+        % Euler angles to rotation matrix conversions
+
+        function R = Fick2RotMat(HVT)
 
             H = HVT(1);
             V = HVT(2);
             T = HVT(3);
 
-            M = Geometry3D.RotZ(H)*Geometry3D.RotY(V)*Geometry3D.RotX(T);
+            R = Geometry3D.RotZ(H) * Geometry3D.RotY(V) * Geometry3D.RotX(T);
         end
-
-        % Rotation matrix to Fick
+        
         function HVT = RotMat2Fick(M)
-            % TODO: Double check this.
+
             r31 = M(3,1);
             r21 = M(2,1);
             r32 = M(3,2);
@@ -2030,13 +2177,13 @@ classdef Geometry3D
             HVT(3) = asin(r32/cos(HVT(2)));
         end
 
-        function M = Helm2RotMat(HVT)
+        function R = Helm2RotMat(HVT)
 
             H = HVT(1);
             V = HVT(2);
             T = HVT(3);
 
-            M = Geometry3D.RotY(V)*Geometry3D.RotZ(H)*Geometry3D.RotX(T);
+            R = Geometry3D.RotY(V) * Geometry3D.RotZ(H) * Geometry3D.RotX(T);
         end
 
         function HVT = RotMat2Helm(M)
@@ -2049,17 +2196,21 @@ classdef Geometry3D
             HVT(3) = -asin(r23/cos(HVT(1)));
         end
 
-        function M = List2Mat(ADT)
+        function R = Polar2Mat(AET)
+
             % the input is angle, eccentricity and torsion
             % sequency of rotations is as follows
-            % 1- rotate the coordinate system according the angle
+            % 1- rotate the coordinate system according the angle (
             % then rotate an eccentricity ammount arond the rotated Z axis
             % finally undo the intial torsion and add the actual torsion
-            A = ADT(1);
-            D = ADT(2);
-            T = ADT(3);
-            M = Geometry3D.RotX(A)*Geometry3D.RotZ(D)*Geometry3D.RotX(T-A);
+            A = AET(1);
+            E = AET(2);
+            T = AET(3);
+
+            R = RotX(T-A) * RotZ(E) * RotX(A);
         end
+
+        % Quaternion and rotation vectors to rotation matrix conversions
 
         function q = RotMat2Quat(M)
             % From quaternion navy book
@@ -2079,7 +2230,7 @@ classdef Geometry3D
             q = [q0 (m23-m32)/(4*q0) (m31-m13)/(4*q0) (m12-m21)/(4*q0)];
         end
 
-        function M = Quat2RotMat(q)
+        function R = Quat2RotMat(q)
             % from quaternion dynamics pdf
 
             E = [...
@@ -2094,7 +2245,7 @@ classdef Geometry3D
                 -q(4) q(3) -q(2) q(1); ...
                 ];
 
-            M = E*G';
+            R = E*G';
 
         end
 
@@ -2110,73 +2261,6 @@ classdef Geometry3D
 
         function q = AxisAngle2Quat(axis, angle)
             q = [cos(angle/2) sin(angle/2)*axis/norm(axis)];
-        end
-
-        function R = LookAtListings(v, n)
-            % R = listingsLawRotation(v, n) CHATGPT
-            %
-            % Computes the rotation matrix R that rotates the eye from
-            % the zero position [1 0 0] to the direction v,
-            % enforcing Listing's law.
-            % 
-            % Inputs:
-            %   n : 3x1 vector, the normal to Listing's plane (primary position), (need not be normalized).
-            %   v : 3x1 vector, the desired gaze direction (need not be normalized).
-            %
-            % Output:
-            %   R : 3x3 rotation matrix.
-
-            % 1. Normalize the target direction and primary positions
-            v = normalize(v(:),'norm');  % ensure v is a column vector
-            n = normalize(n(:),'norm');  % ensure n is a column vector
-
-            % 2. Define the eye's initial orientation e1 = (1,0,0)
-            e1 = [1; 0; 0];
-
-            % 3. Compute the "raw" rotation axis r_raw = e1 x v
-            r_raw = cross(n, v);  % 3x1 vector
-            r_rawe1 = cross(n, e1);  % 3x1 vector
-
-            % 4. Project r_raw onto Listing's plane
-            %    by removing any component along n
-            r_perp = r_raw - (dot(r_raw, n) * n);
-            r_perpe1 = r_rawe1 - (dot(r_rawe1, n) * n);
-
-            % 5. Normalize the axis (check for degeneracy)
-            r_norm = norm(r_perp);
-            r_norme1 = norm(r_perpe1);
-            if r_norm < 1e-14
-                % If r_perp is basically zero, then either v == e1 or v == -e1
-                % There's no well-defined axis in this degenerate case.
-                % Return identity if v == e1, or a pi-rotation about any axis in the plane if v == -e1.
-                % v == e1 => R = I
-                R = eye(3);
-            else
-                r = r_perp / r_norm;
-
-                % 6. Compute rotation angle theta = arccos(n . v)
-                theta = acos(dot(n, v));
-
-                % 7. Build the rotation matrix via Rodrigues' formula
-                R = Geometry3D.AxisAngle2Mat(r, theta);
-            end
-            if r_norme1 < 1e-14
-                Re1 = eye(3);
-            else
-                re1 = r_perpe1 / r_norme1;
-
-                % 6. Compute rotation angle theta = arccos(n . v)
-                thetae1 = acos(dot(n, e1));
-
-                % 7. Build the rotation matrix via Rodrigues' formula
-                Re1 = Geometry3D.AxisAngle2Mat(re1, thetae1);
-            end
-
-            % The final rotation is calculated as the rotation according to
-            % listing's law on a reference frame aligned with the primary
-            % position. And then rotated by the rotation of the primary
-            % position. 
-            R = R*Re1'; 
         end
 
         function R = AxisAngle2Mat(axis, angle)
@@ -2197,19 +2281,197 @@ classdef Geometry3D
                 z*x*C - y*s, z*y*C + x*s,  c + z*z*C   ];
         end
 
-        %
-        %         function M = Quat2RotMat(q)
-        %         end
-        %
-        %         function HVT = RotMat2Fick(M)
-        %         end
-        %
-        %         function HVT = RotMat2Helm(M)
-        %         end
-        %
-        %         function q = Mat2
+        function [axis, angle] = RotMat2AxisAngle(R)
+            % HASLWANTER (1995) equation 23
+            r = (1/ (1+R(1,1)+R(2,2)+R(3,3)) ) * ([R(3,2)-R(2,3); R(1,3)-R(3,1); R(2,1)-R(1,2)]);
+
+            norm_r = norm(r);
+            axis = r/norm_r;
+            angle = asin(norm_r)/2;
+        end
 
 
+        % Functions to converte between spherical coordinates and coordinate
+        % systems for 2D rotations. When going from 2D to 3D it always
+        % gives normalized vectors on the unit sphere.
+
+        function [x, y, z] = FickToSphere(az, el)
+            x = cos( el ) .* cos( az );
+            y = sin( az ) .* cos( el );   % longitude
+            z = sin( el );                % latitude
+        end
+
+        function [az,el] = SphereToFick(x,y,z)
+            D = sqrt( x.^2 + y.^2 + z.^2 );
+
+            az = atan2( y, x );   % longitude
+            el = asin( z ./ D );   % latitude
+        end
+
+        function [x, y, z] = HelmholtzToSphere(az,el)
+
+            x = cos( az ) .* cos( el );
+            y = sin( az );                 % latitude
+            z = sin( el ) .* cos( az );   % longitude
+        end
+
+        function [az,el] = SphereToHelmholtz(x,y,z)
+            D = sqrt( x.^2 + y.^2 + z.^2 );
+
+            az = asin( y ./ D );  % latitude
+            el = atan2( z, x );  % longitude
+        end
+
+
+        function [x, y, z] = HessToSphere(az, el)
+            azdeg = rad2deg(az);
+
+            z = sin(el);
+            y = sin(az);
+            x = sqrt(1-z.^2-y.^2);
+            % Need to flip negative azimuts
+            x(azdeg >= 90 | azdeg <= -90) = -x(azdeg >= 90 | azdeg <= -90);
+            % Need to force zero at 90 deg azimuth to avoid some complex
+            % numbers that can appear numerically
+            x(azdeg == 90 | azdeg == -90) = 0;
+
+            % some of the combinations of azimuth and elevation actually
+            % don't exist within the sphere.
+            outsidepoints = (z.^2+y.^2)>=1;
+            z(outsidepoints) = nan;
+            y(outsidepoints) = nan;
+            x(outsidepoints) = nan;
+            % x = real(x);
+        end
+
+        function [az,el] = SphereToHess(x,y,z)
+            D = sqrt( x.^2 + y.^2 + z.^2 );
+
+            az = asin( y ./ D ); % latitude
+            el = asin( z ./ D ); % latitude
+        end
+
+        function [x, y, z] = HarmsToSphere(az, el)
+            azdeg = rad2deg(az);
+            eldeg = rad2deg(el);
+            x = 1 ./ sqrt(1 + tan(az).^2 + tan(el).^2 );
+            x(azdeg > 90 | azdeg < -90) = -x(azdeg > 90 | azdeg < -90);
+            x(azdeg == 90 | azdeg == -90 | eldeg == 90 | eldeg == -90) = 0;
+
+            y = tan(az) .* x;
+            z = tan(el) .* x;
+
+            z(eldeg == 90 ) = 1;
+            z( eldeg == -90) = 1;
+            y(eldeg == 90 | eldeg == -90) = 0;
+
+            z(azdeg == 90 | azdeg == -90) = 0;
+            y(azdeg == 90 ) = 1;
+            y(azdeg == -90) = -1;
+        end
+
+        function [az,el] = SphereToHarms(x,y,z)
+            az = atan2(y,x);  % longitude
+            el = atan2(z,x);  % longitude
+        end
+
+        function [x,y,z] = ImagePlaneToSphere(u,v)
+            denom = sqrt(1 + u^2 + v^2);
+            x = 1 / denom;
+            y = u / denom;
+            z = v / denom;
+        end
+
+        function [u, v] = SphereToImagePlane(x,y,z)
+            u = y./x;
+            v = z./x;
+        end
+
+    end
+
+    methods(Static) % Geometric projections
+
+        function projPoints = StereographicProjectionZY(spherePoints)
+            % StereographicProjectionZY computes the stereographic projection of points
+            % on a sphere onto the zy-plane (x = 1) using the projection point (-1,0,0).
+            %
+            % Input:
+            %   spherePoints - an N-by-3 matrix where each row is a point [x, y, z]
+            %                  that lies on the sphere centered at the origin.
+            %
+            % Output:
+            %   projPoints   - an N-by-3 matrix of projected points [0, y', z'] where:
+            %                  y' = y/(1-x) and z' = z/(1-x)
+            %
+            % Note:
+            %   Points with x = 1 (or very close to 1) will produce a division by zero
+            %   and are set to NaN.
+
+            % Extract the coordinates
+            x = spherePoints(:, 1);
+            y = spherePoints(:, 2);
+            z = spherePoints(:, 3);
+
+            % Compute the denominator (1-x)
+            denom =  x+1;
+
+            % Check for points where denom is nearly zero
+            if any(abs(denom) < 1e-10)
+                warning('Some points have x ~ 1, mapping to infinity; their projection will be NaN.');
+            end
+
+            % Compute the projected y and z coordinates
+            y_proj = 2*y ./ denom;
+            z_proj = 2*z ./ denom;
+
+            % The projected x coordinate is 0 for the zy-plane
+            x_proj = zeros(size(x));
+
+            % Combine into the output matrix
+            projPoints = [x_proj, y_proj, z_proj];
+        end
+
+        function projPoints = AzimuthalEquidistantProjectionZY(spherePoints)
+            % AzimuthalEquidistantProjectionZY projects points on the unit sphere onto the
+            % tangent plane at the north pole (x = 1) using the azimuthal equidistant projection.
+            %
+            % Input:
+            %   spherePoints - an N-by-3 matrix where each row is a point [x, y, z] on the unit sphere.
+            %
+            % Output:
+            %   projPoints   - an N-by-3 matrix of projected points [X, Y, 1] on the plane z = 1.
+            %
+            % The projection is computed as follows:
+            %   r     = acos(x)         % Angular distance from the north pole
+            %   theta = atan2(y, z)       % Azimuth angle in the xy-plane
+            %   X     = r * cos(theta)
+            %   Y     = r * sin(theta)
+            %
+            % Note:
+            %   This projection maps the north pole (0,0,1) to (0,0,1) and is defined for all points
+            %   on the sphere.
+
+            % Extract coordinates from the input
+            x = spherePoints(:,1);
+            y = spherePoints(:,2);
+            z = spherePoints(:,3);
+
+            % Compute the angular distance from the north pole (in radians)
+            r = acos(x);
+
+            % Compute the azimuth angle
+            theta = atan2(z, y);
+
+            % Compute the projected coordinates in the tangent plane at the north pole
+            Y_proj = r .* cos(theta);
+            Z_proj = r .* sin(theta);
+
+            % The projected z-coordinate is 1 (on the plane z = 1)
+            projPoints = [ones(size(x)), Y_proj, Z_proj];
+        end
+    end
+
+    methods(Static) % Graphic helpers
         function [f, ax] = setup3DPlot(axlim)
             f = figure('color','w');
             hold on
@@ -2641,67 +2903,6 @@ classdef Geometry3D
         end
 
 
-        % Functions to converte between spherical coordinates and coordinate
-        % sysstems for 2D rotations
-
-        % Listings is a polar system with angle and eccentricity
-        % Fick is a azimuth as latitudes (parallels) and elevation as longitudes (meridians)
-        % Helmoltz is a azimuth as longitudes (meridians) and elevation as latitudes (parallels)
-        % Harms is a azimuth as longitudes (meridians) and elevation as longitudes (meridians)
-        % Hess is a azimuth as latitudes (parallels) and elevation as latitudes (parallels)
-
-        function [x, y, z] = FickToSphere(az, el)
-            x = cos( el ) .* cos( az );
-            y = sin( az ) .* cos( el );   % longitude
-            z = sin( el );                 % latitude
-        end
-
-        function [az,el] = SphereToFick(x,y,z)
-            D = sqrt( x.^2 + y.^2 + z.^2 );
-
-            az = atan2( y, x );   % longitude
-            el = asin( z ./ D );   % latitude
-        end
-
-        function [x, y, z] = HelmholtzToSphere(az,el)
-
-            x = cos( az ) .* cos( el );
-            y = sin( az );                 % latitude
-            z = sin( el ) .* cos( az );   % longitude
-        end
-
-        function [az,el] = SphereToHelmholtz(x,y,z)
-            D = sqrt( x.^2 + y.^2 + z.^2 );
-
-            az = asin( y ./ D );  % latitude
-            el = atan2( z, x );  % longitude
-        end
-
-        function [x, y, z] = HarmsToSphere(az, el)
-            azdeg = rad2deg(az);
-            eldeg = rad2deg(el);
-            x = 1 ./ sqrt(1 + tan(az).^2 + tan(el).^2 );
-            x(azdeg > 90 | azdeg < -90) = -x(azdeg > 90 | azdeg < -90);
-            x(azdeg == 90 | azdeg == -90 | eldeg == 90 | eldeg == -90) = 0;
-
-            y = tan(az) .* x;
-            z = tan(el) .* x;
-
-            z(eldeg == 90 ) = 1;
-            z( eldeg == -90) = 1;
-            y(eldeg == 90 | eldeg == -90) = 0;
-
-            z(azdeg == 90 | azdeg == -90) = 0;
-            y(azdeg == 90 ) = 1;
-            y(azdeg == -90) = -1;
-        end
-
-        function [az,el] = SphereToHarms(x,y,z)
-            az = atan2(y,x);  % longitude
-            el = atan2(z,x);  % longitude
-        end
-
-
         function [dazdx, dazdy, dazdz, deldx, deldy, deldz] = FickLinearJacobian(az, el)
             % units should be deg/m
 
@@ -2921,35 +3122,6 @@ classdef Geometry3D
         end
 
 
-
-        function [x, y, z] = HessToSphere(az, el)
-            azdeg = rad2deg(az);
-
-            z = sin(el);
-            y = sin(az);
-            x = sqrt(1-z.^2-y.^2);
-            % Need to flip negative azimuts
-            x(azdeg >= 90 | azdeg <= -90) = -x(azdeg >= 90 | azdeg <= -90);
-            % Need to force zero at 90 deg azimuth to avoid some complex
-            % numbers that can appear numerically
-            x(azdeg == 90 | azdeg == -90) = 0;
-
-            % some of the combinations of azimuth and elevation actually
-            % don't exist within the sphere.
-            outsidepoints = (z.^2+y.^2)>=1;
-            z(outsidepoints) = nan;
-            y(outsidepoints) = nan;
-            x(outsidepoints) = nan;
-            % x = real(x);
-        end
-
-        function [az,el] = SphereToHess(x,y,z)
-            D = sqrt( x.^2 + y.^2 + z.^2 );
-
-            el = asin( z ./ D ); % latitude
-            az = asin( y ./ D ); % latitude
-        end
-
         function [x, y, z] = ListingsToSphere(angle, eccentricity)
             x = cos( eccentricity );
             y = sin( eccentricity ) .* cos( angle );
@@ -3050,84 +3222,6 @@ classdef Geometry3D
 
         end
 
-        function projPoints = stereographicProjectionZY(spherePoints)
-            % stereographicProjectionZY computes the stereographic projection of points
-            % on a sphere onto the zy-plane (x = 1) using the projection point (-1,0,0).
-            %
-            % Input:
-            %   spherePoints - an N-by-3 matrix where each row is a point [x, y, z]
-            %                  that lies on the sphere centered at the origin.
-            %
-            % Output:
-            %   projPoints   - an N-by-3 matrix of projected points [0, y', z'] where:
-            %                  y' = y/(1-x) and z' = z/(1-x)
-            %
-            % Note:
-            %   Points with x = 1 (or very close to 1) will produce a division by zero
-            %   and are set to NaN.
-
-            % Extract the coordinates
-            x = spherePoints(:, 1);
-            y = spherePoints(:, 2);
-            z = spherePoints(:, 3);
-
-            % Compute the denominator (1-x)
-            denom =  x+1;
-
-            % Check for points where denom is nearly zero
-            if any(abs(denom) < 1e-10)
-                warning('Some points have x ~ 1, mapping to infinity; their projection will be NaN.');
-            end
-
-            % Compute the projected y and z coordinates
-            y_proj = 2*y ./ denom;
-            z_proj = 2*z ./ denom;
-
-            % The projected x coordinate is 0 for the zy-plane
-            x_proj = zeros(size(x));
-
-            % Combine into the output matrix
-            projPoints = [x_proj, y_proj, z_proj];
-        end
-
-        function projPoints = azimuthalEquidistantProjectionZY(spherePoints)
-            % azimuthalEquidistantProjectionZY projects points on the unit sphere onto the
-            % tangent plane at the north pole (x = 1) using the azimuthal equidistant projection.
-            %
-            % Input:
-            %   spherePoints - an N-by-3 matrix where each row is a point [x, y, z] on the unit sphere.
-            %
-            % Output:
-            %   projPoints   - an N-by-3 matrix of projected points [X, Y, 1] on the plane z = 1.
-            %
-            % The projection is computed as follows:
-            %   r     = acos(x)         % Angular distance from the north pole
-            %   theta = atan2(y, z)       % Azimuth angle in the xy-plane
-            %   X     = r * cos(theta)
-            %   Y     = r * sin(theta)
-            %
-            % Note:
-            %   This projection maps the north pole (0,0,1) to (0,0,1) and is defined for all points
-            %   on the sphere.
-
-            % Extract coordinates from the input
-            x = spherePoints(:,1);
-            y = spherePoints(:,2);
-            z = spherePoints(:,3);
-
-            % Compute the angular distance from the north pole (in radians)
-            r = acos(x);
-
-            % Compute the azimuth angle
-            theta = atan2(z, y);
-
-            % Compute the projected coordinates in the tangent plane at the north pole
-            Y_proj = r .* cos(theta);
-            Z_proj = r .* sin(theta);
-
-            % The projected z-coordinate is 1 (on the plane z = 1)
-            projPoints = [ones(size(x)), Y_proj, Z_proj];
-        end
     end
 end
 % TODO:
