@@ -1412,7 +1412,7 @@ classdef Geometry3D
             h.HmeridianScreen = line(0,0,0,'linewidth',2,'color','b');
 
             set(gca,'Projection','perspective')
-            set(gca,'CameraPosition',[-0.5 -5 0],'cameratarget',[1 0 0])
+            set(gca,'CameraPosition',[-1.5 -5 0],'cameratarget',[1 0 0])
             set(gca,'xlim',[-1 1.5],'ylim',[-2 2],'zlim',[-2 2])
             set(gca,'visible','off')
         end
@@ -1850,6 +1850,19 @@ classdef Geometry3D
             R = nv_R*nr_R'; 
             
             rotvec = sin(nv_theta/2) * nv_ax;
+        end
+
+        function [R] = LookAtListingsSimple(v)
+            % listing's law rotation to look at v assuming that the primary
+            % position is equal to the reference position [1 0 0]
+            v = v/norm(v);
+            x = v(1);
+            y = v(2);
+            z = v(3);
+            d = 1-x;
+            R = [x -y -z; ...
+                y 1-y.^2./d -y.*z./d; ...
+                z -y.*z./d 1-z.^2./d];
         end
 
         function [R, t] = LookAtCamera(eyeCenter, targetPos)
