@@ -595,21 +595,7 @@ classdef Geometry3D
             end
         end
 
-        function demoListingMonocular()
 
-            app = InteractiveUI('Listing''s law Simulator',@(app) (Geometry3D.demoListingUpdate(app)), 0.2);
-            app.AddSlider('Screen Width cm',        40, [1 200])
-            app.AddSlider('Screen Height cm',       30, [1 200])
-            app.AddSlider('Screen Distance cm',     57, [10 200])
-            app.AddSlider('Fixation X cm',          0,  [-100 100])
-            app.AddSlider('Fixation Y cm',          0,  [-100 100])
-            app.AddSlider('Listing''s plane pitch',   0,  [-90 90])
-            app.AddSlider('Listing''s plane yaw',     0,  [-90 90])
-            app.AddDropDown('View3D',           1,  ["Oblique" "TOP" "SIDE"])
-
-            app.Open();
-
-        end
 
         function demoMotionFlow()
 
@@ -650,31 +636,6 @@ classdef Geometry3D
 
         end
 
-        function demoQuaternion()
-            app = InteractiveUI('Quaternion demo',@(app) (Geometry3D.demoQuaternionUpdate(app)), 1);
-            app.AddSlider('q0',1, [-1 1])
-            app.AddSlider('q1',0, [-1 1])
-            app.AddSlider('q2',0, [-1 1])
-            app.AddSlider('q3',0, [-1 1])
-
-            % app.AddDropDown('2D HVT Coordinate system',      1,  ["Helmholtz" "Fick" "Harns" "Hess"])
-            app.AddDropDown('2D HVT Coordinate system',      1,  ["Helmholtz" "Fick" "Harms" "Hess" "ImagePlane" "Polar"])
-            app.AddSlider('H',0, [-90 90])
-            app.AddSlider('V',0, [-90 90])
-            app.AddSlider('T',0, [-90 90])
-
-            % app.AddSlider('Listings angle',0, [-90 90])
-            % app.AddSlider('Listings eccentricity',0, [-90 90])
-            % app.AddSlider('Listings torsion',0, [-90 90])
-
-            % app.AddSlider('x',0, [-1 1])
-            % app.AddSlider('y',0, [-1 1])
-            % app.AddSlider('z',0, [-1 1])
-            % app.AddSlider('a',0, [-180 180])
-
-
-            app.Open();
-        end
 
     end
 
@@ -1360,9 +1321,25 @@ classdef Geometry3D
 
     end
 
-    methods(Static, Access = private) % DEMO QUATERNIONS
+    methods(Static) % DEMO QUATERNIONS
 
-        function [f, h] = demoQuaternionInitPlots(app)
+        function demoListingsLaw()
+            app = InteractiveUI('Listing''s law demo',@(app) (Geometry3D.demoListingsLawUpdate(app)), .2);
+
+            app.AddDropDown('Coordinate system',      1,  ["Helmholtz" "Fick" "Harms" "Hess" "ImagePlane" "Polar"])
+            app.AddSlider('Eye Position Azimuth',     0, [-90 90])
+            app.AddSlider('Eye position Elevation',    0, [-90 90])
+            app.AddSlider('Torsion',0, [-90 90])
+
+            app.AddSlider('Listing''s plane pitch',   0,  [-90 90])
+            app.AddSlider('Listing''s plane yaw',     0,  [-90 90])
+
+            app.AddDropDown('Follow Listing''s Law?',           1,  ["YES" "NO"])
+
+            app.Open();
+        end
+
+        function [f, h] = demoListingsLawInitPlots(app)
             scr_siz = get(0,'ScreenSize');
             margin = floor(0.1*(scr_siz(4)));
             f = figure('color','w','position',floor([...
@@ -1377,13 +1354,13 @@ classdef Geometry3D
             % Define the resolution of the sphere
             res = 50;
             % Define the transparency of the sphere
-            alpha = 0.9;
+            alpha = 1;
 
             % Create the sphere
             [Z,X,Y] = sphere(res);
 
             % Plot the sphere
-            h.sphere = mesh(R*X*0.98,R*Y*0.98,R*Z*0.98,'FaceAlpha', alpha,'facecolor',[0.8 0.8 0.8],'edgecolor','none');
+            h.sphere = mesh(R*X,R*Y,R*Z,'FaceAlpha', alpha,'facecolor',[0.8 0.8 0.8],'edgecolor','none');
             hold
             h.sphere2 = mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8]);
 
@@ -1391,18 +1368,17 @@ classdef Geometry3D
             axis equal;
 
             %
-            % set(gcf, 'Renderer', 'OpenGL');
+            set(gcf, 'Renderer', 'OpenGL');
             % shading interp, material shiny, lighting phong, lightangle(0, 55);
 
-            view(45,30)
             set(gca,'xlim',1.5*[-1 1],'ylim',1.5*[-1 1],'zlim',1.5*[-1 1])
-
+    
+            set(gca,'OuterPosition', [-0.7   0   1.7     1])
             h.ax = gca;
 
             h.frame(1) = line(0,0,0,'linewidth',2,'color','k');
-            h.frame(2) = line(0,0,0,'linewidth',2,'color','r');
-            h.frame(3) = line(0,0,0,'linewidth',2,'color','k');
-            h.rotax = line(0,0,0,'linestyle','-','linewidth',2,'color','b');
+            h.frame(2) = line(0,0,0,'linewidth',2,'color','g');
+            % h.frame(3) = line(0,0,0,'linewidth',2,'color','k');
 
 
             h.Vmeridian = line(0,0,0,'linewidth',2,'color','r');
@@ -1412,136 +1388,109 @@ classdef Geometry3D
             h.HmeridianScreen = line(0,0,0,'linewidth',2,'color','b');
 
             set(gca,'Projection','perspective')
-            set(gca,'CameraPosition',[-1.5 -5 0],'cameratarget',[1 0 0])
-            set(gca,'xlim',[-1 1.5],'ylim',[-2 2],'zlim',[-2 2])
-            set(gca,'visible','off')
+            set(gca,'CameraPosition',[-1 -10 1],'cameratarget',[1 0 0])
+            set(gca,'xlim',[-2 3],'ylim',[-4 4],'zlim',[-4 4])
+            set(gca,'XTick',[],'YTick',[],'ZTick',[])
+            %set(gca,'visible','off')
+            grid off
+            set(gca,'YDir','reverse')
+
+
+            xlabel(h.ax,'x')
+            ylabel(h.ax,'y')
+            zlabel(h.ax,'z')
+
+
+            h.imageplot.ax = axes('OuterPosition', [0.5 0 0.5 1], 'nextplot','add');
+            axis equal
+
+
+            h.imageplot.screen = mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8]);
+            h.imageplot.VmeridianScreen = line(0,0,0,'linewidth',2,'color','r');
+            h.imageplot.HmeridianScreen = line(0,0,0,'linewidth',2,'color','b');
+            h.imageplot.PrimaryPosition = line(0,0,0,'linestyle','none','marker','o','markersize',10,'linewidth',2,'color','g');
+            set(gca,'xlim',[-2 3],'ylim',[-4 4],'zlim',[-4 4])
+            set(gca,'XTick',[],'YTick',[],'ZTick',[])
+            view([90, 0]);
         end
 
-        function demoQuaternionUpdate(app)
-
-            Values = app.Values;
-            q = [Values.q0 Values.q1 Values.q2 Values.q3];
-            hvt = [-Values.H -Values.V Values.T];
+        function demoListingsLawUpdate(app)
 
             if ( ~isfield(app.Data, "f") || ~isvalid(app.Data.f))
                 % If figure does not exist create it with all the plots and
                 % handles to them
-                [f, h] = Geometry3D.demoQuaternionInitPlots();
+                [f, h] = Geometry3D.demoListingsLawInitPlots();
                 app.Data.f = f;
                 app.Data.h = h;
-
-                app.Data.LastQ = q;
-                app.Data.Lasthvt = hvt;
-                app.Data.LastCS = app.Values.x2DHVTCoordinateSystem;
             end
 
-            steps = [-90:10:90];
-            points = -90:10:90;
+
+            Values = app.Values;
+            hvt = [Values.EyePositionAzimuth Values.EyePositionElevation Values.Torsion];
+
+
+            % points for the grid
+            steps = -85:10:85;
+            points = -85:10:85;
             [az, el] = meshgrid(steps,points);
 
-            q1 = app.Data.LastQ;
+            R = [];
+    
 
-            % Update only the 3 values not changed by the user
-            % so as to keep a valid quaternion. If the other three values
-            % are zero transform to aligned with 1 0 0 because otherwise
-            % there is a singularity
-            c = (q-q1) == 0;
-            %sum(c)
-            if ( sum(c)==3)
-                nc = q(c);
-                if ( sum(nc) == 0)
-                    nc = [1 0 0];
-                end
-
-                q(c) = nc*sqrt(1-q(~c)^2)/norm(nc);
-
-                switch(app.Values.x2DHVTCoordinateSystem)
-                    case 'Fick'
-                        hvt = rad2deg(Geometry3D.RotMat2Fick(Geometry3D.Quat2RotMat(q)));
-                    case 'Helmholtz'
-                        hvt = rad2deg(Geometry3D.RotMat2Helm(Geometry3D.Quat2RotMat(q)));
-                    case 'Listings(AET)'
-                        hvt = rad2deg(Geometry3D.RotMat2Listings(Geometry3D.Quat2RotMat(q)));
-                end
-
-
-            elseif (~isequal(hvt, app.Data.Lasthvt)  )
-                % if the quaternion was not update check if the hvt was
-
-                switch(app.Values.x2DHVTCoordinateSystem)
-                    case 'Fick'
-                        q = Geometry3D.RotMat2Quat(Geometry3D.Fick2RotMat(deg2rad(hvt)));
-                    case 'Helmholtz'
-                        q = Geometry3D.RotMat2Quat(Geometry3D.Helm2RotMat(deg2rad(hvt)));
-                    case 'Listings(AET)'
-                        q = Geometry3D.RotMat2Quat(Geometry3D.Listings2RotMat(deg2rad(hvt)));
-                end
-            elseif (string(app.Data.LastCS) ~= string(app.Values.x2DHVTCoordinateSystem))
-
-                switch(app.Values.x2DHVTCoordinateSystem)
-                    case 'Fick'
-                        hvt = rad2deg(Geometry3D.RotMat2Fick(Geometry3D.Quat2RotMat(q)));
-                    case 'Helmholtz'
-                        hvt = rad2deg(Geometry3D.RotMat2Helm(Geometry3D.Quat2RotMat(q)));
-                    case 'Listings(AET)'
-                        hvt = rad2deg(Geometry3D.RotMat2Listings(Geometry3D.Quat2RotMat(q)));
-                end
-            end
-
-            xlabel(app.Data.h.ax,'x')
-            ylabel(app.Data.h.ax,'y')
-            zlabel(app.Data.h.ax,'z')
-
-            switch(app.Values.x2DHVTCoordinateSystem)
+            switch(app.Values.CoordinateSystem)
                 case 'Fick'
+                    R = Geometry3D.Fick2RotMat(deg2rad(hvt).*[1 -1 1]);
+                    [fx, fy, fz] = Geometry3D.FickToSphere(deg2rad(hvt(1)), deg2rad(hvt(2)));
                     [x,y,z] = Geometry3D.FickToSphere(deg2rad(az), deg2rad(el));
+                    [px,py,pz] = Geometry3D.FickToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
                 case 'Helmholtz'
+                    R = Geometry3D.Helm2RotMat(deg2rad(hvt).*[1 -1 1]);
+                    [fx, fy, fz] = Geometry3D.HelmholtzToSphere(deg2rad(hvt(1)), deg2rad(hvt(2)));
                     [x,y,z] = Geometry3D.HelmholtzToSphere(deg2rad(az), deg2rad(el));
+                    [px,py,pz] = Geometry3D.HelmholtzToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
                 case 'Listings(AET)'
                     [x,y,z] = Geometry3D.ListingsToSphere(deg2rad(az), deg2rad(el));
+                    [px,py,pz] = Geometry3D.ListingsToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
                 case 'Harms'
                     [x,y,z] = Geometry3D.HarmsToSphere(deg2rad(az), deg2rad(el));
+                    [px,py,pz] = Geometry3D.HarmsToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
                 case 'Hess'
                     [x,y,z] = Geometry3D.HessToSphere(deg2rad(az), deg2rad(el));
+                    [px,py,pz] = Geometry3D.HessToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
                 case 'ImagePlane'
                     [x,y,z] = Geometry3D.ImagePlaneToSphere(deg2rad(az), deg2rad(el));
+                    [px,py,pz] = Geometry3D.ImagePlaneToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
                 case 'Polar'
-                    [x,y,z] = Geometry3D.ListingsToSphere(deg2rad(az), deg2rad(el));
+                    R = Geometry3D.Polar2RotMat(deg2rad(hvt).*[1 -1 1]);
+                    [fx, fy, fz] = Geometry3D.PolarToSphere(deg2rad(hvt(1)), deg2rad(hvt(2)));
+                    [x,y,z] = Geometry3D.PolarToSphere(deg2rad(az), deg2rad(el));
+                    [px,py,pz] = Geometry3D.PolarToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
             end
 
+            n = [px,py,pz]';
+            v = [fx fy fz]';
+
+            if Values.FollowListing_sLaw_ == "YES" || isempty(R)
+                R = Geometry3D.LookAtListings(v,n);
+            end
+            
+            screenD = 3;
+
+            R = R*Geometry3D.RotX(deg2rad(hvt(3)));
+
+
             set(app.Data.h.sphere2, 'xdata', x, 'ydata',y, 'zdata',z)
-            set(app.Data.h.screen, 'xdata', x./x*1.5, 'ydata',y./x*1.5, 'zdata',z./x*1.5)
-            %             set(app.Data.h)
-            %
+            set(app.Data.h.screen, 'xdata', x./x*screenD, 'ydata',y./x*screenD, 'zdata',z./x*screenD)
 
-            app.Data.Lasthvt = hvt;
-            app.Data.LastQ = q;
-            app.Data.LastCS = app.Values.x2DHVTCoordinateSystem;
-
-            app.Values.q0  = q(1);
-            app.Values.q1  = q(2);
-            app.Values.q2  = q(3);
-            app.Values.q3  = q(4);
-
-            app.Values.H  = -hvt(1);
-            app.Values.V  = -hvt(2);
-            app.Values.T  = hvt(3);
-            % app.Values.x  = axis(1);
-            % app.Values.y  = axis(2);
-            % app.Values.z  = axis(3);
-            % app.Values.a  = angle;
+            set(app.Data.h.frame(1), 'xdata',      [R(1,1) screenD*R(1,1)/R(1,1)], 'ydata',[R(2,1) screenD*R(2,1)/R(1,1)], 'zdata',[R(3,1) screenD*R(3,1)/R(1,1)])
+            set(app.Data.h.frame(2), 'xdata',      [n(1) screenD*n(1)/n(1)], 'ydata',[n(2) screenD*n(2)/n(1)], 'zdata',[n(3) screenD*n(3)/n(1)])
 
 
-            R = Geometry3D.Quat2RotMat(q);
-            c = R(:,1);
-            axis = R(:,3);
-            %
-            set(app.Data.h.frame(1), 'xdata',      1.5*[0 R(1,1)]/R(1,1), 'ydata',1.5*[0 R(2,1)]/R(1,1), 'zdata',1.5*[0 R(3,1)]/R(1,1))
-            set(app.Data.h.frame(2), 'xdata',c(1)+ 0.5*[0 R(1,2)], 'ydata',c(2)+ 0.5*[0 R(2,2)], 'zdata',c(3)+ 0.5*[0 R(3,2)])
-            set(app.Data.h.frame(3), 'xdata',c(1)+ 0.2*[0 R(1,3)], 'ydata',c(2)+ 0.2*[0 R(2,3)], 'zdata',c(3)+ 0.2*[0 R(3,3)])
+            theta = (0:1:360)';
 
+            theta(60:90) = nan;
+            theta(270:300) = nan;
 
-            theta = (100:1:260)';
             VmeridianPoints = [cosd(theta) zeros(size(theta)) sind(theta) ]*R';
             HmeridianPoints = [cosd(theta) sind(theta) zeros(size(theta)) ]*R';
 
@@ -1549,14 +1498,15 @@ classdef Geometry3D
             set(app.Data.h.Vmeridian, 'xdata',VmeridianPoints(:,1), 'ydata', VmeridianPoints(:,2), 'zdata',VmeridianPoints(:,3));
             set(app.Data.h.Hmeridian, 'xdata',HmeridianPoints(:,1), 'ydata', HmeridianPoints(:,2), 'zdata',HmeridianPoints(:,3));
 
-            set(app.Data.h.VmeridianScreen, 'xdata',VmeridianPoints(:,1)./VmeridianPoints(:,1)*1.5, 'ydata', VmeridianPoints(:,2)./VmeridianPoints(:,1)*1.5, 'zdata',VmeridianPoints(:,3)./VmeridianPoints(:,1)*1.5);
-            set(app.Data.h.HmeridianScreen, 'xdata',HmeridianPoints(:,1)./HmeridianPoints(:,1)*1.5, 'ydata', HmeridianPoints(:,2)./HmeridianPoints(:,1)*1.5, 'zdata',HmeridianPoints(:,3)./HmeridianPoints(:,1)*1.5);
+            set(app.Data.h.VmeridianScreen, 'xdata',VmeridianPoints(:,1)./VmeridianPoints(:,1)*screenD, 'ydata', VmeridianPoints(:,2)./VmeridianPoints(:,1)*screenD, 'zdata',VmeridianPoints(:,3)./VmeridianPoints(:,1)*screenD);
+            set(app.Data.h.HmeridianScreen, 'xdata',HmeridianPoints(:,1)./HmeridianPoints(:,1)*screenD, 'ydata', HmeridianPoints(:,2)./HmeridianPoints(:,1)*screenD, 'zdata',HmeridianPoints(:,3)./HmeridianPoints(:,1)*screenD);
 
-            set(app.Data.h.rotax, 'xdata', 1.2*axis(1)*[0 1], 'ydata', 1.2*axis(2)*[0 1], 'zdata', 1.2*axis(3)*[0 1])
-            %
-            % h.frame(1) = line(0,0,0,'linewidth',2);
-            % h.frame(2) = line(0,0,0,'linewidth',2);
-            % h.frame(3) = line(0,0,0,'linewidth',2);
+
+            set(app.Data.h.imageplot.VmeridianScreen, 'xdata',VmeridianPoints(:,1)./VmeridianPoints(:,1)*screenD, 'ydata', VmeridianPoints(:,2)./VmeridianPoints(:,1)*screenD, 'zdata',VmeridianPoints(:,3)./VmeridianPoints(:,1)*screenD);
+            set(app.Data.h.imageplot.HmeridianScreen, 'xdata',HmeridianPoints(:,1)./HmeridianPoints(:,1)*screenD, 'ydata', HmeridianPoints(:,2)./HmeridianPoints(:,1)*screenD, 'zdata',HmeridianPoints(:,3)./HmeridianPoints(:,1)*screenD);
+
+            set(app.Data.h.imageplot.screen, 'xdata', x./x*screenD, 'ydata',y./x*screenD, 'zdata',z./x*screenD)
+            set(app.Data.h.imageplot.PrimaryPosition,  'xdata',n(1)./n(1)*screenD, 'ydata', n(2)./n(1)*screenD, 'zdata',n(3)./n(1)*screenD);
 
 
         end
@@ -1786,7 +1736,11 @@ classdef Geometry3D
             % Computes the rotation matrix R that rotates the eye from
             % the reference position [1 0 0] to the direction v,
             % enforcing Listing's law according the primary position n.
-            %            % 
+            %
+            % Another way of saying it. It gives the 3D pose of the eye
+            % when looking at v by following Listing's law when the normal
+            % to Listing's plane is n. 
+            %            
             % Inputs:
             %   n : 3x1 vector, the normal to Listing's plane (primary position), (need not be normalized).
             %   v : 3x1 vector, the desired gaze direction (need not be normalized).
@@ -1794,10 +1748,9 @@ classdef Geometry3D
             % Output:
             %   R : 3x3 rotation matrix of the pose of the eye looking at v
             %       this corresponds with a rotation from the identity
-            %       matrix, not from the primary position
-            %   rotvec: axis and angle of the rotation vector that
-            %       corresponds with the rotation from primary position
-            %       that is actually contained in Listing's plane
+            %       matrix, not from the primary position.
+            %   rotvec: rotation vector that corresponds with the rotation
+            %       from primary position that is actually contained in Listing's plane
             %
             % The strategy is to compute the rotation from the primary
             % position to v, and from the primary position to the reference
@@ -1810,17 +1763,15 @@ classdef Geometry3D
             n = normalize(n(:),'norm');  % ensure n is a column vector
 
             % 2. Define the eye's reference position e1 = (1,0,0)
-            ref = [1; 0; 0];
+            r = [1; 0; 0];
 
-            % 3. Compute the rotation axis for the two rotations using the
-            %       cross product
+            % 3. Compute the rotation axis using the cross product
             nv_ax  = cross(n, v);  
-            nr_ax = cross(n, ref); 
+            nr_ax = cross(n, r); 
 
-            % 4. Compute the rotation angle for the two rotations using the
-            %       dot product
+            % 4. Compute the rotation angle using the dot product
             nv_theta = acos(dot(n, v));
-            nr_theta = acos(dot(n, ref));
+            nr_theta = acos(dot(n, r));
 
             % 5. Normalize the axis (check for degeneracy)
             nv_axnorm = norm(nv_ax);
@@ -1859,10 +1810,10 @@ classdef Geometry3D
             x = v(1);
             y = v(2);
             z = v(3);
-            d = 1-x;
-            R = [x -y -z; ...
-                y 1-y.^2./d -y.*z./d; ...
-                z -y.*z./d 1-z.^2./d];
+            d = 1+x;
+            R = [x  -y          -z; ...
+                y   1-y.^2./d   -y.*z./d; ...
+                z   -y.*z./d    1-z.^2./d];
         end
 
         function [R, t] = LookAtCamera(eyeCenter, targetPos)
@@ -2080,7 +2031,7 @@ classdef Geometry3D
             HVT(3) = -asin(r23/cos(HVT(1)));
         end
 
-        function R = Polar2Mat(AET)
+        function R = Polar2RotMat(AET)
 
             % the input is angle, eccentricity and torsion
             % sequency of rotations is as follows
