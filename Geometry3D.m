@@ -1326,7 +1326,8 @@ classdef Geometry3D
         function demoListingsLaw()
             app = InteractiveUI('Listing''s law demo',@(app) (Geometry3D.demoListingsLawUpdate(app)), .2);
 
-            app.AddDropDown('Coordinate system',      1,  ["Helmholtz" "Fick" "Harms" "Hess" "ImagePlane" "Polar"])
+%             app.AddDropDown('Coordinate system',      1,  ["Helmholtz" "Fick" "Harms" "Hess" "ImagePlane" "Polar"])
+            app.AddDropDown('Coordinate system',      1,  ["Helmholtz" "Fick"])
             app.AddSlider('Eye Position Azimuth',     0, [-90 90])
             app.AddSlider('Eye position Elevation',    0, [-90 90])
             app.AddSlider('Torsion',0, [-90 90])
