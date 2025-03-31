@@ -1464,67 +1464,28 @@ classdef Geometry3D
             switch(app.Values.CoordinateSystem)
                 case 'Fick'
                     R = Geometry3D.Fick2RotMat(deg2rad(hvt).*[1 -1 1]);
-                case 'Helmholtz'
-                    R = Geometry3D.Helm2RotMat(deg2rad(hvt).*[1 -1 1]);
-                case 'Harms'
-                case 'Hess'
-                case 'ImagePlane'
-                case 'Polar'
-                    R = Geometry3D.Polar2RotMat(deg2rad(hvt).*[1 -1 1]);
-            end
-
-            VmeridianPoints = [cosd(theta) zeros(size(theta)) sind(theta) ]*R';
-            HmeridianPoints = [cosd(theta) sind(theta) zeros(size(theta)) ]*R';
-
-            points1 = app.Data.h.imageplot2.points1data;
-            points2 = points1*R';
-
-            switch(app.Values.CoordinateSystem)
-                case 'Fick'
                     [fx, fy, fz] = Geometry3D.FickToSphere(deg2rad(hvt(1)), deg2rad(hvt(2)));
                     [x,y,z] = Geometry3D.FickToSphere(deg2rad(az), deg2rad(el));
                     [px,py,pz] = Geometry3D.FickToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
-                    [vmaz, vmel] = Geometry3D.SphereToFick(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
-                    [hmaz, hmel] = Geometry3D.SphereToFick(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
-                    [p1az, p1el] = Geometry3D.SphereToFick(points1(:,1), points1(:,2), points1(:,3));
-                    [p2az, p2el] = Geometry3D.SphereToFick(points2(:,1), points2(:,2), points2(:,3));
                 case 'Helmholtz'
+                    R = Geometry3D.Helm2RotMat(deg2rad(hvt).*[1 -1 1]);
                     [fx, fy, fz] = Geometry3D.HelmholtzToSphere(deg2rad(hvt(1)), deg2rad(hvt(2)));
                     [x,y,z] = Geometry3D.HelmholtzToSphere(deg2rad(az), deg2rad(el));
                     [px,py,pz] = Geometry3D.HelmholtzToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
-                    [vmaz, vmel] = Geometry3D.SphereToHelmholtz(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
-                    [hmaz, hmel] = Geometry3D.SphereToHelmholtz(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
-                    [p1az, p1el] = Geometry3D.SphereToHelmholtz(points1(:,1), points1(:,2), points1(:,3));
-                    [p2az, p2el] = Geometry3D.SphereToHelmholtz(points2(:,1), points2(:,2), points2(:,3));
                 case 'Harms'
                     [x,y,z] = Geometry3D.HarmsToSphere(deg2rad(az), deg2rad(el));
                     [px,py,pz] = Geometry3D.HarmsToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
-                    [vmaz, vmel] = Geometry3D.SphereToHarms(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
-                    [hmaz, hmel] = Geometry3D.SphereToHarms(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
-                    [p1az, p1el] = Geometry3D.SphereToHarms(points1(:,1), points1(:,2), points1(:,3));
-                    [p2az, p2el] = Geometry3D.SphereToHarms(points2(:,1), points2(:,2), points2(:,3));
                 case 'Hess'
                     [x,y,z] = Geometry3D.HessToSphere(deg2rad(az), deg2rad(el));
                     [px,py,pz] = Geometry3D.HessToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
-                    [vmaz, vmel] = Geometry3D.SphereToHess(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
-                    [hmaz, hmel] = Geometry3D.SphereToHess(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
-                    [p1az, p1el] = Geometry3D.SphereToHess(points1(:,1), points1(:,2), points1(:,3));
-                    [p2az, p2el] = Geometry3D.SphereToHess(points2(:,1), points2(:,2), points2(:,3));
                 case 'ImagePlane'
                     [x,y,z] = Geometry3D.ImagePlaneToSphere(deg2rad(az), deg2rad(el));
                     [px,py,pz] = Geometry3D.ImagePlaneToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
-                    [vmaz, vmel] = Geometry3D.SphereToImagePlane(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
-                    [hmaz, hmel] = Geometry3D.SphereToImagePlane(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
-                    [p1az, p1el] = Geometry3D.SphereToImagePlane(points1(:,1), points1(:,2), points1(:,3));
-                    [p2az, p2el] = Geometry3D.SphereToImagePlane(points2(:,1), points2(:,2), points2(:,3));
                 case 'Polar'
+                    R = Geometry3D.Polar2RotMat(deg2rad(hvt).*[1 -1 1]);
                     [fx, fy, fz] = Geometry3D.PolarToSphere(deg2rad(hvt(1)), deg2rad(hvt(2)));
                     [x,y,z] = Geometry3D.PolarToSphere(deg2rad(az), deg2rad(el));
                     [px,py,pz] = Geometry3D.PolarToSphere(deg2rad(Values.Listing_sPlaneYaw), deg2rad(Values.Listing_sPlanePitch));
-                    [vmaz, vmel] = Geometry3D.SphereToPolar(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
-                    [hmaz, hmel] = Geometry3D.SphereToPolar(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
-                    [p1az, p1el] = Geometry3D.SphereToPolar(points1(:,1), points1(:,2), points1(:,3));
-                    [p2az, p2el] = Geometry3D.SphereToPolar(points2(:,1), points2(:,2), points2(:,3));
             end
 
             n = [px,py,pz]';
@@ -1537,6 +1498,46 @@ classdef Geometry3D
             screenD = 3;
 
             R = R*Geometry3D.RotX(deg2rad(hvt(3)));
+
+            VmeridianPoints = [cosd(theta) zeros(size(theta)) sind(theta) ]*R';
+            HmeridianPoints = [cosd(theta) sind(theta) zeros(size(theta)) ]*R';
+
+            points1 = app.Data.h.imageplot2.points1data;
+            points2 = points1*R';
+
+            switch(app.Values.CoordinateSystem)
+                case 'Fick'
+                    [vmaz, vmel] = Geometry3D.SphereToFick(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
+                    [hmaz, hmel] = Geometry3D.SphereToFick(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
+                    [p1az, p1el] = Geometry3D.SphereToFick(points1(:,1), points1(:,2), points1(:,3));
+                    [p2az, p2el] = Geometry3D.SphereToFick(points2(:,1), points2(:,2), points2(:,3));
+                case 'Helmholtz'
+                    [vmaz, vmel] = Geometry3D.SphereToHelmholtz(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
+                    [hmaz, hmel] = Geometry3D.SphereToHelmholtz(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
+                    [p1az, p1el] = Geometry3D.SphereToHelmholtz(points1(:,1), points1(:,2), points1(:,3));
+                    [p2az, p2el] = Geometry3D.SphereToHelmholtz(points2(:,1), points2(:,2), points2(:,3));
+                case 'Harms'
+                    [vmaz, vmel] = Geometry3D.SphereToHarms(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
+                    [hmaz, hmel] = Geometry3D.SphereToHarms(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
+                    [p1az, p1el] = Geometry3D.SphereToHarms(points1(:,1), points1(:,2), points1(:,3));
+                    [p2az, p2el] = Geometry3D.SphereToHarms(points2(:,1), points2(:,2), points2(:,3));
+                case 'Hess'
+                    [vmaz, vmel] = Geometry3D.SphereToHess(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
+                    [hmaz, hmel] = Geometry3D.SphereToHess(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
+                    [p1az, p1el] = Geometry3D.SphereToHess(points1(:,1), points1(:,2), points1(:,3));
+                    [p2az, p2el] = Geometry3D.SphereToHess(points2(:,1), points2(:,2), points2(:,3));
+                case 'ImagePlane'
+                    [vmaz, vmel] = Geometry3D.SphereToImagePlane(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
+                    [hmaz, hmel] = Geometry3D.SphereToImagePlane(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
+                    [p1az, p1el] = Geometry3D.SphereToImagePlane(points1(:,1), points1(:,2), points1(:,3));
+                    [p2az, p2el] = Geometry3D.SphereToImagePlane(points2(:,1), points2(:,2), points2(:,3));
+                case 'Polar'
+                    [vmaz, vmel] = Geometry3D.SphereToPolar(-VmeridianPoints(:,1), -VmeridianPoints(:,2), -VmeridianPoints(:,3));
+                    [hmaz, hmel] = Geometry3D.SphereToPolar(-HmeridianPoints(:,1), -HmeridianPoints(:,2), -HmeridianPoints(:,3));
+                    [p1az, p1el] = Geometry3D.SphereToPolar(points1(:,1), points1(:,2), points1(:,3));
+                    [p2az, p2el] = Geometry3D.SphereToPolar(points2(:,1), points2(:,2), points2(:,3));
+            end
+
 
 
             set(app.Data.h.sphere2, 'xdata', x, 'ydata',y, 'zdata',z)
