@@ -2106,7 +2106,7 @@ classdef Geometry3D
             E = AET(2);
             T = AET(3);
 
-            R = RotX(T-A) * RotZ(E) * RotX(A);
+            R = Geometry3D.RotX(A) * Geometry3D.RotZ(E) *Geometry3D.RotX(-A)*Geometry3D.RotX(T);
         end
 
         % Quaternion and rotation vectors to rotation matrix conversions
