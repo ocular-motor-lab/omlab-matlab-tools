@@ -438,18 +438,17 @@ classdef Geometry3D
             drawnow limitrate
         end
 
-        function demoCoordinateSystems(WHICHFLOW)
+        function demoCoordinateSystemsNumerical(WHICHFLOW)
 
             if ( nargin <1)
-                Geometry3D.demoCoordinateSystems('linear')
-                Geometry3D.demoCoordinateSystems('rotational')
+                Geometry3D.demoCoordinateSystemsNumerical('linear')
+                Geometry3D.demoCoordinateSystemsNumerical('rotational')
                 return
             end
 
             R = 0.025; % radius of the eye
             step = 10;
-            [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
-            coordinateSystems = { 'Listings', 'Fick','Helmholtz', 'Harms','Hess'};
+            coordinateSystems = { 'Polar', 'Fick','Helmholtz', 'Harms','Hess'};
 
 
 
@@ -464,15 +463,20 @@ classdef Geometry3D
                 % calculate spherical coordinates depending on the coordinate system
                 switch(sys)
                     case 'Fick'
-                        [x,y,z] = Geometry3D.FickToSphere(az,el);
+                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
+                        [x,y,z] = Geometry3D.FickToSphere(deg2rad(az),deg2rad(el));
                     case 'Helmholtz'
-                        [x,y,z] = Geometry3D.HelmholtzToSphere(az,el);
-                    case 'Listings'
-                        [x,y,z] = Geometry3D.PolarToSphere(az,el);
+                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
+                        [x,y,z] = Geometry3D.HelmholtzToSphere(deg2rad(az),deg2rad(el));
+                    case 'Polar'
+                        [az, el] = meshgrid(-90:step:90,-80:step:80); % azimuths and elevations to include
+                        [x,y,z] = Geometry3D.PolarToSphere(deg2rad(az),deg2rad(el));
                     case 'Harms'
-                        [x,y,z] = Geometry3D.HarmsToSphere(az,el);
+                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
+                        [x,y,z] = Geometry3D.HarmsToSphere(deg2rad(az),deg2rad(el));
                     case 'Hess'
-                        [x,y,z] = Geometry3D.HessToSphere(az,el);
+                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
+                        [x,y,z] = Geometry3D.HessToSphere(deg2rad(az),deg2rad(el));
                 end
 
                 % scale by radius so the translations are in the right units (m)
@@ -560,7 +564,7 @@ classdef Geometry3D
                             [az2, el2 ] = Geometry3D.SphereToFick(x2,y2,z2);
                         case 'Helmholtz'
                             [az2, el2 ] = Geometry3D.SphereToHelmholtz(x2,y2,z2);
-                        case 'Listings'
+                        case 'Polar'
                             az2 = nan(size(az));
                             el2 = nan(size(el));
                         case 'Harms'
