@@ -166,12 +166,150 @@ classdef Geometry3D
                     z = visualDirections(:,3);
                     [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
                     [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.TangentSphereRotationalJacobian(x,y,z);
+                case 'Polar'
+                    x = visualDirections(:,1);
+                    y = visualDirections(:,2);
+                    z = visualDirections(:,3);
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
+                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.TangentSphereRotationalJacobian(x,y,z);
+
             end
 
             % collect the jacobians into 3D matrices 2x3xN
             % (2x3 jacobian at each visual direciton)
             Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, N),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, N));
             Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, N),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, N));
+        end
+
+        function [Jw, Jv] = CalculateMotionJacobianFieldsNumerical(visualDirections, coordSys)
+
+            N = height(visualDirections);
+            
+            z = visualDirections(:,3);
+            x = visualDirections(:,1);
+            y = visualDirections(:,2);
+
+
+            % calculate jacobians for linear or rotational velocity
+            % That is, how much a tiny translation or rotation affect the position
+            % of a point in the sphere.
+            %
+            % For rotation is easy because the point remains in the sphere.
+            %
+            % For translation is a bit trickier because the point moves outside of
+            % the sphere and the vector of motion has to be projected into a
+            % tangent plane.
+            %
+            % the strategy is to move all the points in the sphere and then
+            % calculate the vector from the original point to the new point and
+            % project that vector onto the tangent plane by normalizing the second
+            % point. So it is a vector between two points in the sphere so we can
+            % calcuate it the vector on the actual coordinates of the azimuth and
+            % elevation system. For very small displacements the tangent plane and
+            % the local surface of the sphere should be approximately the same.
+
+            dv = 0.00001; % differential position change in m
+            % This this placements actually needs to be multiplied by
+            % the ration between the eye radius and the distance of the
+            % object seen by this receptor. Right now wea assume ration
+            % of 1.
+            dw = 0.1; % differential angular rotation in deg
+
+
+            dxyz = {[dv,0,0],[0,dv,0],[0,0,dv]}; % differential vectors
+            dRM = {Geometry3D.RotX(dw), Geometry3D.RotY(dw), Geometry3D.RotZ(dw)}; % differential rotation matrices
+            flows = {'linear', 'rotational'};
+
+                switch(coordSys)
+                    case 'Fick'
+                        [az, el] = Geometry3D.SphereToFick(x,y,z);
+                    case 'Helmholtz'
+                        [az, el] = Geometry3D.SphereToHelmholtz(x,y,z);
+                    case 'Polar'
+                        [az, el] = Geometry3D.SphereToPolar(x,y,z);
+                    case 'Harms'
+                        [az, el] = Geometry3D.SphereToHarms(x,y,z);
+                    case 'Hess'
+                        [az, el] = Geometry3D.SphereToHess(x,y,z);
+                end
+
+            for WHICHFLOW=flows
+
+                for vi=1:3
+
+                    if ( strcmp( WHICHFLOW , 'linear' ) )
+                        % add a tiny displacement in the corresponding component to all the
+                        % points in the sphere.
+                        x2 = x + dxyz{vi}(1);
+                        y2 = y + dxyz{vi}(2);
+                        z2 = z + dxyz{vi}(3);
+                    else
+                        % add a tiny rotation in the corresponding component to all the
+                        % points in the sphere.
+                        pointsrot = [x(:) y(:) z(:)]*dRM{vi};
+                        x2 = reshape(pointsrot(:,1),size(x));
+                        y2 = reshape(pointsrot(:,2),size(y));
+                        z2 = reshape(pointsrot(:,3),size(z));
+                    end
+
+                    % project the tiny displacement onto the sphere
+                    % (this is the step I am least sure of)
+                    % But I think it should be correct because it is the projection
+                    % onto a tangent plane.
+                    % I do so by simply normalizing the vector so we find the point on
+                    % the sphere that is closes tot he displaced point.
+                    nrm = sqrt(x2.^2 + y2.^2 + z2.^2);
+                    x2 = x2 ./ nrm;
+                    y2 = y2 ./ nrm;
+                    z2 = z2 ./ nrm;
+
+                    switch(coordSys)
+                        case 'Fick'
+                            [az2, el2 ] = Geometry3D.SphereToFick(x2,y2,z2);
+                        case 'Helmholtz'
+                            [az2, el2 ] = Geometry3D.SphereToHelmholtz(x2,y2,z2);
+                        case 'Polar'
+                            az2 = nan(size(az));
+                            el2 = nan(size(el));
+                        case 'Harms'
+                            [az2, el2 ] = Geometry3D.SphereToHarms(x2,y2,z2);
+                        case 'Hess'
+                            [az2, el2 ] = Geometry3D.SphereToHess(x2,y2,z2);
+                    end
+
+                    if ( strcmp( WHICHFLOW , 'linear' ) )
+                        switch(vi)
+                            case 1
+                                dazdx = az2-az;
+                                deldx = el2-el;
+                            case 2
+                                dazdy = az2-az;
+                                deldy = el2-el;
+                            case 3
+                                dazdz = az2-az;
+                                deldz = el2-el;
+                        end
+                    else
+                        switch(vi)
+                            case 1
+                                rdazwx = az2-az;
+                                rdelwx = el2-el;
+                            case 2
+                                rdazwy = az2-az;
+                                rdelwy = el2-el;
+                            case 3
+                                rdazwz = az2-az;
+                                rdelwz = el2-el;
+                        end
+                    end
+                end
+
+
+            end
+            % collect the jacobians into 3D matrices 2x3xN
+            % (2x3 jacobian at each visual direciton)
+            Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, N),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, N))/dv;
+            Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, N),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, N))/dw;
         end
 
         function [motionField, motionFieldLinear, motionFieldRotational, Jv, Jw, D] = CalculateMotionField(visualDirections, w, v, eyePositionXYZ, eyeOrientationRotMat, stim, coordSys)
@@ -312,7 +450,6 @@ classdef Geometry3D
             switch(coordSys)
                 case 'Fick'
                     [xs,ys,zs] = Geometry3D.FickToSphere(az,el);
-
                 case 'Helmholtz'
                     [xs,ys,zs] = Geometry3D.HelmholtzToSphere(az,el);
                 case 'Harms'
@@ -446,12 +583,8 @@ classdef Geometry3D
                 return
             end
 
-            R = 0.025; % radius of the eye
             step = 10;
             coordinateSystems = { 'Polar', 'Fick','Helmholtz', 'Harms','Hess'};
-
-
-
 
             f = figure('color','white');
             f.Position = [f.Position(1) f.Position(2) 4*f.Position(3) f.Position(4)];
@@ -479,11 +612,6 @@ classdef Geometry3D
                         [x,y,z] = Geometry3D.HessToSphere(deg2rad(az),deg2rad(el));
                 end
 
-                % scale by radius so the translations are in the right units (m)
-                z = z*R;
-                x = x*R;
-                y = y*R;
-
                 % draw sphere
                 view(125,15)
                 axis equal;
@@ -492,7 +620,7 @@ classdef Geometry3D
                 ylabel(gca,'y')
                 zlabel(gca,'z')
                 % line of sight
-                line([0 R*1.5 ],[0 0 ],[0 0 ],'color','r','linewidth',2)
+                line([0 1.5 ],[0 0 ],[0 0 ],'color','r','linewidth',2)
                 title(sys)
 
 
@@ -522,9 +650,6 @@ classdef Geometry3D
                 % of 1.
                 dw = 0.1; % differential angular rotation in deg
 
-                az2 = az;
-                el2 = el;
-
                 colorsflow = {'r' 'b' 'k'};
                 dims = {'x' 'y' 'z'};
 
@@ -536,16 +661,16 @@ classdef Geometry3D
                     if ( strcmp( WHICHFLOW , 'linear' ) )
                         % add a tiny displacement in the corresponding component to all the
                         % points in the sphere.
-                        x2 = x - dxyz{vi}(1);
-                        y2 = y - dxyz{vi}(2);
-                        z2 = z - dxyz{vi}(3);
+                        x2 = x + dxyz{vi}(1);
+                        y2 = y + dxyz{vi}(2);
+                        z2 = z + dxyz{vi}(3);
                     else
                         % add a tiny rotation in the corresponding component to all the
                         % points in the sphere.
-                        pointsrot = [x(:) y(:) z(:)]*dRM{vi};
-                        x2 = reshape(pointsrot(:,1),size(x));
-                        y2 = reshape(pointsrot(:,2),size(y));
-                        z2 = reshape(pointsrot(:,3),size(z));
+                        pointsRot = [x(:) y(:) z(:)]*dRM{vi};
+                        x2 = reshape(pointsRot(:,1),size(x));
+                        y2 = reshape(pointsRot(:,2),size(y));
+                        z2 = reshape(pointsRot(:,3),size(z));
                     end
 
                     % project the tiny displacement onto the sphere
@@ -575,7 +700,11 @@ classdef Geometry3D
 
 
                     subplot(4,length(coordinateSystems),i+length(coordinateSystems)*vi);
-                    quiver(az, el, az2-az, el2-el, colorsflow{vi});
+                    if ( sys ~= "Polar")
+                        quiver(az, el, rad2deg(az2)-az, rad2deg(el2)-el, colorsflow{vi});
+                    else
+                        quiver3(x, y, z, x2-x, y2-y,z2-z, colorsflow{vi});
+                    end
 
                     switch(WHICHFLOW)
                         case 'linear'
@@ -593,12 +722,125 @@ classdef Geometry3D
                     grid on
 
                     axis equal;
-                    set(gca,'xlim',[-80 80],'ylim',[-80 80])
+                    if ( sys ~= "Polar")
+                        set(gca,'xlim',[-80 80],'ylim',[-80 80])
+                    else
+                        set(gca,'xlim',[-1 1],'ylim',[-1 1],'zlim',[-1 1])
+                        view(125,15)
+                    end
                 end
 
             end
         end
 
+
+        function demoCoordinateSystemsNumerical2(WHICHFLOW)
+
+            if ( nargin <1)
+                Geometry3D.demoCoordinateSystemsNumerical('linear')
+                Geometry3D.demoCoordinateSystemsNumerical('rotational')
+                return
+            end
+
+            step = 10;
+            coordinateSystems = { 'Polar', 'Fick','Helmholtz', 'Harms','Hess'};
+            dims = {'x' 'y' 'z'};
+                colorsflow = {'r' 'b' 'k'};
+
+            f = figure('color','white');
+            f.Position = [f.Position(1) f.Position(2) 4*f.Position(3) f.Position(4)];
+
+            for i=1:length(coordinateSystems)
+                sys = coordinateSystems{i};
+                subplot(4,length(coordinateSystems),i,'nextplot','add');
+
+                % calculate spherical coordinates depending on the coordinate system
+                switch(sys)
+                    case 'Fick'
+                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
+                        [x,y,z] = Geometry3D.FickToSphere(deg2rad(az),deg2rad(el));
+                    case 'Helmholtz'
+                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
+                        [x,y,z] = Geometry3D.HelmholtzToSphere(deg2rad(az),deg2rad(el));
+                    case 'Polar'
+                        [az, el] = meshgrid(-90:step:90,-80:step:80); % azimuths and elevations to include
+                        [x,y,z] = Geometry3D.PolarToSphere(deg2rad(az),deg2rad(el));
+                    case 'Harms'
+                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
+                        [x,y,z] = Geometry3D.HarmsToSphere(deg2rad(az),deg2rad(el));
+                    case 'Hess'
+                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
+                        [x,y,z] = Geometry3D.HessToSphere(deg2rad(az),deg2rad(el));
+                end
+
+                [Jwa, Jva] = Geometry3D.CalculateMotionJacobianFields([x(:) y(:) z(:)], sys);
+
+                [Jw, Jv] = Geometry3D.CalculateMotionJacobianFieldsNumerical([x(:) y(:) z(:)], sys);
+% Jw = Jw-Jwa;
+% Jv = Jv-Jva;
+
+
+                % draw sphere
+                view(125,15)
+                axis equal;
+                mesh(x,y,z,'FaceAlpha', 0.9,'facecolor',[1 1 1]);
+                xlabel(gca,'x')
+                ylabel(gca,'y')
+                zlabel(gca,'z')
+                % line of sight
+                line([0 1.5 ],[0 0 ],[0 0 ],'color','r','linewidth',2)
+                title(sys)
+
+
+                for vi=1:3
+
+                    if ( strcmp( WHICHFLOW , 'linear' ) )
+                        J = Jv;
+                        J2 = Jva;
+                    else
+                        J = Jw;
+                        J2 = Jwa;
+                    end
+
+                    subplot(4,length(coordinateSystems),i+length(coordinateSystems)*vi);
+                    if ( sys ~= "Polar")
+                        q = quiver(az, el, reshape(J(1,vi,:),size(az)), reshape(J(2,vi,:),size(az)), 1, colorsflow{vi},'autoscale','off','linewidth',1.5);
+                        q.ShowArrowHead = 'off';
+                        q.Marker = '.';
+                        hold
+                        q = quiver(az, el, reshape(J2(1,vi,:),size(az)), reshape(J2(2,vi,:),size(az)), 1, 'g','autoscale','off','linewidth',1.5);
+                        q.ShowArrowHead = 'off';
+                        q.Marker = '.';
+                    else
+                        % quiver3(x, y, z, x2-x, y2-y,z2-z, colorsflow{vi});
+                    end
+
+                    switch(WHICHFLOW)
+                        case 'linear'
+                            title(['Flow due to ' WHICHFLOW  ' motion along ',dims{vi}])
+                        case 'rotational'
+                            title(['Flow due to ' WHICHFLOW  ' motion around ',dims{vi}])
+                    end
+                    if ( i > 1)
+                        xlabel('Azimuth (deg)')
+                        ylabel('Elevation (deg)')
+                    else
+                        xlabel('Angle (deg)')
+                        ylabel('Eccentricity (deg)')
+                    end
+                    grid on
+
+                    axis equal;
+                    if ( sys ~= "Polar")
+                        set(gca,'xlim',[-80 80],'ylim',[-80 80])
+                    else
+                        set(gca,'xlim',[-1 1],'ylim',[-1 1],'zlim',[-1 1])
+                        view(125,15)
+                    end
+                end
+
+            end
+        end
 
 
         function demoMotionFlow()
@@ -3032,14 +3274,17 @@ classdef Geometry3D
 
         function [dazdx, dazdy, dazdz, deldx, deldy, deldz] = HessLinearJacobian(az, el)
             [x, y, z] = Geometry3D.HessToSphere(az, el);
-            % this are just the derivatives of the SphereToHarms function
-            dazdx =  -x.*y./(sqrt(1-y.^2)) ;
-            dazdy =  (x.^2 + z.^2 ) ./(sqrt(1-y.^2)) ;
-            dazdz = -y.*z./(sqrt(1-y.^2)) ;
+            denom1 = (x.^2 + y.^2 + z.^2) .* sqrt( 1 - y.^2 ) ;
+            denom2 = (x.^2 + y.^2 + z.^2) .* sqrt( 1 - z.^2 ) ;
 
-            deldx =  -x.*z./(sqrt(1-y.^2)) ;
-            deldy = -y.*z./(sqrt(1-y.^2)) ;
-            deldz =  (x.^2 + y.^2 ) ./(sqrt(1-y.^2)) ;
+            % this are just the derivatives of the SphereToHarms function
+            dazdx = 1./denom1 .* -x.*y;
+            dazdy = 1./denom1 .* ( x.^2 + z.^2 );
+            dazdz = 1./denom1 .* -y.*z;
+
+            deldx = 1./denom2 .* -x.*z;
+            deldy = 1./denom2 .* -y.*z;
+            deldz = 1./denom2 .* ( x.^2 + y.^2 );
         end
 
 
