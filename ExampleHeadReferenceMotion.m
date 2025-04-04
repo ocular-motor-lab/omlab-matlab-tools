@@ -24,9 +24,10 @@ numberOfPoints = 2000;
 %% Calculate eye position and eye velocity
 % get the rotation matrix of the eye (doing a listings rotation so there is
 % no false torsion) 
-direction = atan2(eyeElevation, -eyeAzimuth);
-eccentricity = deg2rad(sqrt(eyeElevation.^2 + eyeAzimuth.^2));
-eyePositionRotMat = Geometry3D.List2Mat([direction eccentricity 0]);
+% direction = atan2(eyeElevation, eyeAzimuth);
+% eccentricity = deg2rad(sqrt(eyeElevation.^2 + eyeAzimuth.^2));
+[lookatX, lookatY, lookatZ] = Geometry3D.HessToSphere(-deg2rad(eyeAzimuth), deg2rad(eyeElevation));
+eyePositionRotMat = Geometry3D.LookAtListingsSimple([lookatX, lookatY, lookatZ]);
 % get the eye location in the world
 eyeLocation = [0, 0, eyePositionHeight];
 

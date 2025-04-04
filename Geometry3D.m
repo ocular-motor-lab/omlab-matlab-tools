@@ -91,7 +91,7 @@ classdef Geometry3D
                     outofrange = acosd(x) > range;
                     x(outofrange) = [];y(outofrange) = [];z(outofrange) = [];
                     az = []; el = [];
-                case 'RANDOM'
+                case {'RANDOM' 'TANGENTSPHERE'}
                     [x, y, z] = Geometry3D.RandomSampleSphere(N);
                     outofrange = acosd(x) > range;
                     x(outofrange) = [];y(outofrange) = [];z(outofrange) = [];
@@ -137,48 +137,56 @@ classdef Geometry3D
         end
 
         function [Jw, Jv] = CalculateMotionJacobianFields(visualDirections, coordSys)
+            
             if ( ~exist('coordSys','var'))
                 coordSys = 'TangentSphere';
             end
 
             N = height(visualDirections);
+            x = visualDirections(:,1);
+            y = visualDirections(:,2);
+            z = visualDirections(:,3);
 
             switch(coordSys)
                 case 'Fick'
-                    [az, el] = Geometry3D.SphereToFick(visualDirections(:,1),visualDirections(:,2),visualDirections(:,3));
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(az, el);
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.FickRotationalJacobian(az, el);
+                    J = Geometry3D.FickJacobian(x,y,z);
                 case 'Helmholtz'
-                    [az, el] = Geometry3D.SphereToHelmholtz(visualDirections(:,1),visualDirections(:,2),visualDirections(:,3));
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(az, el);
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HelmholtzRotationalJacobian(az, el);
+                    J = Geometry3D.HelmholtzJacobian(x,y,z);
                 case 'Harms'
-                    [az, el] = Geometry3D.SphereToHarms(visualDirections(:,1),visualDirections(:,2),visualDirections(:,3));
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsLinearJacobian(az, el);
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HarmsRotationalJacobian(az, el);
+                    J = Geometry3D.HarmsJacobian(x,y,z);
                 case 'Hess'
-                    [az, el] = Geometry3D.SphereToHess(visualDirections(:,1),visualDirections(:,2),visualDirections(:,3));
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HessLinearJacobian(az, el);
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HessRotationalJacobian(az, el);
+                    J = Geometry3D.HessJacobian(x,y,z);
                 case 'TangentSphere'
-                    x = visualDirections(:,1);
-                    y = visualDirections(:,2);
-                    z = visualDirections(:,3);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.TangentSphereRotationalJacobian(x,y,z);
+                    J = Geometry3D.TangentSphereJacobian(x,y,z);
                 case 'Polar'
-                    x = visualDirections(:,1);
-                    y = visualDirections(:,2);
-                    z = visualDirections(:,3);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.TangentSphereRotationalJacobian(x,y,z);
-
+                    J = Geometry3D.TangentSphereJacobian(x,y,z);
             end
 
-            % collect the jacobians into 3D matrices 2x3xN
-            % (2x3 jacobian at each visual direciton)
-            Jv = cat(1, reshape([dazdx(:)'; dazdy(:)'; dazdz(:)'],1,3, N),  reshape([deldx(:)'; deldy(:)' ;deldz(:)'],1,3, N));
-            Jw = cat(1, reshape([rdazwx(:)'; rdazwy(:)'; rdazwz(:)'],1,3, N),  reshape([rdelwx(:)' ;rdelwy(:)' ;rdelwz(:)'],1,3, N));
+            Mv = zeros(3,3,length(x));
+            Mv(1,1,:) = x.^2 - 1;
+            Mv(1,2,:) = x.*y;
+            Mv(1,3,:) = x.*z; 
+            Mv(2,1,:) = x.*y;
+            Mv(2,2,:) = y.^2 - 1;
+            Mv(2,3,:) = y.*z; 
+            Mv(3,1,:) = x.*z;
+            Mv(3,2,:) = y.*z;
+            Mv(3,3,:) = z.^2 - 1;
+
+            Mw = zeros(3,3,length(x));
+            Mw(1,1,:) = 0;
+            Mw(1,2,:) = -z;
+            Mw(1,3,:) = y; 
+            Mw(2,1,:) = z;
+            Mw(2,2,:) = 0;
+            Mw(2,3,:) = -x; 
+            Mw(3,1,:) = -y;
+            Mw(3,2,:) = x;
+            Mw(3,3,:) = 0;
+
+            Jv = pagemtimes(-J, Mv);
+            Jw = pagemtimes(-J, Mw);
+
         end
 
         function [Jw, Jv] = CalculateMotionJacobianFieldsNumerical(visualDirections, coordSys)
@@ -213,7 +221,7 @@ classdef Geometry3D
             % the ration between the eye radius and the distance of the
             % object seen by this receptor. Right now wea assume ration
             % of 1.
-            dw = 0.1; % differential angular rotation in deg
+            dw = 0.0001; % differential angular rotation in deg
 
 
             dxyz = {[dv,0,0],[0,dv,0],[0,0,dv]}; % differential vectors
@@ -240,13 +248,13 @@ classdef Geometry3D
                     if ( strcmp( WHICHFLOW , 'linear' ) )
                         % add a tiny displacement in the corresponding component to all the
                         % points in the sphere.
-                        x2 = x + dxyz{vi}(1);
-                        y2 = y + dxyz{vi}(2);
-                        z2 = z + dxyz{vi}(3);
+                        x2 = x - dxyz{vi}(1);
+                        y2 = y - dxyz{vi}(2);
+                        z2 = z - dxyz{vi}(3);
                     else
                         % add a tiny rotation in the corresponding component to all the
                         % points in the sphere.
-                        pointsrot = [x(:) y(:) z(:)]*dRM{vi};
+                        pointsrot = [x(:) y(:) z(:)]*dRM{vi}';
                         x2 = reshape(pointsrot(:,1),size(x));
                         y2 = reshape(pointsrot(:,2),size(y));
                         z2 = reshape(pointsrot(:,3),size(z));
@@ -353,7 +361,12 @@ classdef Geometry3D
             stim = app.Values.Stimulus;
 
             coordSys = app.Values.CoordinateSystem;
-            visualDirections = Geometry3D.SampleVisualDirections(N,coordSys);
+            if ( isfield(app.Data, 'visualDirections'))
+                visualDirections = app.Data.visualDirections;
+            else
+                visualDirections = Geometry3D.SampleVisualDirections(N,coordSys);
+                app.Data.visualDirections = visualDirections;
+            end
             [motionField, motionFieldLinear, motionFieldRotational] = Geometry3D.CalculateMotionField(visualDirections, w, v, [0,0,h], eyeel, stim, coordSys);
             x = visualDirections(:,1);
             y = visualDirections(:,2);
@@ -471,30 +484,31 @@ classdef Geometry3D
             switch(coordSys)
                 case 'Fick'
                     [px,py,pz] = Geometry3D.FickToSphere(paz,pel);
-                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.FickLinearInverseJacobian(paz, pel);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(paz, pel);
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.FickRotationalJacobian(paz, pel);
+                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.FickInverseJacobian(paz, pel);
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickJacobian(px,py,pz);
 
                 case 'Helmholtz'
                     [px,py,pz] = Geometry3D.HelmholtzToSphere(paz,pel);
-                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HelmholtzLinearInverseJacobian(paz, pel);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(paz, pel);
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HelmholtzRotationalJacobian(paz, pel);
+                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HelmholtzInverseJacobian(paz, pel);
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzJacobian(px,py,pz);
                 case 'Harms'
                     [px,py,pz] = Geometry3D.HarmsToSphere(paz,pel);
-                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HarmsLinearInverseJacobian(paz, pel);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsLinearJacobian(paz, pel);
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HarmsRotationalJacobian(paz, pel);
+                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HarmsInverseJacobian(paz, pel);
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsJacobian(px,py,pz);
                 case 'Hess'
                     [px,py,pz] = Geometry3D.HessToSphere(paz,pel);
-                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HessLinearInverseJacobian(paz, pel);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HessLinearJacobian(paz, pel);
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.HessRotationalJacobian(paz, pel);
+                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HessInverseJacobian(paz, pel);
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HessJacobian(px,py,pz);
                 case 'TangentSphere'
                     [px,py,pz] = Geometry3D.FickToSphere(paz,pel);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereLinearJacobian(px,py,pz);
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.TangentSphereRotationalJacobian(px,py,pz);
-                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.TangentSphereInverseJacobian(px,py,pz);
+                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereJacobian(px,py,pz);
+                    dxdaz = dazdx;
+                    dydaz = dazdy;
+                    dzdaz = dazdz;
+                    dxdel = deldx;
+                    dydel = deldy;
+                    dzdel = deldz;
+                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.TangentRotationalJacobian(px,py,pz);
             end
 
             % udpate sphere
@@ -743,6 +757,8 @@ classdef Geometry3D
             end
 
             step = 10;
+            [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
+
             coordinateSystems = { 'Polar', 'Fick','Helmholtz', 'Harms','Hess'};
             dims = {'x' 'y' 'z'};
                 colorsflow = {'r' 'b' 'k'};
@@ -757,19 +773,14 @@ classdef Geometry3D
                 % calculate spherical coordinates depending on the coordinate system
                 switch(sys)
                     case 'Fick'
-                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
                         [x,y,z] = Geometry3D.FickToSphere(deg2rad(az),deg2rad(el));
                     case 'Helmholtz'
-                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
                         [x,y,z] = Geometry3D.HelmholtzToSphere(deg2rad(az),deg2rad(el));
                     case 'Polar'
-                        [az, el] = meshgrid(-90:step:90,-80:step:80); % azimuths and elevations to include
                         [x,y,z] = Geometry3D.PolarToSphere(deg2rad(az),deg2rad(el));
                     case 'Harms'
-                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
                         [x,y,z] = Geometry3D.HarmsToSphere(deg2rad(az),deg2rad(el));
                     case 'Hess'
-                        [az, el] = meshgrid(-80:step:80,-80:step:80); % azimuths and elevations to include
                         [x,y,z] = Geometry3D.HessToSphere(deg2rad(az),deg2rad(el));
                 end
 
@@ -2712,8 +2723,8 @@ classdef Geometry3D
             y = a(a(:,1)>0,2);
             z = a(a(:,1)>0,3);
 
-            [dudx, dudy, dudz, dvdx, dvdy, dvdz] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
-            [duwxdt, duwydt, duwzdt, dvwxdt, dvwydt, dvwzdt] = Geometry3D.TangentSphereRotationalJacobian(x,y,z);
+            [dudx, dudy, dudz, dvdx, dvdy, dvdz] = Geometry3D.TangentSphereJacobian(x,y,z);
+            [duwxdt, duwydt, duwzdt, dvwxdt, dvwydt, dvwzdt] = Geometry3D.TangentRotationalJacobian(x,y,z);
 
             figure('color','w')
             subplot(2,5,[1 2 6 7],'nextplot','add')
@@ -2805,7 +2816,7 @@ classdef Geometry3D
             [x,y,z] = Geometry3D.FickToSphere(deg2rad([0 50]),deg2rad([0 40]));
 
 
-            [dudx, dudy, dudz, dvdx, dvdy, dvdz] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
+            [dudx, dudy, dudz, dvdx, dvdy, dvdz] = Geometry3D.TangentSphereJacobian(x,y,z);
 
             figure('color','w')
             subplot(1,1,1,'nextplot','add')
@@ -2913,7 +2924,7 @@ classdef Geometry3D
                 % the local surface of the sphere should be approximately the same.
 
                 dv = 0.00001; % differential position change in m
-                dw = deg2rad(0.1); % differential angular rotation in deg
+                dw = deg2rad(0.001); % differential angular rotation in deg
 
                 az2 = az;
                 el2 = el;
@@ -2980,24 +2991,24 @@ classdef Geometry3D
                                 % calculate spherical coordinates depending on the coordinate system
                                 switch(sys)
                                     case 'sphere'
-                                        [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
-                                        [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = Geometry3D.TangentSphereRotationalJacobian(x,y,z);
+                                        [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereJacobian(x,y,z);
+                                        [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = Geometry3D.TangentRotationalJacobian(x,y,z);
                                     case 'Fick'
                                         [x,y,z] = Geometry3D.FickToSphere(deg2rad(az),deg2rad(el));
-                                        [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(deg2rad(az), deg2rad(el));
+                                        [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickJacobian([x,y,z]);
                                         [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = Geometry3D.FickRotationalJacobian(deg2rad(az), deg2rad(el));
                                     case 'Helmholtz'
                                         [x,y,z] = Geometry3D.HelmholtzToSphere(deg2rad(az),deg2rad(el));
-                                        [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(deg2rad(az), deg2rad(el));
+                                        [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzJacobian([x,y,z]);
                                         [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = Geometry3D.HelmholtzRotationalJacobian(deg2rad(az), deg2rad(el));
 
                                     case 'Harms'
                                         [x,y,z] = Geometry3D.HarmsToSphere(deg2rad(az),deg2rad(el));
-                                        [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsLinearJacobian(deg2rad(az), deg2rad(el));
+                                        [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsJacobian([x,y,z]);
                                         [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = Geometry3D.HarmsRotationalJacobian(deg2rad(az), deg2rad(el));
                                     case 'Hess'
                                         [x,y,z] = Geometry3D.HessToSphere(deg2rad(az),deg2rad(el));
-                                        [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HessLinearJacobian(deg2rad(az), deg2rad(el));
+                                        [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HessJacobian([x,y,z]);
                                         [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = Geometry3D.HessRotationalJacobian(deg2rad(az), deg2rad(el));
                                 end
 
@@ -3088,148 +3099,74 @@ classdef Geometry3D
         end
 
 
-        function [dazdx, dazdy, dazdz, deldx, deldy, deldz] = FickLinearJacobian(az, el)
-            % units should be deg/m
+        function J = FickJacobian(x,y,z)
 
-            [x, y, z] = Geometry3D.FickToSphere(az, el);
-            % this are just the derivatives of the SphereToHarms function
+            % daz/dx, daz/dy, daz/dz
+            J(1,1,:) =  -y./(x.^2+y.^2);
+            J(1,2,:) = x./(x.^2+y.^2);
+            J(1,3,:) = zeros(size(x));
 
-            % D = sqrt(x.^2+y.^2+z.^2);
-            % az = atan2d(y,x);
-            % el = asind(z/D);
-
-            dazdx =  -y./(y.^2+x.^2);
-            dazdy = x./(y.^2+x.^2);
-            dazdz = zeros(size(az));
-
-            DD = sqrt(x.^2+y.^2);
-            deldx = -z.*x ./ DD;
-            deldy = -z.*y ./ DD;
-            deldz =  DD;
-
-        end
-
-        function [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = FickRotationalJacobian(az, el)
-            % unitless or deg per deg or rad per rad
-            [x, y, z] = Geometry3D.FickToSphere(az, el);
-
-            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickLinearJacobian(az, el);
-
-            % this uses the property that the linear velocity of a point on the
-            % sphere rotating by an angular velocity is the cross product of the
-            % coordinates of the point and the angular velocity.
-            %
-            % so then we can multiply the linear jacobian by the cross product
-            % matrix equivalent of the point coordinates
-
-            dazwxdt = 0*dazdx + z.*dazdy - y.*dazdz;
-            dazwydt = -z.*dazdx - 0.*dazdy + x.*dazdz;
-            dazwzdt = y.*dazdx - x.*dazdy + 0*dazdz;
-
-            delwxdt = 0*deldx + z.*deldy - y.*deldz ;
-            delwydt = -z.*deldx + 0*deldy + x.*deldz;
-            delwzdt = y.*deldx - x.*deldy + 0.*deldz ;
-        end
-
-        function [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel]  = FickLinearInverseJacobian(az, el)
-
-            dxdaz = -sin( az ) .* cos( el );
-            dydaz = cos( az ) .* cos( el );
-            dzdaz = 0;
-            dxdel = -cos( az ) .* sin( el );
-            dydel = -sin( az ) .* sin( el );
-            dzdel = cos( el );
-        end
-
-        function [dazdx, dazdy, dazdz, deldx, deldy, deldz] = HelmholtzLinearJacobian(az, el)
-            % units should be deg/m
-
-            [x, y, z] = Geometry3D.HelmholtzToSphere(az, el);
-            % this are just the derivatives of the SphereToHarms function
-
-            % D = sqrt(x.^2+y.^2+z.^2);
-            % az = atan2d(y,x);
-            % el = asind(z/D);
-
-            DD = sqrt(x.^2+z.^2);
-            dazdx = -y.*x ./ DD;
-            dazdy =  DD;
-            dazdz = -z.*y ./ DD;
-
-            deldx =  -z./(z.^2+x.^2);
-            deldy = zeros(size(az));
-            deldz = x./(z.^2+x.^2);
-        end
-
-        function [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = HelmholtzRotationalJacobian(az, el)
-            % unitless or deg per deg or rad per rad
-            [x, y, z] = Geometry3D.HelmholtzToSphere(az, el);
-
-            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzLinearJacobian(az, el);
-
-            % this uses the property that the linear velocity of a point on the
-            % sphere rotating by an angular velocity is the cross product of the
-            % coordinates of the point and the angular velocity.
-            %
-            % so then we can multiply the linear jacobian by the cross product
-            % matrix equivalent of the point coordinates
-
-            dazwxdt = 0*dazdx + z.*dazdy - y.*dazdz;
-            dazwydt = -z.*dazdx - 0.*dazdy + x.*dazdz;
-            dazwzdt = y.*dazdx - x.*dazdy + 0*dazdz;
-
-            delwxdt = 0*deldx + z.*deldy - y.*deldz ;
-            delwydt = -z.*deldx + 0*deldy + x.*deldz;
-            delwzdt = y.*deldx - x.*deldy + 0.*deldz ;
-        end
-
-        function [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel]  = HelmholtzLinearInverseJacobian(az, el)
-
-            dxdaz = -sin(az) .* cos(el);
-            dydaz = cos(az);
-            dzdaz = -sin(el) .* sin(az);
-
-            dxdel = -cos(az) .* sin(el);
-            dydel = zeros(size(az));
-            dzdel = cos(az) .* cos(el);
-
+            % del/dx, del/dy, del/dz
+            J(2,1,:) = zeros(size(x));
+            J(2,2,:) = zeros(size(x));
+            J(2,3,:) =  1./sqrt(1-z.^2);
         end
 
 
+        function J = FickInverseJacobian(az, el)
 
-        function [dazdx, dazdy, dazdz, deldx, deldy, deldz] = HarmsLinearJacobian(az, el)
-            [x, y, z] = Geometry3D.HarmsToSphere(az, el);
+            % dx/daz, dy/daz, dz/daz
+            J(1,1,:) = -sin( az ) .* cos( el );
+            J(2,1,:) = cos( az ) .* cos( el );
+            J(3,1,:) = 0;
 
-            % az = atan2d(y,x);
-            % el = atan2d(z,x);
-            %
-            % x = 1/sqrt(1+tan(az)^2 +tan(el)^2)
-            % y = tan(az)*x
-            % z = tan(el)*x
-            %
-            %
-            % this are just the derivatives of the SphereToHarms function
-            dazdx = -y./(y.^2+x.^2);
-            dazdy = x./(y.^2+x.^2);
-            dazdz = zeros(size(az));
-
-            deldx = -z./(z.^2+x.^2);
-            deldy = zeros(size(el));
-            deldz = x./(z.^2+x.^2);
-
-            % D = sqrt(1+tand(az).^2+tand(el).^2);
-            %
-            %
-            % dazdx = rad2deg( D .* -tand(az)./(1+tand(az).^2));
-            % dazdy = rad2deg( D .* 1./(1+tand(az).^2));
-            % dazdz = rad2deg(zeros(size(az)));
-            %
-            % deldx = rad2deg( D .* -tand(el)./(1+tand(el).^2));
-            % deldy = rad2deg(zeros(size(el)));
-            % deldz = rad2deg( D .* 1./(1+tand(el).^2));
+            % dx/del, dy/del, dz/del
+            J(1,2,:) = -cos( az ) .* sin( el );
+            J(2,2,:) = -sin( az ) .* sin( el );
+            J(3,2,:) = cos( el );
         end
 
-        function [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = HarmsLinearInverseJacobian(az, el)
+        function J = HelmholtzJacobian(x,y,z)
+
+            % daz/dx, daz/dy, daz/dz
+            J(1,1,:) = zeros(size(x));
+            J(1,2,:) =  1./sqrt(1 - y.^2);
+            J(1,3,:) = zeros(size(x));
+
+            % del/dx, del/dy, del/dz
+            J(2,1,:) =  -z./(z.^2 + x.^2);
+            J(2,2,:) = zeros(size(x));
+            J(2,3,:) = x./(z.^2 + x.^2);
+        end
+
+        function J  = HelmholtzInverseJacobian(az, el)
+
+            % dx/daz, dy/daz, dz/daz
+            J(1,1,:) = -sin(az) .* cos(el);
+            J(2,1,:) = cos(az);
+            J(3,1,:) = -sin(el) .* sin(az);
+
+            % dx/del, dy/del, dz/del
+            J(1,2,:) = -cos(az) .* sin(el);
+            J(2,2,:) = zeros(size(x));
+            J(3,2,:) = cos(az) .* cos(el);
+        end
+
+        function J = HarmsJacobian(x,y,z)
+
+            % daz/dx, daz/dy, daz/dz
+            J(1,1,:)  = -y./(y.^2+x.^2);
+            J(1,2,:)  = x./(y.^2+x.^2);
+            J(1,3,:)  = zeros(size(x));
+
+            % del/dx, del/dy, del/dz
+            J(2,1,:)  = -z./(z.^2+x.^2);
+            J(2,2,:)  = zeros(size(x));
+            J(2,3,:)  = x./(z.^2+x.^2);
+
+        end
+
+        function J = HarmsInverseJacobian(az, el)
             % Define the trigonometric functions
             tan_az = tan(az);
             sec_az = sec(az);
@@ -3240,75 +3177,34 @@ classdef Geometry3D
             denominator = (1 + tan_az.^2 + tan_el.^2).^(3/2);
 
             % Calculate each element of the Jacobian matrix
-            dxdaz = -tan_az .* sec_az.^2 ./ denominator;
-            dxdel = -tan_el .* sec_el.^2 ./ denominator;
 
-            dydaz = (sec_az.^2 - tan_az.^2 .* sec_az.^2) ./ denominator;
-            dydel = -tan_az .* sec_az.^2 .* tan_el ./ denominator;
+            % dx/daz, dy/daz, dz/daz
+            J(1,1,:) = -tan_az .* sec_az.^2 ./ denominator;
+            J(2,1,:) = (sec_az.^2 - tan_az.^2 .* sec_az.^2) ./ denominator;
+            J(3,1,:) = -tan_az .* sec_az.^2 .* tan_el ./ denominator;
+            
+            % dx/del, dy/del, dz/del
+            J(1,2,:) = -tan_el .* sec_el.^2 ./ denominator;
+            J(2,2,:) = -tan_az .* sec_az.^2 .* tan_el ./ denominator;
 
-            dzdaz = -tan_az .* sec_az.^2 .* tan_el ./ denominator;
-            dzdel = (sec_el.^2 - tan_el.^2 .* sec_el.^2) ./ denominator;
+            J(3,2,:) = (sec_el.^2 - tan_el.^2 .* sec_el.^2) ./ denominator;
 
         end
 
-        function [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = HarmsRotationalJacobian(az, el)
-            [x, y, z] = Geometry3D.HarmsToSphere(az, el);
+        function J = HessJacobian(x,y,z)
+            denom1 = sqrt( 1 - y.^2 ) ;
+            denom2 = sqrt( 1 - z.^2 ) ;
 
-            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsLinearJacobian(az, el);
+            % daz/dx, daz/dy, daz/dz
+            J(1,1,:) = 1./denom1 .* -x.*y;
+            J(1,2,:) = 1./denom1 .* ( x.^2 + z.^2 );
+            J(1,3,:) = 1./denom1 .* -y.*z;
 
-            % this uses the property that the linear velocity of a point on the
-            % sphere rotating by an angular velocity is the cross product of the
-            % coordinates of the point and the angular velocity.
-            %
-            % so then we can multiply the linear jacobian by the cross product
-            % matrix equivalent of the point coordinates
-
-            dazwxdt = 0*dazdx + z.*dazdy - y.*dazdz;
-            dazwydt = -z.*dazdx - 0.*dazdy + x.*dazdz;
-            dazwzdt = y.*dazdx - x.*dazdy + 0*dazdz;
-
-            delwxdt = 0*deldx + z.*deldy - y.*deldz;
-            delwydt = -z.*deldx + 0*deldy + x.*deldz;
-            delwzdt = y.*deldx - x.*deldy + 0.*deldz;
+            % del/dx, del/dy, del/dz
+            J(2,1,:) = 1./denom2 .* -x.*z;
+            J(2,2,:) = 1./denom2 .* -y.*z;
+            J(2,3,:) = 1./denom2 .* ( x.^2 + y.^2 );
         end
-
-        function [dazdx, dazdy, dazdz, deldx, deldy, deldz] = HessLinearJacobian(az, el)
-            [x, y, z] = Geometry3D.HessToSphere(az, el);
-            denom1 = (x.^2 + y.^2 + z.^2) .* sqrt( 1 - y.^2 ) ;
-            denom2 = (x.^2 + y.^2 + z.^2) .* sqrt( 1 - z.^2 ) ;
-
-            % this are just the derivatives of the SphereToHarms function
-            dazdx = 1./denom1 .* -x.*y;
-            dazdy = 1./denom1 .* ( x.^2 + z.^2 );
-            dazdz = 1./denom1 .* -y.*z;
-
-            deldx = 1./denom2 .* -x.*z;
-            deldy = 1./denom2 .* -y.*z;
-            deldz = 1./denom2 .* ( x.^2 + y.^2 );
-        end
-
-
-        function [dazwxdt, dazwydt, dazwzdt, delwxdt, delwydt, delwzdt] = HessRotationalJacobian(az, el)
-            [x, y, z] = Geometry3D.HessToSphere(az, el);
-
-            [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HessLinearJacobian(az, el);
-
-            % this uses the property that the linear velocity of a point on the
-            % sphere rotating by an angular velocity is the cross product of the
-            % coordinates of the point and the angular velocity.
-            %
-            % so then we can multiply the linear jacobian by the cross product
-            % matrix equivalent of the point coordinates
-
-            dazwxdt = 0*dazdx + z.*dazdy - y.*dazdz;
-            dazwydt = -z.*dazdx - 0.*dazdy + x.*dazdz;
-            dazwzdt = y.*dazdx - x.*dazdy + 0*dazdz;
-
-            delwxdt = 0*deldx + z.*deldy - y.*deldz;
-            delwydt = -z.*deldx + 0*deldy + x.*deldz;
-            delwzdt = y.*deldx - x.*deldy + 0.*deldz;
-        end
-
 
         function [x, y, z] = PolarToSphere(angle, eccentricity)
             x = cos( eccentricity );
@@ -3321,32 +3217,25 @@ classdef Geometry3D
             angle = atan2(z,y);
         end
 
-        function [dudx, dudy, dudz, dvdx, dvdy, dvdz] = TangentSphereLinearJacobian(x,y,z)
+        function J = TangentSphereJacobian(x,y,z)
 
-            dudx = -y;
-            dudy = 1 -  ( y.^2 ) ./ (1 + x);
-            dudz = -( y .* z ) ./ (1 + x) ;
+            % daz/dx, daz/dy, daz/dz
+            J(1,1,:) = -y;
+            J(1,2,:) = 1 -  ( y.^2 ) ./ (1 + x);
+            J(1,3,:) = -( y .* z ) ./ (1 + x) ;
 
-            dvdx = -z ;
-            dvdy = -( y .* z ) ./ (1 + x) ;
-            dvdz = 1 -  ( z.^2 ) ./ (1 + x) ;
+            % del/dx, del/dy, del/dz
+            J(2,1,:) = -z ;
+            J(2,2,:) = -( y .* z ) ./ (1 + x) ;
+            J(2,3,:) = 1 -  ( z.^2 ) ./ (1 + x) ;
 
         end
 
-        function [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = TangentSphereInverseJacobian(x,y,z)
-            [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.TangentSphereLinearJacobian(x,y,z);
+        function J = TangentSphereInverseJacobian(x,y,z)
+            J = Geometry3D.TangentSphereJacobian(x,y,z);
+            J = J';
         end
 
-        function [duwxdt, duwydt, duwzdt, dvwxdt, dvwydt, dvwzdt] = TangentSphereRotationalJacobian(x,y,z)
-
-            duwxdt = y;
-            duwydt = 1 -  ( y.^2 ) ./ (1 + x);
-            duwzdt = -( y .* z ) ./ (1 + x) ;
-
-            dvwxdt = -z;
-            dvwydt = -( y .* z ) ./ (1 + x);
-            dvwzdt =  1 -  ( z.^2 ) ./ (1 + x);
-        end
 
         function [x, y, z] = SpiralSphere(Ni)
 
