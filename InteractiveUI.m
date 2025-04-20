@@ -63,20 +63,27 @@ classdef InteractiveUI < matlab.apps.AppBase
                     for i=1:length(sliders)
                         slider = sliders{i};
 
-                        if (length(app.GridLayout.Children(i).Children) > 3)
-                            % if the control is a slider we need to keep
-                            % labels and sliders consistent
-                            sliderNum = 3;
-                            numFieldNum = 4;
+                        switch(lower(string(app.GridLayout.Children(i).Tag)))
+                            case "slider"
+                                % if the control is a slider we need to keep
+                                % labels and sliders consistent
+                                sliderNum = 3;
+                                numFieldNum = 4;
 
-                            if (  class(app.GridLayout.Children(i).Children(sliderNum)) == "matlab.ui.control.Slider" )
-                                lims = app.GridLayout.Children(i).Children(sliderNum).Limits;
-                                value = app.Values.(slider);
-                                value = max(min(value, lims(2)),lims(1));
+                                if (  class(app.GridLayout.Children(i).Children(sliderNum)) == "matlab.ui.control.Slider" )
+                                    lims = app.GridLayout.Children(i).Children(sliderNum).Limits;
+                                    value = app.Values.(slider);
+                                    value = max(min(value, lims(2)),lims(1));
 
-                                app.GridLayout.Children(i).Children(sliderNum).Value = value;
-                                app.GridLayout.Children(i).Children(numFieldNum).Value = value;
-                            end
+                                    app.GridLayout.Children(i).Children(sliderNum).Value = value;
+                                    app.GridLayout.Children(i).Children(numFieldNum).Value = value;
+                                end
+
+                            case "dropdown"
+                                dropdownNum = 1;
+                                if ( app.Values.(slider) ~= app.GridLayout.Children(i).Children(dropdownNum).Value)
+                                    app.GridLayout.Children(i).Children(dropdownNum).Value = app.Values.(slider);
+                                end
                         end
                     end
 
@@ -101,6 +108,12 @@ classdef InteractiveUI < matlab.apps.AppBase
 
         % Value changed function: Slider
         function SliderValueChanged(app, event)
+            value = event.Source.Value;
+            app.Values.(event.Source.Tag) = value;
+            app.Update();
+        end
+
+        function DropDownVlaueChanged(app, event)
             value = event.Source.Value;
             app.Values.(event.Source.Tag) = value;
             app.Update();
@@ -223,6 +236,7 @@ classdef InteractiveUI < matlab.apps.AppBase
         function AddSlider(app, name, defaultvalue, range)
 
             Panel = app.AddPanel();
+            Panel.Tag = 'Slider';
 
             textname = name;
             name = matlab.lang.makeValidName(name);
@@ -270,6 +284,7 @@ classdef InteractiveUI < matlab.apps.AppBase
         function AddDropDown(app, name, defaultvalue, values)
 
             Panel = app.AddPanel();
+            Panel.Tag = 'DropDown';
 
             textname = name;
             name = matlab.lang.makeValidName(name);
@@ -284,7 +299,7 @@ classdef InteractiveUI < matlab.apps.AppBase
             % Create DropDown
             DropDown = uidropdown(Panel,"Items",values);
             DropDown.Position = [250 14 303 33];
-            DropDown.ValueChangedFcn = createCallbackFcn(app, @SliderValueChanged, true);
+            DropDown.ValueChangedFcn = createCallbackFcn(app, @DropDownVlaueChanged, true);
             DropDown.Tag = name;
             DropDown.Value = DropDown.Items{defaultvalue};
 
