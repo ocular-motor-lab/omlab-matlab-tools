@@ -72,8 +72,10 @@ classdef InteractiveUI < matlab.apps.AppBase
 
                                 if (  class(app.GridLayout.Children(i).Children(sliderNum)) == "matlab.ui.control.Slider" )
                                     lims = app.GridLayout.Children(i).Children(sliderNum).Limits;
-                                    value = app.Values.(slider);
+                                    value = app.Values.(slider); 
                                     value = max(min(value, lims(2)),lims(1));
+
+                                    value = round(value*10)/10; % round to first decimal
 
                                     app.GridLayout.Children(i).Children(sliderNum).Value = value;
                                     app.GridLayout.Children(i).Children(numFieldNum).Value = value;
@@ -153,7 +155,7 @@ classdef InteractiveUI < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 645 ((app.rowHeight+app.rowSpacing)*N)];
+            app.UIFigure.Position = [100 100 400 ((app.rowHeight+app.rowSpacing)*N)];
             app.UIFigure.Name = 'MATLAB App';
             app.UIFigure.Resize = 'off';
 
@@ -233,7 +235,11 @@ classdef InteractiveUI < matlab.apps.AppBase
             % Panel.BorderType = 'none';
         end
 
-        function AddSlider(app, name, defaultvalue, range)
+        function AddSlider(app, name, defaultvalue, range, helptext)
+
+            if (~exist('helptext','var'))
+                helptext = '';
+            end
 
             Panel = app.AddPanel();
             Panel.Tag = 'Slider';
@@ -245,36 +251,41 @@ classdef InteractiveUI < matlab.apps.AppBase
             % Create EditFieldLabel
             EditFieldLabel = uilabel(Panel);
             EditFieldLabel.HorizontalAlignment = 'right';
-            EditFieldLabel.Position = [2 16 140 22];
+            EditFieldLabel.Position = [2 23 140 20];
             EditFieldLabel.Text = textname;
+            EditFieldLabel.Tooltip = helptext;
 
             % Create EditField
             EditField = uieditfield(Panel, 'numeric');
-            EditField.Position = [145 16 50 22];
+            EditField.Position = [92 2 50 20];
             EditField.ValueChangedFcn = createCallbackFcn(app, @EditFieldValueChanged, true);
             EditField.Tag = name;
+            EditField.Tooltip = helptext;
 
             % Create Slider
             Slider = uislider(Panel);
-            Slider.Position = [250 34 303 3];
+            Slider.Position = [175 34 195 3];
             Slider.ValueChangedFcn = createCallbackFcn(app, @SliderValueChanged, true);
             Slider.ValueChangingFcn = createCallbackFcn(app, @SliderValueChanging, true);
             Slider.Tag = name;
             Slider.Limits = range;
+            Slider.Tooltip = helptext;
 
             % Create Button
             Button = uibutton(Panel, 'push');
-            Button.Position = [574 14 31 23];
+            Button.Position = [145 23 20 20];
             Button.Text = '+';
             Button.ButtonPushedFcn = createCallbackFcn(app, @ButtonPushed, true);
             Button.Tag = name;
+            Button.Tooltip = helptext;
 
             % Create Button_2
             Button_2 = uibutton(Panel, 'push');
             Button_2.ButtonPushedFcn = createCallbackFcn(app, @ButtonPushed, true);
-            Button_2.Position = [204 16 29 23];
+            Button_2.Position = [145 2 20 20];
             Button_2.Text = '-';
             Button_2.Tag = name;
+            Button_2.Tooltip = helptext;
 
             app.Update();
 
@@ -293,12 +304,12 @@ classdef InteractiveUI < matlab.apps.AppBase
             % Create EditFieldLabel
             EditFieldLabel = uilabel(Panel);
             EditFieldLabel.HorizontalAlignment = 'right';
-            EditFieldLabel.Position = [8 16 115 22];
+            EditFieldLabel.Position = [2 23 140 20];
             EditFieldLabel.Text = textname;
 
             % Create DropDown
             DropDown = uidropdown(Panel,"Items",values);
-            DropDown.Position = [250 14 303 33];
+            DropDown.Position = [175 14 195 33];
             DropDown.ValueChangedFcn = createCallbackFcn(app, @DropDownVlaueChanged, true);
             DropDown.Tag = name;
             DropDown.Value = DropDown.Items{defaultvalue};
