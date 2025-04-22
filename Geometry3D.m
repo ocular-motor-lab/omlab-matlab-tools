@@ -564,35 +564,39 @@ classdef Geometry3D
             % example point
             paz = deg2rad(app.Values.Azimuth);
             pel = deg2rad(app.Values.Elevation);
-            switch(coordSys)
-                case 'Fick'
-                    [px,py,pz] = Geometry3D.FickToSphere(paz,pel);
-                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.FickInverseJacobian(paz, pel);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickCoordinatesJacobian(px,py,pz);
 
-                case 'Helmholtz'
-                    [px,py,pz] = Geometry3D.HelmholtzToSphere(paz,pel);
-                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HelmholtzInverseJacobian(paz, pel);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzCoordinatesJacobian(px,py,pz);
-                case 'Harms'
-                    [px,py,pz] = Geometry3D.HarmsToSphere(paz,pel);
-                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HarmsInverseJacobian(paz, pel);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsCoordinatesJacobian(px,py,pz);
-                case 'Hess'
-                    [px,py,pz] = Geometry3D.HessToSphere(paz,pel);
-                    [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HessInverseJacobian(paz, pel);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HessCoordinatesJacobian(px,py,pz);
-                case 'TangentSphere'
-                    [px,py,pz] = Geometry3D.FickToSphere(paz,pel);
-                    [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereJacobian(px,py,pz);
-                    dxdaz = dazdx;
-                    dydaz = dazdy;
-                    dzdaz = dazdz;
-                    dxdel = deldx;
-                    dydel = deldy;
-                    dzdel = deldz;
-                    [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.TangentRotationalJacobian(px,py,pz);
-            end
+
+            [px,py,pz] = Geometry3D.AzElToSphere(paz,pel, coordSys);
+            [Jwpoint, Jvpoint] = Geometry3D.CalculateMotionJacobianFields([px,py,pz],coordSys);
+
+            % switch(coordSys)
+            %     case 'Fick'
+            %         [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.FickInverseJacobian(paz, pel);
+            %         [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.FickCoordinatesJacobian(px,py,pz);
+            % 
+            %     case 'Helmholtz'
+            %         [px,py,pz] = Geometry3D.HelmholtzToSphere(paz,pel);
+            %         [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HelmholtzInverseJacobian(paz, pel);
+            %         [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HelmholtzCoordinatesJacobian(px,py,pz);
+            %     case 'Harms'
+            %         [px,py,pz] = Geometry3D.HarmsToSphere(paz,pel);
+            %         [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HarmsInverseJacobian(paz, pel);
+            %         [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HarmsCoordinatesJacobian(px,py,pz);
+            %     case 'Hess'
+            %         [px,py,pz] = Geometry3D.HessToSphere(paz,pel);
+            %         [dxdaz, dydaz, dzdaz, dxdel, dydel, dzdel] = Geometry3D.HessInverseJacobian(paz, pel);
+            %         [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.HessCoordinatesJacobian(px,py,pz);
+            %     case 'TangentSphere'
+            %         [px,py,pz] = Geometry3D.FickToSphere(paz,pel);
+            %         [dazdx, dazdy, dazdz, deldx, deldy, deldz] = Geometry3D.TangentSphereJacobian(px,py,pz);
+            %         dxdaz = dazdx;
+            %         dydaz = dazdy;
+            %         dzdaz = dazdz;
+            %         dxdel = deldx;
+            %         dydel = deldy;
+            %         dzdel = deldz;
+            %         [rdazwx, rdazwy, rdazwz, rdelwx, rdelwy, rdelwz] = Geometry3D.TangentRotationalJacobian(px,py,pz);
+            % end
 
             % udpate sphere
             set(app.Data.hs.meshSphere, 'xdata',xs,'ydata',ys,'zdata',zs)
@@ -734,6 +738,7 @@ classdef Geometry3D
             app.AddSlider('Hering–Hillebrand deviation',0,  [-0.5 0.5])
             app.AddDropDown('View3D',                   1,  ["OBLIQUE" "TOP" "BACK" "SIDE"])
             app.AddSlider('Screen slant deg',           0,  [-30 30])
+            app.AddDropDown('Extended horopter',                   1,  ["YES" "NO"])
 
 
             app.Data.Screen = struct();
@@ -969,7 +974,11 @@ classdef Geometry3D
 
             h3d = horopter.Points;
             h3d(abs(horopter.Az) > deg2rad(60) | abs(horopter.El) > deg2rad(60)) = nan; % restrict the eccentricities
-            set(h.plot3D.horopter, 'xdata', h3d(:,:,1), 'ydata', h3d(:,:,2), 'zdata', h3d(:,:,3), 'cdata', horopter.MinDisparity);
+            if ( app.Values.ExtendedHoropter == "YES")
+                set(h.plot3D.horopter, 'xdata', h3d(:,:,1), 'ydata', h3d(:,:,2), 'zdata', h3d(:,:,3), 'cdata', horopter.MinDisparity);
+            else
+                set(h.plot3D.horopter, 'xdata', 0, 'ydata', 0, 'zdata', 0, 'cdata', 0);
+            end
 
             if (~isfield(app.Data, 'View3D') || app.Data.View3D ~= string(app.Values.View3D) )
                 switch(app.Values.View3D)
@@ -1004,7 +1013,11 @@ classdef Geometry3D
             r = rad2deg(Geometry3D.AzimuthalEquidistantProjectionZY(eyePoints{:,{'RX' 'RY' 'RZ'  }}));
 
             ph = reshape(ph,size(horopter.Points));
-            set(h.plotRetina.horopter,          'xdata', -ph(:,:,2), 'ydata', ph(:,:,3), 'zdata', 0*ph(:,:,2), 'cdata', horopter.MinDisparity);
+            if ( app.Values.ExtendedHoropter == "YES")
+                set(h.plotRetina.horopter,          'xdata', -ph(:,:,2), 'ydata', ph(:,:,3), 'zdata', 0*ph(:,:,2), 'cdata', horopter.MinDisparity);
+            else
+                set(h.plotRetina.horopter,          'xdata', 0, 'ydata',0, 'zdata', 0, 'cdata', 0);
+            end
             set(h.plotRetina.leftEyePoints,     'XData', -l(:,2), 'YData',l(:,3));
             set(h.plotRetina.rightEyePoints,    'XData', -r(:,2), 'YData',r(:,3));
 
@@ -1104,7 +1117,7 @@ classdef Geometry3D
         function demoMotionFlow()
 
             app = InteractiveUI('Motion Flow Simulator',@(app) (Geometry3D.demoMotionFlowUpdate(app)), 0.2);
-            app.AddDropDown('Stimulus',      1,  ["Ground plane" "Point cloud" "Infinite"])
+            % app.AddDropDown('Stimulus',      1,  ["Ground plane" "Point cloud" "Infinite"])
             app.AddSlider('Eye height',           1.5,[0    10])
             app.AddSlider('Fixation Azimuth',     0,  [-90 90])
             app.AddSlider('Fixation Elevation',   0,  [-90 90])
@@ -1158,8 +1171,8 @@ classdef Geometry3D
             margin = floor(0.1*(screen_size(4)));
             h.figure = figure('color','w','position',floor([margin margin screen_size(3)*2.8/4 screen_size(4)*2/4 ]));
 
-            plotHeadCentered        = [0.1    0.1    0.3    0.9];
-            plotEyeCentered         = [0.4    0.1    0.3    0.9];
+            plotHeadCentered        = [0.1    0.1    0.4    0.9];
+            plotEyeCentered         = [0.6    0.1    0.4    0.9];
             plotEyeCenteredCoord    = [0.7    0.1    0.3    0.9];
 
 
@@ -1287,7 +1300,7 @@ classdef Geometry3D
             % Plot retina coordinate system plot
             %-----------------------------
 
-            h.plotRC.ax = axes('OuterPosition', plotEyeCenteredCoord, 'nextplot','add');
+            % h.plotRC.ax = axes('OuterPosition', plotEyeCenteredCoord, 'nextplot','add');
 %             set(gca, 'PlotBoxAspectRatio',[1 1 1])
 %             grid
 %             set(gca,'xlim',[-40 40],'ylim',[-40 40])
@@ -1620,11 +1633,11 @@ classdef Geometry3D
             app = InteractiveUI('Listing''s law demo',@(app) (Geometry3D.demoListingsLawUpdate(app)), .2);
 
             app.AddDropDown('Coordinate system',      1,  [ "Fick" "Helmholtz" "Hess" "Harms" "ImagePlane"])
-            app.AddSlider('Eye Position Azimuth',     0, [-90 90], ...
+            app.AddSlider('Eye Position Azimuth',     0, [-60 60], ...
                 'Eye position horizontal motion in whichever coordinate system is selected.')
-            app.AddSlider('Eye position Elevation',    0, [-90 90], ...
+            app.AddSlider('Eye position Elevation',    0, [-60 60], ...
                 'Eye position vertical motion in whichever coordinate system is selected.')
-            app.AddSlider('Torsion',0, [-90 90], ...
+            app.AddSlider('Torsion',0, [-60 60], ...
                 'Eye torsion. If following Listing''s law it just gets added on top.')
 
             app.AddSlider('Listing''s plane pitch',   0,  [-90 90])
@@ -1678,7 +1691,7 @@ classdef Geometry3D
             axis equal;
 
     
-            set(gca,'OuterPosition', [-0.7   0   1.7     1])
+            set(gca,'OuterPosition', [-0.72   0   1.7     1])
             h.ax = gca;
 
             h.frame(1) = line(0,0,0,'linewidth',2,'color','k');
@@ -1695,7 +1708,7 @@ classdef Geometry3D
             h.wHmeridianScreen = line(0,0,0,'linewidth',2,'color','c');            
 
             set(gca,'Projection','perspective')
-            set(gca,'CameraPosition',[-1 -10 1],'cameratarget',[1 0 0])
+            set(gca,'CameraPosition',[-1 10 1],'cameratarget',[1 0 0])
             set(gca,'xlim',[-2 3],'ylim',[-4 4],'zlim',[-4 4])
             set(gca,'XTick',[],'YTick',[],'ZTick',[])
             %set(gca,'visible','off')
@@ -1711,8 +1724,8 @@ classdef Geometry3D
             zlabel(h.ax,'z')
 
             legend([ h.listingsPlane,  h.rotationVector, h.rotationVectorFromPrimary,],...
-                {'Listing''s Plane', 'Rotation axis from Primary (listing''s) position', 'Rotation axis from straight ahead', }, ...
-                'Location','none','box','off','fontsize',12, 'Position',[0.1 0.9 0.08 0.1]);
+                {'Listing''s Plane', 'Rotation axis from straight ahead', 'Rotation axis from Primary (listing''s) position'}, ...
+                'Location','none','box','off','fontsize',12, 'Position',[0.12 0.9 0.08 0.1]);
 
 
             % screen plot
@@ -1738,8 +1751,10 @@ classdef Geometry3D
             title('Projection onto flat screen');
 
             legend([ h.imageplot.FixationPosition,  h.imageplot.PrimaryPosition, h.imageplot.wHmeridianScreen, h.imageplot.wVmeridianScreen , h.imageplot.rHmeridianScreen, h.imageplot.rVmeridianScreen ],...
-                {'Fixation position', 'Primary (listing''s) position', 'Screen Horiz. merid.', 'Screen Vert. merid.', 'Retinal Horiz. merid.', 'Retinal Vert. merid.' }, ...
-                'Location','none','box','off','fontsize',12, 'Position',[0.4 0.06 0.14 0.16]);
+                {'Fixation position', 'Primary (listing''s) position', 'Screen Horizontal meridian', 'Screen Vertical meridian', 'Retinal Horizontal meridian', 'Retinal Vertical meridian' }, ...
+                'Location','none','box','off','fontsize',12, 'Position',[0.4 0.82 0.14 0.16]);
+
+            h.imageplot.SVVtext = text(-2.2, -3.4,'hi');
 
             % retina plot
 
@@ -1755,8 +1770,15 @@ classdef Geometry3D
             h.imageplot2.RetinaFixedPathApprox = line(0,0,'linewidth',1,'color','b');
             h.imageplot2.FixationPosition = line(0,0,'linestyle','none','marker','o','markersize',6,'linewidth',2,'color','k');
 
+            h.imageplot2.ErrorText = text(-40, -60,'hi');
+
             h.WorldFixedPathData = [[(-10:10)';10*ones(21,1);(10:-1:-10)';-10*ones(21,1)] [10*ones(21,1);(10:-1:-10)';-10*ones(21,1);(-10:10)' ]  ]/10;
             h.RetinaFixedPathData = [[(-10:10)';10*ones(21,1);(10:-1:-10)';-10*ones(21,1)] [10*ones(21,1);(10:-1:-10)';-10*ones(21,1);(-10:10)' ]  ]/10;
+
+
+            legend([ h.imageplot2.RetinaFixedPath,  h.imageplot2.RetinaFixedPathApprox, ],...
+                {'Retina fixed patch' 'Retina fixed patch approximation'}, ...
+                'Location','none','box','off','fontsize',12, 'Position',[0.8 0.82 0.14 0.12]);
             
             % h.imageplot2.PrimaryPosition = line(0,0,'linestyle','none','marker','o','markersize',10,'linewidth',2,'color','g');
             % set(gca,'XTick',[],'YTick',[])
@@ -1812,8 +1834,23 @@ classdef Geometry3D
                 R = Geometry3D.EulerAngles2RotMat(deg2rad(hvt).*[1 -1 -1], app.Values.CoordinateSystem);
                 RprimToV = R; % TODO:
             end
-            
 
+            % calculate the tilt of SVV and SVH
+            % R is your 3×3 rotation matrix
+            v = R * [1;0;0];      % rotated LOS
+            u = R * [0;1;0];      % rotated vertical meridian
+            n2 = cross(v,u);       % normal to P
+            L = cross(n2, [1;0;0]);% intersection with yz‐plane
+            SVH = -atan2d(L(3), L(2));   % in radians, ±
+
+            % R is your 3×3 rotation matrix
+            v = R * [1;0;0];      % rotated LOS
+            u = R * [0;0;1];      % rotated vertical meridian
+            n2 = cross(v,u);       % normal to P
+            L = cross(n2, [1;0;0]);% intersection with yz‐plane
+            SVV = atan2d(L(2), L(3));   % in radians, ±
+
+            set(app.Data.h.imageplot.SVVtext,'string',sprintf('Tilt of vertical meridian = %0.1f deg \nTilt of horizontal meridian = %0.1f deg \n',SVV,SVH))
 
             % world and retinal meridians in world and retinal coordinagtes
 
@@ -1926,8 +1963,8 @@ classdef Geometry3D
             else
                 ax2 = [0 0 0]';
             end
-            set(app.Data.h.rotationVector, 'xdata', -[0 ax(1)]*50, 'ydata', -[0 ax(2)]*50, 'zdata',-[0 ax(3)]*50);
-            set(app.Data.h.rotationVectorFromPrimary, 'xdata', -[0 ax2(1)]*50, 'ydata', -[0 ax2(2)]*50, 'zdata',-[0 ax2(3)]*50);
+            set(app.Data.h.rotationVector, 'xdata', -[0 ax(1)]*500, 'ydata', -[0 ax(2)]*500, 'zdata',-[0 ax(3)]*500);
+            set(app.Data.h.rotationVectorFromPrimary, 'xdata', -[0 ax2(1)]*500, 'ydata', -[0 ax2(2)]*500, 'zdata',-[0 ax2(3)]*500);
 
 
             set(app.Data.h.image3Dplot.WorldFixedPath,  'xdata', wpatch3D(:,1), 'ydata',wpatch3D(:,2), 'zdata', wpatch3D(:,3));
@@ -1966,6 +2003,9 @@ classdef Geometry3D
             set(app.Data.h.imageplot2.RetinaFixedPathApprox,  'xdata',-rad2deg(rpatchazApprox), 'ydata', -rad2deg(rpatchelApprox));
             %set(app.Data.h.imageplot2.WorldFixedPathApprox,  'xdata', rad2deg(winrpatchAprox(:,1)), 'ydata',rad2deg(winrpatchAprox(:,2)));
 
+            meanError = mean(  sqrt( (rad2deg(rpatchaz) - rad2deg(rpatchazApprox)).^2 + (rad2deg(rpatchel) - rad2deg(rpatchelApprox)).^2));
+
+            set(app.Data.h.imageplot2.ErrorText,'string',sprintf('Error from approximation = %0.1f deg \n', meanError))
         end
     end
 
@@ -2529,7 +2569,7 @@ classdef Geometry3D
             % we will use rotation with axis perpendicular to x and then
             % add torsin
 
-            [x, y, z] = Geometry3D.HessToSphere(HVT(1), HVT(2));
+            [x, y, z] = Geometry3D.HessToSphere(HVT(1), -HVT(2));
             R = Geometry3D.LookAtListingsSimple([x y z])*Geometry3D.RotX(HVT(3))';
         end
         function HVT = RotMat2Hess(M)
@@ -2552,7 +2592,7 @@ classdef Geometry3D
             % we will use rotation with axis perpendicular to x and then
             % add torsin
 
-            [x, y, z] = Geometry3D.HarmsToSphere(HVT(1), HVT(2));
+            [x, y, z] = Geometry3D.HarmsToSphere(HVT(1), -HVT(2));
             R = Geometry3D.LookAtListingsSimple([x y z])*Geometry3D.RotX(HVT(3))';
         end
         function HVT = RotMat2Harms(M)
@@ -2579,7 +2619,7 @@ classdef Geometry3D
             % we will use rotation with axis perpendicular to x and then
             % add torsin
 
-            [x, y, z] = Geometry3D.ImagePlaneToSphere(HVT(1), HVT(2),f);
+            [x, y, z] = Geometry3D.ImagePlaneToSphere(HVT(1), -HVT(2),f);
             R = Geometry3D.LookAtListingsSimple([x y z])*Geometry3D.RotX(HVT(3))';
         end
         function HVT = RotMat2ImagePlane(M,f)

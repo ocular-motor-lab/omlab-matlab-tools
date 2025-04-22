@@ -269,7 +269,6 @@ classdef InteractiveUI < matlab.apps.AppBase
             Slider.ValueChangingFcn = createCallbackFcn(app, @SliderValueChanging, true);
             Slider.Tag = name;
             Slider.Limits = range;
-            Slider.Tooltip = helptext;
 
             % Create Button
             Button = uibutton(Panel, 'push');
