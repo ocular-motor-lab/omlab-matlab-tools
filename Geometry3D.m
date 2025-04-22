@@ -1106,19 +1106,27 @@ classdef Geometry3D
             app = InteractiveUI('Motion Flow Simulator',@(app) (Geometry3D.demoMotionFlowUpdate(app)), 0.2);
             app.AddDropDown('Stimulus',      1,  ["Ground plane" "Point cloud" "Infinite"])
             app.AddSlider('Eye height',           1.5,[0    10])
-            app.AddSlider('Fixation Azimuth',     0,  [-100 100])
-            app.AddSlider('Fixation Elevation',   0,  [-100 100])
+            app.AddSlider('Fixation Azimuth',     0,  [-90 90])
+            app.AddSlider('Fixation Elevation',   0,  [-90 90])
 %             app.AddSlider('Ground plane slant',          0,  [-90  90])
             % app.AddSlider('Ground plane tilt',           0,  [0    90])
-            app.AddSlider('Heading Speed',    0,  [0 5])
-            app.AddSlider('Heading Azimuth',    0,  [-100 100])
-            app.AddSlider('Heading Elevation',    0,  [-100 100])
+            app.AddSlider('Heading Speed',    0,  [0 10])
+            app.AddSlider('Heading Azimuth',    0,  [-90 90])
+            app.AddSlider('Heading Elevation',    0,  [-90 90])
+
+            app.AddSlider('Head Angular velocity X',   0,  [-100 100])
+            app.AddSlider('Head Angular velocity Y',   0,  [-100 100])
+            app.AddSlider('Head Angular velocity Z',   0,  [-100 100])
+
             app.AddDropDown('Stabilize',          2,  ["YES" "NO"])
             app.AddSlider('Stabilization Gain',   1,  [-2 2])
-            app.AddSlider('Listings law fraction',   0,  [0 0.5])
-            app.AddSlider('Angular velocity X',   0,  [-100 100])
-            app.AddSlider('Angular velocity Y',   0,  [-100 100])
-            app.AddSlider('Angular velocity Z',   0,  [-100 100])
+            app.AddSlider('VORvsPursuitWeight',   1,  [0 1], ...
+                'Relative contribution of stabilization and pursuit to stabilization, 0 - pure VOR, 1 - pure pursuit') % TODO: how to think about t-vor
+            app.AddSlider('Listings law fraction',   0,  [0 1], ...
+                'Tilt of angular velocity relative to Listing''s plane, 0 - angular velocity falls in listings plane, 1 - angular velocity is orthogonal to gaze direction')
+            app.AddSlider('Eye Angular velocity X',   0,  [-100 100])
+            app.AddSlider('Eye Angular velocity Y',   0,  [-100 100])
+            app.AddSlider('Eye Angular velocity Z',   0,  [-100 100])
             app.AddDropDown('Coordinate system',      1,  [ "Fick" "Helmholtz" "Hess" "Harms"])
             % app.AddDropDown('View3D',             1,  ["Oblique" "TOP" "SIDE"])
 
@@ -1162,8 +1170,8 @@ classdef Geometry3D
             % Head centered plot
             %-----------------------------
             h.plotH.ax = axes('OuterPosition', plotHeadCentered, 'nextplot','add');
-            h.plotH.fixationSpot       = line(0,0, 'linestyle','none','marker','o','Color','r','LineWidth',2, 'markersize',20);
-            h.plotH.headingDirection   = line(0,0, 'linestyle','none','marker','o','Color','g','LineWidth',2, 'markersize',20);
+            h.plotH.fixationSpot       = line(0,0, 'linestyle','none','marker','o','Color','r','LineWidth',2, 'markersize',10);
+            h.plotH.headingDirection   = line(0,0, 'linestyle','none','marker','o','Color','g','LineWidth',2, 'markersize',6);
             h.plotH.motionFlow          = quiver(0,0,0,0,'autoscale','off', 'MaxHeadSize', 0.025);
             title({'Head centered'});
 
@@ -1243,8 +1251,8 @@ classdef Geometry3D
             Geometry3D.DrawPolarGrid(R, numCircles, numRadialLines, labelAngle, 0);
 
 
-            h.plotR.fixationSpot       = line(0,0, 'linestyle','none','marker','o','Color','r','LineWidth',2, 'markersize',20);
-            h.plotR.headingDirection   = line(0,0, 'linestyle','none','marker','o','Color','g','LineWidth',2, 'markersize',20);
+            h.plotR.fixationSpot       = line(0,0, 'linestyle','none','marker','o','Color','r','LineWidth',2, 'markersize',10);
+            h.plotR.headingDirection   = line(0,0, 'linestyle','none','marker','o','Color','g','LineWidth',2, 'markersize',6);
             h.plotR.motionFlow          = quiver(0,0,0,0,'autoscale','off', 'MaxHeadSize', 0.025);
 
 %             axis equal; % Ensure equal scaling on both axes
@@ -1377,29 +1385,41 @@ classdef Geometry3D
             eyePositionRotMat = Geometry3D.LookAtListingsSimple(gazeDirection);
             eyeLocation = [0, 0, app.Values.EyeHeight];
             eyeLinearVelocity = eyePositionRotMat'*headingVelocity;
+
+            headAngularVelocity = deg2rad([app.Values.HeadAngularVelocityX app.Values.HeadAngularVelocityY app.Values.HeadAngularVelocityZ]');
+            eyeheadAngularVelocity = eyePositionRotMat'*headAngularVelocity;
     
             foveaDirection = [1 0 0];
-            fovealVelocity = Geometry3D.CalculateMotionField(foveaDirection, [0 0 0]', eyeLinearVelocity, eyeLocation, eyePositionRotMat);
+            fovealVelocity = Geometry3D.CalculateMotionField(foveaDirection, eyeheadAngularVelocity, eyeLinearVelocity, eyeLocation, eyePositionRotMat);
             [JacAngular] = Geometry3D.CalculateMotionJacobianFields(foveaDirection);
 
             gain = app.Values.StabilizationGain;
             if app.Values.Stabilize == "YES"
                 eyeAngularVelocity = -gain*JacAngular'*fovealVelocity'; 
+
+                normal = gazeDirection * (1-app.Values.ListingsLawFraction) + [1 0 0]' * (app.Values.ListingsLawFraction);
+                wx = -(eyeAngularVelocity(2)*normal(2) + eyeAngularVelocity(3)*normal(3))/normal(1);
+                eyeAngularVelocity(1) = wx;
+                eyeAngularVelocity = eyeAngularVelocity*(app.Values.VORvsPursuitWeight) - eyeheadAngularVelocity*(1-app.Values.VORvsPursuitWeight);
             else
                 eyeAngularVelocity = [0 0 0]';
             end
 
-            eyeAngularVelocity = eyeAngularVelocity + deg2rad([app.Values.AngularVelocityX app.Values.AngularVelocityY app.Values.AngularVelocityZ]');
 
+
+
+            eyeAngularVelocity = eyeAngularVelocity + deg2rad([app.Values.EyeAngularVelocityX app.Values.EyeAngularVelocityY app.Values.EyeAngularVelocityZ]');
+
+            
             visualDirections = app.Data.h.VisualDirections;
 
 
             % 1 - head reference motion field (no eye rotation)
             % 2 - eye reference motion field without eye velocity
             % 3 - eye reference motion field with eye velocity
-            motionFieldLinearHeadReference = Geometry3D.CalculateMotionField(visualDirections, [0 0 0]', headingVelocity, eyeLocation);
-            motionFieldLinearEyeReference = Geometry3D.CalculateMotionField(visualDirections, [0 0 0]', eyeLinearVelocity, eyeLocation, eyePositionRotMat);
-            motionFieldTotalEyeRefefence = Geometry3D.CalculateMotionField(visualDirections, eyeAngularVelocity, eyeLinearVelocity, eyeLocation, eyePositionRotMat);
+            motionFieldLinearHeadReference = Geometry3D.CalculateMotionField(visualDirections, headAngularVelocity, headingVelocity, eyeLocation);
+            motionFieldLinearEyeReference = Geometry3D.CalculateMotionField(visualDirections, eyeheadAngularVelocity, eyeLinearVelocity, eyeLocation, eyePositionRotMat);
+            motionFieldTotalEyeRefefence = Geometry3D.CalculateMotionField(visualDirections, eyeheadAngularVelocity+eyeAngularVelocity, eyeLinearVelocity, eyeLocation, eyePositionRotMat);
 
 
             
