@@ -1651,6 +1651,7 @@ classdef Geometry3D
             app.AddSlider('Retina fixed image patch size',   0,  [0 10])
             app.AddSlider('Retina fixed patch azimuth',       5,  [-60 60])
             app.AddSlider('Retina fixed patch elevation',     0,  [-60 60])
+            app.AddDropDown('View3D',                   1,  ["OBLIQUE" "BACK" "SIDE"])
 
             app.Open();
         end
@@ -1684,8 +1685,8 @@ classdef Geometry3D
             hold
             h.sphere2 = mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8]);
 
-            h.screen = mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8]);
-            h.listingsPlane =  mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',[0.8 0.8 0.8]);
+            h.screen = mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',[0.8 0.8 0.8]);
+            h.listingsPlane =  mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[1 0.8 0.8],'edgecolor',[1 0.8 0.8]);
             h.rotationVector = line(0,0,0,'linewidth',4,'color',[0.3 0.6 0.3], 'linestyle','-.');
             h.rotationVectorFromPrimary = line(0,0,0,'linewidth',4,'color',[0.6 0.3 0.3], 'linestyle','--');
             axis equal;
@@ -1735,7 +1736,7 @@ classdef Geometry3D
             h.imageplot.ax = axes('OuterPosition', [0.3 0 0.35 1], 'nextplot','add');
             axis equal
             h.imageplot.screen = Geometry3D.Plot2DMeshGrid(Y./X*screenD,Z./X*screenD);
-            set(h.imageplot.screen,'color',0.2*[0.8 0.8 0.8])
+            set(h.imageplot.screen,'color',0.6*[0.8 0.8 0.8])
             h.imageplot.rVmeridianScreen = line(0,0,'linewidth',2,'color','r');
             h.imageplot.rHmeridianScreen = line(0,0,'linewidth',2,'color','b');
             h.imageplot.wVmeridianScreen = line(0,0,'linewidth',2,'color','g');
@@ -1784,6 +1785,7 @@ classdef Geometry3D
             % set(gca,'XTick',[],'YTick',[])
             axis equal
             set(gca,'xlim',4*[-10 10],'ylim',4*[-10 10])
+            set(gca,'xtick',[-40:10:40],'ytick',[-40:10:40])
             grid
             title('Projection onto retina coordinate system');
             xlabel('Azimuth (deg)'), ylabel('Elevation (deg)')
@@ -1801,6 +1803,28 @@ classdef Geometry3D
                 app.Data.f = f;
                 app.Data.h = h;
             end
+
+
+            if (~isfield(app.Data, 'View3D') || app.Data.View3D ~= string(app.Values.View3D) )
+                switch(app.Values.View3D)
+                    case 'OBLIQUE'
+%                         set(h.plot3D.ax,'OuterPosition', [-0.03       0    0.7    1.5]);
+%                         set(h.ax,'Projection','perspective')
+                        set(app.Data.h.ax,'CameraPosition',[-1 10 1],'cameratarget',[1 0 0])
+                    case 'BACK'
+%                         set(h.plot3D.ax,'OuterPosition', [0       0    0.5    1]);
+%                         set(h.ax,'Projection','orthographic')
+%                         view([h.ax h.plotListings.ax], -90, 0)
+                        set(app.Data.h.ax,'CameraPosition',[-10 0 0],'cameratarget',[0 0 0])
+                    case 'SIDE'
+%                         set(h.plot3D.ax,'OuterPosition', [0       0    0.5    1]);
+%                         set(h.ax,'Projection','orthographic')
+%                         view([h.plot3D.ax h.plotListings.ax], 0, 0)
+                        set(app.Data.h.ax,'CameraPosition',[0 10 0],'cameratarget',[0.3 0 0])
+                end
+                app.Data.View3D = string(app.Values.View3D);
+            end
+
 
 
             % screen distance

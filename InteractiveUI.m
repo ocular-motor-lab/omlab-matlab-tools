@@ -67,8 +67,8 @@ classdef InteractiveUI < matlab.apps.AppBase
                             case "slider"
                                 % if the control is a slider we need to keep
                                 % labels and sliders consistent
-                                sliderNum = 3;
-                                numFieldNum = 4;
+                                sliderNum = 4;
+                                numFieldNum = 5;
 
                                 if (  class(app.GridLayout.Children(i).Children(sliderNum)) == "matlab.ui.control.Slider" )
                                     lims = app.GridLayout.Children(i).Children(sliderNum).Limits;
@@ -128,6 +128,8 @@ classdef InteractiveUI < matlab.apps.AppBase
                     app.Values.(event.Source.Tag) = app.Values.(event.Source.Tag) + 1;
                 case '-'
                     app.Values.(event.Source.Tag) = app.Values.(event.Source.Tag) - 1;
+                case '<<'
+                    app.Values.(event.Source.Tag) = app.InitialValues.(event.Source.Tag);
             end
             app.Update();
         end
@@ -285,6 +287,14 @@ classdef InteractiveUI < matlab.apps.AppBase
             Button_2.Text = '-';
             Button_2.Tag = name;
             Button_2.Tooltip = helptext;
+
+
+            % Create Button_reset
+            Button_reset = uibutton(Panel, 'push');
+            Button_reset.ButtonPushedFcn = createCallbackFcn(app, @ButtonPushed, true);
+            Button_reset.Position = [60 2 30 20];
+            Button_reset.Text = '<<';
+            Button_reset.Tag = name;
 
             app.Update();
 
