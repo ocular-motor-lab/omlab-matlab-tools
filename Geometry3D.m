@@ -352,7 +352,7 @@ classdef Geometry3D
                     else
                         % add a tiny rotation in the corresponding component to all the
                         % points in the sphere.
-                        pointsrot = [x(:) y(:) z(:)]*dRM{vi}';
+                        pointsrot = [x(:) y(:) z(:)]*dRM{vi};
                         x2 = reshape(pointsrot(:,1),size(x));
                         y2 = reshape(pointsrot(:,2),size(y));
                         z2 = reshape(pointsrot(:,3),size(z));
@@ -1686,6 +1686,7 @@ classdef Geometry3D
             h.sphere2 = mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8]);
 
             h.screen = mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',[0.8 0.8 0.8]);
+            h.displacementPlane =  mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[1 0.8 0.8],'edgecolor',[0.9 0.1 0.1]);
             h.listingsPlane =  mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[1 0.8 0.8],'edgecolor',[1 0.8 0.8]);
             h.rotationVector = line(0,0,0,'linewidth',4,'color',[0.3 0.6 0.3], 'linestyle','-.');
             h.rotationVectorFromPrimary = line(0,0,0,'linewidth',4,'color',[0.6 0.3 0.3], 'linestyle','--');
@@ -1724,8 +1725,8 @@ classdef Geometry3D
             ylabel(h.ax,'y')
             zlabel(h.ax,'z')
 
-            legend([ h.listingsPlane,  h.rotationVector, h.rotationVectorFromPrimary,],...
-                {'Listing''s Plane', 'Rotation axis from straight ahead', 'Rotation axis from Primary (listing''s) position'}, ...
+            legend([ h.listingsPlane,  h.displacementPlane,  h.rotationVector, h.rotationVectorFromPrimary,],...
+                {'Listing''s Plane', 'Displacement Plane', 'Rotation axis from straight ahead', 'Rotation axis from Primary (listing''s) position'}, ...
                 'Location','none','box','off','fontsize',12, 'Position',[0.12 0.9 0.08 0.1]);
 
 
@@ -1970,8 +1971,8 @@ classdef Geometry3D
 
 
 
-            set(app.Data.h.Vmeridian, 'xdata',-rinwVmeridianPoints(:,1), 'ydata', rinwVmeridianPoints(:,2), 'zdata', rinwVmeridianPoints(:,3));
-            set(app.Data.h.Hmeridian, 'xdata',-rinwHmeridianPoints(:,1), 'ydata', rinwHmeridianPoints(:,2), 'zdata', rinwHmeridianPoints(:,3));
+            set(app.Data.h.Vmeridian, 'xdata',-rinwVmeridianPoints(:,1), 'ydata', -rinwVmeridianPoints(:,2), 'zdata', -rinwVmeridianPoints(:,3));
+            set(app.Data.h.Hmeridian, 'xdata',-rinwHmeridianPoints(:,1), 'ydata', -rinwHmeridianPoints(:,2), 'zdata', -rinwHmeridianPoints(:,3));
 
             set(app.Data.h.rVmeridianScreen, 'xdata',rinsVmeridianPoints(:,1), 'ydata', rinsVmeridianPoints(:,2), 'zdata', rinsVmeridianPoints(:,3) );
             set(app.Data.h.rHmeridianScreen, 'xdata',rinsHmeridianPoints(:,1), 'ydata', rinsHmeridianPoints(:,2), 'zdata', rinsHmeridianPoints(:,3) );
@@ -1981,6 +1982,8 @@ classdef Geometry3D
             
             [ListingPlaneX, ListingPlaneY,ListingPlaneZ] = Geometry3D.MakeListingsPlane(n);
             set(app.Data.h.listingsPlane, 'xdata',ListingPlaneX, 'ydata', ListingPlaneY, 'zdata',ListingPlaneZ);
+            [DisplacementPlaneX, DisplacementPlaneY,DisplacementPlaneZ] = Geometry3D.MakeListingsPlane((n+v)/2);
+            set(app.Data.h.displacementPlane, 'xdata',DisplacementPlaneX, 'ydata', DisplacementPlaneY, 'zdata',DisplacementPlaneZ);
             ax = Geometry3D.RotMat2AxisAngle(R);
             if Values.FollowListing_sLaw_ == "YES"
                 ax2 = Geometry3D.RotMat2AxisAngle(RprimToV);
@@ -3097,7 +3100,7 @@ classdef Geometry3D
 
     %% Spherical coordinate methods
     methods(Static)
-        function PlotTangentSphereJacobians()
+        function PlotJacobians(v,Jw,Jv)
             %%
             %
             R = 1; % radius of the eye
@@ -3106,14 +3109,23 @@ classdef Geometry3D
             [az, el] = meshgrid(-2*range:step:2*range,-range:step:range); % azimuths and elevations to include
 
             [xs,ys,zs] = Geometry3D.FickToSphere(deg2rad(az),deg2rad(el));
-            a = ParticleSampleSphere( 'N' ,200);
-            x = a(a(:,1)>0.01,1);
-            y = a(a(:,1)>0.01,2);
-            z = a(a(:,1)>0.01,3);
-            v = [x(:), y(:), z(:) ];
+
+            if ( ~exist('v','var'))
+                a = ParticleSampleSphere( 'N' ,200);
+                x = a(a(:,1)>0.01,1);
+                y = a(a(:,1)>0.01,2);
+                z = a(a(:,1)>0.01,3);
+                v = [x(:), y(:), z(:) ];
 
 
-            [Jacobian.rotational.a, Jacobian.linear.a, ~, Jacobian3D.rotational.a, Jacobian3D.linear.a] = Geometry3D.CalculateMotionJacobianFields(v,'TangentSphere');
+                [Jacobian.rotational.a, Jacobian.linear.a, ~, Jacobian3D.rotational.a, Jacobian3D.linear.a] = Geometry3D.CalculateMotionJacobianFields(v,'TangentSphere');
+            else
+                Jacobian.rotational.a = Jw;
+                Jacobian.linear.a = Jv;
+                x = v(:,1);
+                y = v(:,2);
+                z = v(:,3);
+            end
             duwxdt = -squeeze(Jacobian.rotational.a(1,1,:));
             duwydt = -squeeze(Jacobian.rotational.a(1,2,:));
             duwzdt = -squeeze(Jacobian.rotational.a(1,3,:));
@@ -3127,6 +3139,8 @@ classdef Geometry3D
             dvdx = -squeeze(Jacobian.linear.a(2,1,:));
             dvdy = -squeeze(Jacobian.linear.a(2,2,:));
             dvdz = -squeeze(Jacobian.linear.a(2,3,:));
+
+
 
             figure('color','w')
             subplot(2,5,[1 2 6 7],'nextplot','add')
