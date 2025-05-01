@@ -19,7 +19,11 @@ classdef Geometry3D
     %       matrix gives the coordinates of the point on the rotated
     %       reference frame indicated by the rotation matrix
     %
-    %           pointInRrefframe = R'*point  = (point'R)'
+    %           pointInRrefframe = R'*point  
+    % 
+    %       or equivalently 
+    %
+    %           pointInRrefframe = (point'R)'
     %
     %
     %   2025 - Jorge Otero-Millan
@@ -467,12 +471,11 @@ classdef Geometry3D
             [Z,X,Y] = sphere(res);
 
             % Plot the sphere
-            h.sphere = mesh(R*X,R*Y,R*Z,'FaceAlpha', alpha,'facecolor',[0.8 0.8 0.8],'edgecolor','none');
+            h.sphereSurf = mesh(R*X,R*Y,R*Z,'FaceAlpha', alpha,'facecolor',[0.8 0.8 0.8],'edgecolor','none');
             hold
-            h.sphere2 = mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8]);
+            h.sphereGrid = mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',0.2*[0.8 0.8 0.8]);
 
-            h.screen = mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',[0.8 0.8 0.8]);
-            h.displacementPlane =  mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[1 0.8 0.8],'edgecolor',[0.9 0.1 0.1]);
+            h.screenGrid = mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[0.8 0.8 0.8],'edgecolor',[0.8 0.8 0.8]);
             h.listingsPlane =  mesh(R*X,R*Y,R*Z,'FaceAlpha', 0,'facecolor',[1 0.8 0.8],'edgecolor',[1 0.8 0.8]);
             h.rotationVector = line(0,0,0,'linewidth',4,'color',[0.3 0.6 0.3], 'linestyle','-.');
             h.rotationVectorFromPrimary = line(0,0,0,'linewidth',4,'color',[0.6 0.3 0.3], 'linestyle','--');
@@ -511,8 +514,8 @@ classdef Geometry3D
             ylabel(h.ax,'y')
             zlabel(h.ax,'z')
 
-            legend([ h.listingsPlane,  h.displacementPlane,  h.rotationVector, h.rotationVectorFromPrimary,],...
-                {'Listing''s Plane', 'Displacement Plane', 'Rotation axis from straight ahead', 'Rotation axis from Primary (listing''s) position'}, ...
+            legend([ h.listingsPlane, h.rotationVector, h.rotationVectorFromPrimary,],...
+                {'Listing''s Plane', 'Rotation axis from straight ahead', 'Rotation axis from Primary (listing''s) position'}, ...
                 'Location','none','box','off','fontsize',12, 'Position',[0.12 0.9 0.08 0.1]);
 
 
@@ -522,8 +525,8 @@ classdef Geometry3D
 
             h.imageplot.ax = axes('OuterPosition', [0.3 0 0.35 1], 'nextplot','add');
             axis equal
-            h.imageplot.screen = Geometry3D.Plot2DMeshGrid(Y./X*screenD,Z./X*screenD);
-            set(h.imageplot.screen,'color',0.6*[0.8 0.8 0.8])
+            h.imageplot.screenGrid = Geometry3D.Plot2DMeshGrid(Y./X*screenD,Z./X*screenD);
+            set(h.imageplot.screenGrid,'color',0.6*[0.8 0.8 0.8])
             h.imageplot.rVmeridianScreen = line(0,0,'linewidth',2,'color','r');
             h.imageplot.rHmeridianScreen = line(0,0,'linewidth',2,'color','b');
             h.imageplot.wVmeridianScreen = line(0,0,'linewidth',2,'color','g');
@@ -748,8 +751,8 @@ classdef Geometry3D
 
             % update 3D plot
 
-            set(app.Data.h.sphere2, 'xdata', xgrid, 'ydata',ygrid, 'zdata',zgrid)
-            set(app.Data.h.screen, 'xdata', xgrid./xgrid*screenD, 'ydata',ygrid./xgrid*screenD, 'zdata',zgrid./xgrid*screenD)
+            set(app.Data.h.sphereGrid, 'xdata', xgrid, 'ydata',ygrid, 'zdata',zgrid)
+            set(app.Data.h.screenGrid, 'xdata', xgrid./xgrid*screenD, 'ydata',ygrid./xgrid*screenD, 'zdata',zgrid./xgrid*screenD)
 
             set(app.Data.h.frame(1), 'xdata',      [R(1,1) screenD*R(1,1)/R(1,1)], 'ydata',[R(2,1) screenD*R(2,1)/R(1,1)], 'zdata',[R(3,1) screenD*R(3,1)/R(1,1)])
             set(app.Data.h.frame(2), 'xdata',      [n(1) screenD*n(1)/n(1)], 'ydata',[n(2) screenD*n(2)/n(1)], 'zdata',[n(3) screenD*n(3)/n(1)])
@@ -768,8 +771,6 @@ classdef Geometry3D
 
             [ListingPlaneX, ListingPlaneY,ListingPlaneZ] = Geometry3D.MakeOrthogonalPlaneGrid(n);
             set(app.Data.h.listingsPlane, 'xdata',ListingPlaneX, 'ydata', ListingPlaneY, 'zdata',ListingPlaneZ);
-            [DisplacementPlaneX, DisplacementPlaneY,DisplacementPlaneZ] = Geometry3D.MakeOrthogonalPlaneGrid((n+v)/2);
-            set(app.Data.h.displacementPlane, 'xdata',DisplacementPlaneX, 'ydata', DisplacementPlaneY, 'zdata',DisplacementPlaneZ);
             ax = Geometry3D.RotMat2AxisAngle(R);
             if Values.FollowListing_sLaw_ == "YES"
                 ax2 = Geometry3D.RotMat2AxisAngle(RprimToV);
@@ -792,7 +793,7 @@ classdef Geometry3D
             set(app.Data.h.imageplot.rVmeridianScreen, 'xdata', rinwVmeridianPoints(:,2)./rinwVmeridianPoints(:,1)*screenD, 'ydata',rinwVmeridianPoints(:,3)./rinwVmeridianPoints(:,1)*screenD);
             set(app.Data.h.imageplot.rHmeridianScreen, 'xdata', rinwHmeridianPoints(:,2)./rinwHmeridianPoints(:,1)*screenD, 'ydata',rinwHmeridianPoints(:,3)./rinwHmeridianPoints(:,1)*screenD);
 
-            Geometry3D.Update2DMeshGrid(app.Data.h.imageplot.screen, ygrid./xgrid*screenD, zgrid./xgrid*screenD)
+            Geometry3D.Update2DMeshGrid(app.Data.h.imageplot.screenGrid, ygrid./xgrid*screenD, zgrid./xgrid*screenD)
             set(app.Data.h.imageplot.PrimaryPosition, 'xdata', n(2)./n(1)*screenD, 'ydata',n(3)./n(1)*screenD);
             set(app.Data.h.imageplot.FixationPosition,  'xdata', fy./fx*screenD, 'ydata',fz./fx*screenD);
 
@@ -1740,7 +1741,7 @@ classdef Geometry3D
         end
 
         %%
-        function demoCoordinateSystemsAndPlaneUpdate(app)
+        function demoCoordinateSystemsAndPlaneUpdate2(app)
 
 
             w = deg2rad( [app.Values.AngularVelocityX_deg_s_ , app.Values.AngularVelocityY_deg_s_ , app.Values.AngularVelocityZ_deg_s_] )';
@@ -2357,7 +2358,7 @@ classdef Geometry3D
 
     methods(Static) % BASIC 3D coordinate conversion functions (all in radians)
 
-        % Single axis rotation matrices 
+        % Single axis rotation matrices (right-handed)
 
         function R = RotZ(theta)
             % RotZ: Returns the rotation matrix about the Z-axis. 3rd axis
@@ -2475,6 +2476,7 @@ classdef Geometry3D
             [x, y, z] = Geometry3D.HessToSphere(HVT(1), -HVT(2));
             R = Geometry3D.LookAtListingsSimple([x y z])*Geometry3D.RotX(HVT(3))';
         end
+        
         function HVT = RotMat2Hess(M)
             % For this coordinate system torsion is not well defined
             % we will use rotation with axis perpendicular to x and then
@@ -2498,6 +2500,7 @@ classdef Geometry3D
             [x, y, z] = Geometry3D.HarmsToSphere(HVT(1), -HVT(2));
             R = Geometry3D.LookAtListingsSimple([x y z])*Geometry3D.RotX(HVT(3))';
         end
+        
         function HVT = RotMat2Harms(M)
             % For this coordinate system torsion is not well defined
             % we will use rotation with axis perpendicular to x and then
@@ -2525,6 +2528,7 @@ classdef Geometry3D
             [x, y, z] = Geometry3D.ImagePlaneToSphere(HVT(1), -HVT(2),f);
             R = Geometry3D.LookAtListingsSimple([x y z])*Geometry3D.RotX(HVT(3))';
         end
+        
         function HVT = RotMat2ImagePlane(M,f)
             if (~exist('f','var'))
                 f = 1;
@@ -2757,6 +2761,7 @@ classdef Geometry3D
         end
 
         function [az,el] = SphereToHarms(x,y,z)
+
             az = atan2(y,x);  % longitude
             el = atan2(z,x);  % longitude
         end
@@ -2765,10 +2770,10 @@ classdef Geometry3D
             if (~exist('f','var'))
                 f = 1;
             end
-            denom = sqrt(f.^2 + u.^2 + v.^2);
-            x = f ./ denom;
-            y = u ./ denom;
-            z = v ./ denom;
+            D = sqrt(f.^2 + u.^2 + v.^2);
+            x = f ./ D;
+            y = u ./ D;
+            z = v ./ D;
         end
 
         function [u, v] = SphereToImagePlane(x,y,z,f)
@@ -2790,12 +2795,13 @@ classdef Geometry3D
         end
 
         function [angle, ecc] = SphereToPolar(x,y,z)
-            ecc = acos(x);
+            D = sqrt( x.^2 + y.^2 + z.^2 );
+            
+            ecc = acos(x./D);
             angle = atan2(z,y);
         end
 
-
-        function projPoints = SphereToStereographic(spherePoints)
+        function projPoints = SphereToStereographic(p)
             % SphereToStereographic computes the stereographic projection of points
             % on a sphere onto the zy-plane (x = 1) using the projection point (-1,0,0).
             %
@@ -2812,9 +2818,9 @@ classdef Geometry3D
             %   and are set to NaN.
 
             % Extract the coordinates
-            x = spherePoints(:, 1);
-            y = spherePoints(:, 2);
-            z = spherePoints(:, 3);
+            x = p(:, 1);
+            y = p(:, 2);
+            z = p(:, 3);
 
             % Compute the denominator (1-x)
             denom =  x+1;
@@ -2835,7 +2841,7 @@ classdef Geometry3D
             projPoints = [x_proj, y_proj, z_proj];
         end
 
-        function projPoints = SphereToAzimuthalEquidistant(spherePoints)
+        function projPoints = SphereToAzimuthalEquidistant(p)
             % SphereToAzimuthalEquidistant projects points on the unit sphere onto the
             % tangent plane at the north pole (x = 1) using the azimuthal equidistant projection.
             %
@@ -2856,9 +2862,9 @@ classdef Geometry3D
             %   on the sphere.
 
             % Extract coordinates from the input
-            x = spherePoints(:,1);
-            y = spherePoints(:,2);
-            z = spherePoints(:,3);
+            x = p(:,1);
+            y = p(:,2);
+            z = p(:,3);
 
             % Compute the angular distance from the north pole (in radians)
             r = acos(x);
